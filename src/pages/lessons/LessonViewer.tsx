@@ -104,20 +104,47 @@ const MiniCalc = () => {
 const AISummarizer = ({ content, videoUrl }: { content: string; videoUrl?: string }) => {
   const [summary, setSummary] = useState("");
   const [loading, setLoading] = useState(false);
+  const [source, setSource] = useState<"lesson" | "youtube">("lesson");
+
+  // Extract video ID from URL
+  const videoId = videoUrl?.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/)([a-zA-Z0-9_-]{11})/)?.[1];
 
   const summarize = async () => {
     setLoading(true);
+    setSummary("");
     try {
-      const text = videoUrl
-        ? `Summarize the key concepts from this lesson content that accompanies a YouTube video (${videoUrl}):\n\n${content.substring(0, 6000)}`
-        : `Summarize the following lesson content into clear, concise bullet points:\n\n${content.substring(0, 6000)}`;
+      let contextText = "";
+      let systemPrompt = "";
+
+      if (source === "youtube" && videoId) {
+        // Fetch real transcript from YouTube
+        try {
+          const resp = await fetch(`/api/youtube-transcript?v=${videoId}`);
+          const data = await resp.json();
+
+          if (data.transcript && data.transcript.length > 20) {
+            contextText = `YouTube Video: "${data.title}" by ${data.channel}\n\nTranscript:\n${data.transcript.substring(0, 12000)}`;
+            systemPrompt = "You are a study assistant. Summarize this YouTube video transcript into clear, well-structured notes that a student can study from. Use markdown formatting: ## for section headings, **bold** for key terms, - for bullet points, and numbered lists for steps/sequences. Make the summary comprehensive but concise.";
+          } else {
+            contextText = `YouTube Video: "${data.title}" by ${data.channel}\n\nNo transcript available. Based on the video title and the lesson content below, create study notes:\n\n${content.substring(0, 6000)}`;
+            systemPrompt = "You are a study assistant. The YouTube video has no transcript available. Based on the video title and the lesson content, create well-structured study notes using markdown: ## for headings, **bold** for key terms, - for bullet points.";
+          }
+        } catch {
+          contextText = `YouTube Video URL: ${videoUrl}\n\nLesson content:\n${content.substring(0, 6000)}`;
+          systemPrompt = "You are a study assistant. Create study notes from this lesson content that relates to the YouTube video. Use markdown: ## for headings, **bold** for key terms, - for bullet points.";
+        }
+      } else {
+        contextText = content.substring(0, 8000);
+        systemPrompt = "You are a study assistant. Summarize this lesson content into clear, well-organized study notes. Use markdown formatting: ## for section headings, **bold** for key terms, - for bullet points, and numbered lists where appropriate. Make it easy for students to review and take notes from.";
+      }
+
       const res = await aiComplete({
         messages: [
-          { role: "system", content: "You are a study assistant. Create concise, well-structured summaries with bullet points." },
-          { role: "user", content: text }
+          { role: "system", content: systemPrompt },
+          { role: "user", content: `Create study notes from the following:\n\n${contextText}` }
         ],
         temperature: 0.4,
-        maxTokens: 1024,
+        maxTokens: 1500,
       });
       setSummary(res);
       toast.success("Summary generated!");
@@ -126,14 +153,69 @@ const AISummarizer = ({ content, videoUrl }: { content: string; videoUrl?: strin
     } finally { setLoading(false); }
   };
 
+  // Render formatted markdown inline
+  const renderSummaryInline = (text: string) => {
+    const parts = text.split(/(\*\*[^*]+\*\*|`[^`]+`|\[[^\]]+\]\([^)]+\))/);
+    return parts.map((part, idx) => {
+      if (part.startsWith("**") && part.endsWith("**"))
+        return <strong key={idx} className="text-foreground font-semibold">{part.slice(2, -2)}</strong>;
+      if (part.startsWith("`") && part.endsWith("`"))
+        return <code key={idx} className="text-primary bg-primary/10 px-1 py-0.5 rounded text-[10px] font-mono">{part.slice(1, -1)}</code>;
+      const linkMatch = part.match(/^\[([^\]]+)\]\(([^)]+)\)$/);
+      if (linkMatch)
+        return <a key={idx} href={linkMatch[2]} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">{linkMatch[1]}</a>;
+      return part;
+    });
+  };
+
+  const renderSummaryContent = (text: string) =>
+    text.split("\n").map((line, i) => {
+      if (line.startsWith("### "))
+        return <h4 key={i} className="text-xs font-bold mt-3 mb-1 text-foreground">{renderSummaryInline(line.slice(4))}</h4>;
+      if (line.startsWith("## "))
+        return <h3 key={i} className="text-sm font-bold mt-3 mb-1 text-foreground">{renderSummaryInline(line.slice(3))}</h3>;
+      if (line.startsWith("# "))
+        return <h2 key={i} className="text-sm font-bold mt-3 mb-1 text-foreground">{renderSummaryInline(line.slice(2))}</h2>;
+      if (line.startsWith("- "))
+        return <li key={i} className="text-xs text-muted-foreground ml-3 leading-relaxed list-disc">{renderSummaryInline(line.slice(2))}</li>;
+      if (/^\d+\.\s/.test(line))
+        return <li key={i} className="text-xs text-muted-foreground ml-3 leading-relaxed list-decimal">{renderSummaryInline(line.replace(/^\d+\.\s/, ""))}</li>;
+      if (line.startsWith("```") || line === "```") return null;
+      if (line.trim() === "") return <div key={i} className="h-1" />;
+      return <p key={i} className="text-xs text-muted-foreground leading-relaxed">{renderSummaryInline(line)}</p>;
+    });
+
   return (
-    <div className="space-y-2">
+    <div className="space-y-3">
+      {/* Source toggle when YouTube is available */}
+      {videoId && (
+        <div className="flex gap-1 bg-muted/50 rounded-lg p-0.5">
+          <button
+            onClick={() => setSource("lesson")}
+            className={`flex-1 px-2 py-1.5 rounded-md text-[11px] font-medium transition-colors ${
+              source === "lesson" ? "bg-card text-foreground shadow-sm" : "text-muted-foreground"
+            }`}
+          >
+            📖 Lesson
+          </button>
+          <button
+            onClick={() => setSource("youtube")}
+            className={`flex-1 px-2 py-1.5 rounded-md text-[11px] font-medium transition-colors ${
+              source === "youtube" ? "bg-card text-red-500 shadow-sm" : "text-muted-foreground"
+            }`}
+          >
+            ▶ YouTube
+          </button>
+        </div>
+      )}
+
       <Button onClick={summarize} size="sm" disabled={loading} className="w-full gap-2">
-        {loading ? <><Loader2 className="h-3.5 w-3.5 animate-spin" /> Summarizing…</> : <><Sparkles className="h-3.5 w-3.5" /> AI Summary</>}
+        {loading ? <><Loader2 className="h-3.5 w-3.5 animate-spin" /> Generating…</> : <><Sparkles className="h-3.5 w-3.5" /> {source === "youtube" ? "Summarize Video" : "AI Summary"}</>}
       </Button>
+
       {summary && (
-        <div className="bg-muted/50 rounded-lg px-3 py-2 text-xs text-foreground whitespace-pre-wrap max-h-[250px] overflow-y-auto scrollbar-thin leading-relaxed">
-          {summary}
+        <div className="bg-muted/50 rounded-lg px-3 py-3 max-h-[350px] overflow-y-auto scrollbar-thin space-y-0.5">
+          {renderSummaryContent(summary)}
         </div>
       )}
     </div>
