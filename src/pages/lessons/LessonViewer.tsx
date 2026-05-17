@@ -158,7 +158,14 @@ const LessonViewer = () => {
       if (!topicId) return null;
       try {
         const topicDoc = await getDoc(doc(db, "topics", topicId));
-        return topicDoc.exists() ? { id: topicDoc.id, ...topicDoc.data() } : null;
+        return topicDoc.exists() ? { id: topicDoc.id, ...topicDoc.data() } as {
+          id: string;
+          title?: string;
+          subject?: string;
+          subjectName?: string;
+          subjects?: { name?: string };
+          [key: string]: any;
+        } : null;
       } catch (error) {
         console.error("[LessonViewer] Topic fetch error:", error);
         return null;
