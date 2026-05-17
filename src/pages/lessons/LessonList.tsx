@@ -1,8 +1,7 @@
 import { useState, lazy, Suspense } from "react";
 import { Link } from "react-router-dom";
-import { BookOpen, ChevronRight, Search, Calculator, Atom, FlaskConical, Leaf, FileText, Loader2, Sparkles, Plus, CalendarDays, Wand2 } from "lucide-react";
+import { BookOpen, ChevronRight, Search, Calculator, Atom, FlaskConical, Leaf, FileText, Loader2, Sparkles, Plus, CalendarDays } from "lucide-react";
 import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/AuthContext";
@@ -27,9 +26,6 @@ const LessonList = () => {
   const [search, setSearch] = useState("");
   const [generatingFor, setGeneratingFor] = useState<string | null>(null);
   const [showPlanner, setShowPlanner] = useState(false);
-  const [topicInput, setTopicInput] = useState("");
-  const [topicDetails, setTopicDetails] = useState("");
-  const [generatingTopic, setGeneratingTopic] = useState(false);
   const queryClient = useQueryClient();
 
   // Fetch user materials
@@ -225,112 +221,6 @@ ${materialContent}`;
     }
   };
 
-  // ── Generate course from topic name (no file needed) ──────────
-  const handleGenerateFromTopic = async () => {
-    if (!user || !topicInput.trim()) return;
-    if (topicInput.trim().length < 3) {
-      toast.error("Please enter a topic name (at least 3 characters).");
-      return;
-    }
-
-    setGeneratingTopic(true);
-    toast.info(`Generating lessons for "${topicInput.trim()}"...`);
-
-    let parsed = null;
-    let attempt = 0;
-    const maxRetries = 3;
-    let lastError = null;
-
-    while (attempt < maxRetries && !parsed) {
-      try {
-        attempt++;
-        const prompt = `Create a structured course on the topic: "${topicInput.trim()}"
-${topicDetails.trim() ? `Additional context: ${topicDetails.trim()}` : ""}
-
-Return ONLY a valid JSON object (no markdown wrappers, no commentary).
-
-JSON format:
-{"topic_title":"string","subject":"string","description":"string","lessons":[{"title":"string","content":"string"}]}
-
-Rules:
-- topic_title: descriptive course name
-- subject: the academic subject area (e.g., Physics, Mathematics, Computer Science)
-- description: 1-2 sentence course overview
-- lessons: exactly 4-5 lessons, progressing from basics to advanced
-- Each lesson content: 200-400 words using ## headings, **bold** key terms, bullet points, and examples
-- Include real-world examples and practical applications
-- Content must be educational, accurate, and well-structured`;
-
-        const res = await aiComplete({
-          messages: [{ role: "user", content: prompt }],
-          temperature: 0.5,
-          maxTokens: 4096,
-        });
-
-        let jsonString = res;
-        const match = jsonString.match(/\`\`\`(?:json)?\s*([\s\S]*?)\s*\`\`\`/);
-        if (match) jsonString = match[1];
-        const startIdx = jsonString.indexOf('{');
-        const endIdx = jsonString.lastIndexOf('}');
-        if (startIdx === -1 || endIdx === -1) throw new Error("No JSON found");
-        jsonString = jsonString.substring(startIdx, endIdx + 1);
-
-        parsed = JSON.parse(jsonString.trim());
-        if (!parsed.topic_title || !parsed.lessons || !Array.isArray(parsed.lessons) || parsed.lessons.length === 0) {
-          throw new Error("Invalid course structure");
-        }
-        parsed.lessons = parsed.lessons.filter((l: any) => l && l.title && l.content);
-        if (parsed.lessons.length === 0) throw new Error("No valid lessons");
-      } catch (err) {
-        lastError = err;
-        console.warn(`Topic generation retry ${attempt}:`, err);
-        parsed = null;
-        if (attempt < maxRetries) await new Promise(r => setTimeout(r, 1000));
-      }
-    }
-
-    try {
-      if (!parsed) throw lastError || new Error("Failed to generate course.");
-
-      const batch = writeBatch(db);
-      const newTopicRef = doc(collection(db, "topics"));
-
-      batch.set(newTopicRef, {
-        title: parsed.topic_title,
-        subject: parsed.subject || "General",
-        subjectName: parsed.subject || "General",
-        subjectIcon: "file-text",
-        description: parsed.description || "",
-        lesson_count: parsed.lessons.length,
-        is_custom: true,
-        user_id: user.uid,
-        created_at: new Date()
-      });
-
-      parsed.lessons.forEach((lesson: any, i: number) => {
-        const lessonRef = doc(collection(db, "lessons"));
-        batch.set(lessonRef, {
-          topic_id: newTopicRef.id,
-          title: lesson.title,
-          content: lesson.content,
-          order: i + 1,
-          created_at: new Date()
-        });
-      });
-
-      await batch.commit();
-      toast.success(`Course "${parsed.topic_title}" created with ${parsed.lessons.length} lessons!`);
-      queryClient.invalidateQueries({ queryKey: ["topics", user.uid] });
-      setTopicInput("");
-      setTopicDetails("");
-      setFilter("Your Courses");
-    } catch (error) {
-      console.error(error);
-      toast.error("Failed to generate course. Please try again.");
-    } finally {
-      setGeneratingTopic(false);
-    }
-  };
 
   return (
     <div className="p-6 md:p-8 max-w-4xl mx-auto space-y-6">
@@ -453,44 +343,6 @@ Rules:
           </div>
         )}
 
-        {/* ── Generate Course from Any Topic ──────────────────── */}
-        <div className="mt-10 space-y-4">
-          <h2 className="text-xl font-bold text-foreground tracking-tight border-t border-border pt-6">
-            <Wand2 className="h-5 w-5 inline mr-2 text-primary -mt-0.5" />
-            Generate Course from Any Topic
-          </h2>
-          <p className="text-sm text-muted-foreground">
-            Enter any subject or topic — the AI will create a full structured course with lessons for you.
-          </p>
-          <div className="bg-card border border-border rounded-xl p-5 space-y-4">
-            <div className="space-y-3">
-              <Input
-                placeholder="Enter a topic (e.g., Quantum Physics, Data Structures, French Revolution)…"
-                value={topicInput}
-                onChange={(e) => setTopicInput(e.target.value)}
-                onKeyDown={(e) => e.key === "Enter" && !generatingTopic && handleGenerateFromTopic()}
-                className="h-11"
-              />
-              <Textarea
-                placeholder="Optional: Add details — What should the course cover? Any specific subtopics or level? (e.g., 'Beginner level, cover sorting algorithms and time complexity')…"
-                value={topicDetails}
-                onChange={(e) => setTopicDetails(e.target.value)}
-                className="min-h-[60px] resize-none text-sm"
-              />
-            </div>
-            <Button
-              onClick={handleGenerateFromTopic}
-              disabled={!topicInput.trim() || generatingTopic}
-              className="w-full bg-cta text-cta-foreground hover:bg-cta/90 text-sm gap-2 h-11"
-            >
-              {generatingTopic ? (
-                <><Loader2 className="h-4 w-4 animate-spin" /> Generating Lessons…</>
-              ) : (
-                <><Sparkles className="h-4 w-4" /> Generate Course</>
-              )}
-            </Button>
-          </div>
-        </div>
 
         {/* Uploaded Materials Generation Section */}
         {materials && materials.length > 0 && (

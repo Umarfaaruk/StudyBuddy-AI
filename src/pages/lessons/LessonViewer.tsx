@@ -16,7 +16,7 @@ import { useDeepFocus } from "@/hooks/useDeepFocus";
 import { awardXP } from "@/lib/studySession";
 import { aiComplete } from "@/lib/aiService";
 import { toast } from "sonner";
-import { doc, getDoc, collection, getDocs, query, where, orderBy, writeBatch } from "firebase/firestore";
+import { doc, getDoc, collection, getDocs, query, where, writeBatch } from "firebase/firestore";
 
 const LESSON_XP = 20; // XP awarded per lesson completion
 
@@ -171,14 +171,15 @@ const LessonViewer = () => {
     queryFn: async () => {
       if (!topicId) return [];
       try {
+        // NOTE: We intentionally do NOT use orderBy here to avoid requiring
+        // a Firestore composite index (topic_id + order). Sort client-side instead.
         const lessonsSnap = await getDocs(
           query(
             collection(db, "lessons"),
-            where("topic_id", "==", topicId),
-            orderBy("order", "asc")
+            where("topic_id", "==", topicId)
           )
         );
-        return lessonsSnap.docs.map(doc => ({
+        const docs = lessonsSnap.docs.map(doc => ({
           id: doc.id,
           ...doc.data()
         } as {
@@ -186,8 +187,11 @@ const LessonViewer = () => {
           topic_id: string;
           title: string;
           content?: string;
+          order?: number;
           [key: string]: any;
         }));
+        // Sort by order field client-side
+        return docs.sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
       } catch (error) {
         console.error("[LessonViewer] Lessons fetch error:", error);
         return [];
