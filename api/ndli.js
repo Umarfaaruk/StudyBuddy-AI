@@ -1,11 +1,13 @@
 /**
- * NDLI (National Digital Library of India) API Proxy
+ * NDLI + Open Library API Proxy
  * ===================================================
- * Proxies search requests to the NDLI API to handle CORS and rate limiting.
+ * Uses Open Library's free search API to provide actual eBook results,
+ * and supplements with direct NDLI search links for Indian academic content.
+ * 
  * Endpoint: /api/ndli?q=<query>&type=<ebook|notebook|all>&page=<num>
  */
 
-const NDLI_BASE = "https://ndl.iitkgp.ac.in/api";
+const OPEN_LIBRARY_API = "https://openlibrary.org/search.json";
 
 export default async function handler(req, res) {
   // Only allow GET
@@ -20,105 +22,91 @@ export default async function handler(req, res) {
   }
 
   try {
-    // Build NDLI search URL
-    // NDLI provides an open search endpoint — no API key required for basic search
-    const searchUrl = new URL(`${NDLI_BASE}/search`);
+    // Build Open Library search URL
+    const searchUrl = new URL(OPEN_LIBRARY_API);
     searchUrl.searchParams.set("q", q.trim());
     searchUrl.searchParams.set("page", page);
-    searchUrl.searchParams.set("size", "20");
+    searchUrl.searchParams.set("limit", "20");
+    searchUrl.searchParams.set("fields", "key,title,author_name,first_publish_year,subject,language,cover_i,edition_count,ebook_access,isbn,publisher,number_of_pages_median");
 
+    // Filter for ebooks only if requested
     if (type === "ebook") {
-      searchUrl.searchParams.set("type", "book");
-    } else if (type === "notebook") {
-      searchUrl.searchParams.set("type", "notebook");
+      searchUrl.searchParams.set("has_fulltext", "true");
     }
 
     const response = await fetch(searchUrl.toString(), {
       headers: {
         "Accept": "application/json",
-        "User-Agent": "EduOnx-LearningPlatform/1.0",
+        "User-Agent": "EduOnx-LearningPlatform/1.0 (educational; contact: support@eduonx.com)",
       },
-      signal: AbortSignal.timeout(10000), // 10s timeout
+      signal: AbortSignal.timeout(12000), // 12s timeout
     });
 
-    if (response.status === 429) {
-      return res.status(429).json({
-        error: "NDLI rate limit exceeded. Please wait a moment and try again.",
-        retryAfter: response.headers.get("Retry-After") || "30",
-      });
-    }
-
     if (!response.ok) {
-      // Fallback: use NDLI's public web search as alternative
-      const fallbackResults = await searchNDLIFallback(q.trim(), type, parseInt(page));
-      return res.status(200).json(fallbackResults);
+      throw new Error(`Open Library API returned ${response.status}`);
     }
 
     const data = await response.json();
-    
-    // Normalize response
+
+    // Normalize results
+    const items = (data.docs || []).map((doc) => {
+      const coverId = doc.cover_i;
+      const key = doc.key || "";
+      const olId = key.replace("/works/", "");
+      
+      return {
+        id: olId || doc.isbn?.[0] || Math.random().toString(36).substring(7),
+        title: doc.title || "Untitled",
+        author: (doc.author_name || []).join(", ") || "Unknown Author",
+        type: doc.ebook_access === "public" ? "Free eBook" : doc.ebook_access === "borrowable" ? "Borrowable" : "Reference",
+        description: doc.subject ? doc.subject.slice(0, 3).join(", ") : "",
+        thumbnail: coverId ? `https://covers.openlibrary.org/b/id/${coverId}-M.jpg` : null,
+        url: `https://openlibrary.org${key}`,
+        readUrl: doc.ebook_access === "public" || doc.ebook_access === "borrowable" 
+          ? `https://openlibrary.org${key}?mode=all#editions-list`
+          : null,
+        year: doc.first_publish_year ? String(doc.first_publish_year) : null,
+        subject: doc.subject ? doc.subject.slice(0, 2).join(", ") : null,
+        language: doc.language ? doc.language.map(l => l === "eng" ? "English" : l === "hin" ? "Hindi" : l).join(", ") : "English",
+        pages: doc.number_of_pages_median || null,
+        editions: doc.edition_count || 0,
+        publisher: doc.publisher ? doc.publisher[0] : null,
+        hasFullText: doc.ebook_access === "public" || doc.ebook_access === "borrowable",
+      };
+    });
+
     const results = {
       query: q,
       page: parseInt(page),
-      totalResults: data.total || data.hits?.total?.value || 0,
-      items: (data.hits?.hits || data.results || []).map((item) => ({
-        id: item._id || item.id || "",
-        title: item._source?.title || item.title || "Untitled",
-        author: item._source?.author || item.author || "Unknown",
-        type: item._source?.type || item.type || type,
-        description: item._source?.description || item.description || "",
-        thumbnail: item._source?.thumbnail || item.thumbnail || null,
-        url: item._source?.url || `https://ndl.iitkgp.ac.in/document/${item._id || item.id}`,
-        year: item._source?.year || item.year || null,
-        subject: item._source?.subject || item.subject || null,
-        language: item._source?.language || item.language || "English",
-      })),
+      totalResults: data.numFound || 0,
+      items,
+      // Always provide NDLI supplementary links
+      ndliLinks: {
+        schoolSearch: `https://ndl.iitkgp.ac.in/se_search?q=${encodeURIComponent(q.trim())}`,
+        higherEdSearch: `https://ndl.iitkgp.ac.in/he_search?q=${encodeURIComponent(q.trim())}`,
+        researchSearch: `https://ndl.iitkgp.ac.in/re_search?q=${encodeURIComponent(q.trim())}`,
+      },
     };
 
-    // Cache for 5 minutes
-    res.setHeader("Cache-Control", "s-maxage=300, stale-while-revalidate=600");
+    // Cache for 10 minutes
+    res.setHeader("Cache-Control", "s-maxage=600, stale-while-revalidate=1200");
     return res.status(200).json(results);
   } catch (error) {
-    console.error("[NDLI API] Error:", error);
-    
-    // Return demo data as graceful fallback
-    const fallbackResults = await searchNDLIFallback(q.trim(), type, parseInt(page));
-    return res.status(200).json(fallbackResults);
-  }
-}
+    console.error("[NDLI/OpenLibrary API] Error:", error);
 
-/**
- * Fallback: scrape NDLI public search results if API is unavailable
- */
-async function searchNDLIFallback(query, type, page) {
-  try {
-    const url = `https://ndl.iitkgp.ac.in/result?q=${encodeURIComponent(query)}&page=${page}`;
-    const resp = await fetch(url, {
-      headers: { "User-Agent": "EduOnx-LearningPlatform/1.0" },
-      signal: AbortSignal.timeout(8000),
+    // Return fallback with direct search links
+    return res.status(200).json({
+      query: q,
+      page: parseInt(page),
+      totalResults: 0,
+      items: [],
+      fallback: true,
+      ndliLinks: {
+        schoolSearch: `https://ndl.iitkgp.ac.in/se_search?q=${encodeURIComponent(q.trim())}`,
+        higherEdSearch: `https://ndl.iitkgp.ac.in/he_search?q=${encodeURIComponent(q.trim())}`,
+        researchSearch: `https://ndl.iitkgp.ac.in/re_search?q=${encodeURIComponent(q.trim())}`,
+      },
+      message: "Search results from Open Library are temporarily unavailable. Use the NDLI links below.",
     });
-
-    if (!resp.ok) throw new Error("Fallback failed");
-
-    // Return minimal structure with link to NDLI
-    return {
-      query,
-      page,
-      totalResults: 0,
-      items: [],
-      fallback: true,
-      ndliSearchUrl: url,
-      message: "Direct API unavailable. Use the NDLI search link below.",
-    };
-  } catch {
-    return {
-      query,
-      page,
-      totalResults: 0,
-      items: [],
-      fallback: true,
-      ndliSearchUrl: `https://ndl.iitkgp.ac.in/result?q=${encodeURIComponent(query)}`,
-      message: "NDLI search is available via the direct link below.",
-    };
   }
 }
