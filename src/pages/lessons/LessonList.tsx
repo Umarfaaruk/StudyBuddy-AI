@@ -108,29 +108,33 @@ const LessonList = () => {
     subjectNames.push("Your Courses");
   }
 
-  // ── Delete a course (topic + its lessons + progress) ────────────
   const handleDeleteCourse = async (topicId: string, topicTitle: string) => {
     if (!user) return;
     setDeletingId(topicId);
     try {
-      const batch = writeBatch(db);
-
       // 1. Delete all lessons for this topic
       const lessonsSnap = await getDocs(
         query(collection(db, "lessons"), where("topic_id", "==", topicId))
       );
-      lessonsSnap.docs.forEach(d => batch.delete(d.ref));
+      for (const d of lessonsSnap.docs) {
+        try {
+          await deleteDoc(d.ref);
+        } catch (e) {
+          console.error("Failed to delete lesson:", d.id, e);
+        }
+      }
 
       // 2. Delete lesson_progress for this topic + user
       try {
         const progressRef = doc(db, "lesson_progress", `${user.uid}_${topicId}`);
-        batch.delete(progressRef);
-      } catch {}
+        await deleteDoc(progressRef);
+      } catch (e) {
+        console.error("Failed to delete progress:", e);
+      }
 
       // 3. Delete the topic document itself
-      batch.delete(doc(db, "topics", topicId));
+      await deleteDoc(doc(db, "topics", topicId));
 
-      await batch.commit();
       toast.success(`"${topicTitle}" removed successfully`);
       queryClient.invalidateQueries({ queryKey: ["topics", user.uid] });
     } catch (error) {

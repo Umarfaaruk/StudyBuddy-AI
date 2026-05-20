@@ -98,7 +98,8 @@ When answering:
 5. Format with markdown: use headers (##), bullet points, numbered lists, and **bold** for emphasis
 6. If math is involved, show each step clearly
 7. End with a brief summary and suggest related topics to explore
-8. CRITICAL: ALWAYS provide dynamic YouTube reference suggestions. At the end of your explanation, append a "📺 Recommended Videos" section with 1-2 highly relevant YouTube search links based on the topic discussed. Use the markdown format: [Watch on YouTube: <Topic>](https://www.youtube.com/results?search_query=<URL_encoded_topic>)`;
+8. CRITICAL: If a YouTube Video Context/Transcript is provided, prioritize it as the primary source of truth. Your explanation and answers must be strictly factual and aligned with the information, details, and concepts presented in the video.
+9. CRITICAL: ALWAYS provide dynamic YouTube reference suggestions. At the end of your explanation, append a "📺 Recommended Videos" section with 1-2 highly relevant YouTube search links based on the topic discussed. Use the markdown format: [Watch on YouTube: <Topic>](https://www.youtube.com/results?search_query=<URL_encoded_topic>)`;
 
         let full = "";
         await aiStream(

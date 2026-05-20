@@ -141,13 +141,13 @@ const AISummarizer = ({ content, videoUrl }: { content: string; videoUrl?: strin
             contextText = `YouTube Video: "${data.title}" by ${data.channel}\n\nTranscript:\n${transcriptText.substring(0, 12000)}`;
             
             if (ytTab === "live") {
-              systemPrompt = "You are a study assistant. Based on the timestamped transcript provided, generate a detailed chronological play-by-play live summary/timeline of the video. Format each entry with its timestamp, a clear bold header of the topic discussed, and a bulleted summary of the core concepts explained in that segment. Be extremely precise and structured.";
+              systemPrompt = "You are a study assistant. Based on the timestamped transcript provided, generate a detailed chronological play-by-play live summary/timeline of the video. Format each entry with its timestamp, a clear bold header of the topic discussed, and a bulleted summary of the core concepts explained in that segment. Be extremely precise and structured. The information must strictly match the transcript content, and the concepts generated must be the same as in the video.";
             } else {
-              systemPrompt = "You are a study assistant. Summarize this YouTube video transcript into clear, well-structured notes that a student can study from. Use markdown formatting: ## for section headings, **bold** for key terms, - for bullet points, and numbered lists for steps/sequences. Make the summary comprehensive but concise.";
+              systemPrompt = "You are a study assistant. Summarize this YouTube video transcript into clear, well-structured notes that a student can study from. Use markdown formatting: ## for section headings, **bold** for key terms, - for bullet points, and numbered lists for steps/sequences. Make the summary comprehensive but concise. Ensure all generated information is strictly aligned with the video transcript and matches the information presented in the video.";
             }
           } else {
             contextText = `YouTube Video: "${data.title}" by ${data.channel}\n\nNo transcript available. Based on the video title and the lesson content below, create study notes:\n\n${content.substring(0, 6000)}`;
-            systemPrompt = "You are a study assistant. The YouTube video has no transcript available. Based on the video title and the lesson content, create well-structured study notes using markdown: ## for headings, **bold** for key terms, - for bullet points.";
+            systemPrompt = "You are a study assistant. The YouTube video has no transcript available. Based on the video title and the lesson content, create well-structured study notes using markdown: ## for headings, **bold** for key terms, - for bullet points. Ensure the generated notes align with the topic.";
           }
         } catch {
           contextText = `YouTube Video URL: ${videoUrl}\n\nLesson content:\n${content.substring(0, 6000)}`;

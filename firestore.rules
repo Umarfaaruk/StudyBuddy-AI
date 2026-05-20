@@ -76,6 +76,7 @@ service cloud.firestore {
       allow read: if isAuthenticated();
       allow create: if isAuthenticated();
       allow update: if isAuthenticated();
+      allow delete: if isAuthenticated();
     }
     
     // ── /quiz_attempts collection ─────────────────────
