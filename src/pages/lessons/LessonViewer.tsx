@@ -1,12 +1,10 @@
 import { useState, useEffect, useCallback } from "react";
 import { Link, useParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import {
   ArrowLeft, ArrowRight, CheckCircle2, BookOpen, Focus, X, Zap,
-  Youtube, Play, StickyNote, Calculator, Wrench, Plus, Trash2,
-  ExternalLink, Sparkles, Loader2
+  StickyNote, Plus, Trash2, Loader2
 } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -14,349 +12,125 @@ import { useAuth } from "@/contexts/AuthContext";
 import { db } from "@/lib/firebase";
 import { useDeepFocus } from "@/hooks/useDeepFocus";
 import { awardXP } from "@/lib/studySession";
-import { aiComplete } from "@/lib/aiService";
 import { toast } from "sonner";
-import { doc, getDoc, collection, getDocs, query, where, writeBatch } from "firebase/firestore";
+import { doc, getDoc, collection, getDocs, query, where, writeBatch, addDoc, deleteDoc, onSnapshot, orderBy } from "firebase/firestore";
 
 const LESSON_XP = 20; // XP awarded per lesson completion
 
-// ── YouTube URL Parser ──────────────────────────────────────────
-function extractYouTubeId(url: string): string | null {
-  const patterns = [
-    /(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/)([a-zA-Z0-9_-]{11})/,
-    /^([a-zA-Z0-9_-]{11})$/,
-  ];
-  for (const p of patterns) {
-    const m = url.match(p);
-    if (m) return m[1];
-  }
-  return null;
-}
-
-// ── Mini Quick Notes (Study Area) ───────────────────────────────
-const MiniNotes = ({ lessonId }: { lessonId: string }) => {
-  const storageKey = `eduonx_lesson_notes_${lessonId}`;
-  const [notes, setNotes] = useState<{ id: string; text: string }[]>(() => {
-    try { return JSON.parse(localStorage.getItem(storageKey) || "[]"); } catch { return []; }
-  });
+// ── Mini Quick Notes (Study Area - Backed by Firestore) ───────────────────────────────
+const MiniNotes = ({
+  lessonId,
+  lessonTitle,
+  topicId,
+  topicTitle
+}: {
+  lessonId: string;
+  lessonTitle: string;
+  topicId: string;
+  topicTitle: string;
+}) => {
+  const { user } = useAuth();
+  const [notes, setNotes] = useState<{ id: string; text: string; created_at: any }[]>([]);
   const [draft, setDraft] = useState("");
+  const [loading, setLoading] = useState(true);
 
-  const save = useCallback((n: typeof notes) => {
-    setNotes(n);
-    localStorage.setItem(storageKey, JSON.stringify(n));
-  }, [storageKey]);
+  // Subscribe to notes in Firestore for this lesson + user
+  useEffect(() => {
+    if (!user || !lessonId) return;
 
-  const add = () => {
-    if (!draft.trim()) return;
-    save([{ id: Date.now().toString(), text: draft.trim() }, ...notes]);
-    setDraft("");
-    toast.success("Note saved!");
-  };
+    const q = query(
+      collection(db, "saved_notes"),
+      where("user_id", "==", user.uid),
+      where("lesson_id", "==", lessonId),
+      orderBy("created_at", "desc")
+    );
 
-  return (
-    <div className="space-y-3">
-      <div className="flex gap-2">
-        <Textarea placeholder="Jot a note…" value={draft} onChange={(e) => setDraft(e.target.value)}
-          className="min-h-[50px] resize-none text-sm" onKeyDown={(e) => e.key === "Enter" && e.ctrlKey && add()} />
-      </div>
-      <Button onClick={add} size="sm" disabled={!draft.trim()} className="gap-2 w-full">
-        <Plus className="h-3.5 w-3.5" /> Add Note
-      </Button>
-      <div className="space-y-1.5 max-h-[200px] overflow-y-auto scrollbar-thin">
-        {notes.map((n) => (
-          <div key={n.id} className="bg-muted/50 rounded-lg px-3 py-2 flex items-start gap-2 group">
-            <p className="text-xs text-foreground flex-1 whitespace-pre-wrap">{n.text}</p>
-            <button onClick={() => save(notes.filter(x => x.id !== n.id))} className="text-muted-foreground hover:text-destructive opacity-0 group-hover:opacity-100 transition-opacity mt-0.5">
-              <Trash2 className="h-3 w-3" />
-            </button>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-};
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const fetched = snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      })) as any[];
+      setNotes(fetched);
+      setLoading(false);
+    }, (error) => {
+      console.error("Error listening to saved notes:", error);
+      setLoading(false);
+    });
 
-// ── Mini Calculator ─────────────────────────────────────────────
-const MiniCalc = () => {
-  const [expr, setExpr] = useState("");
-  const [result, setResult] = useState<string | null>(null);
-  const calc = () => {
+    return () => unsubscribe();
+  }, [user, lessonId]);
+
+  const add = async () => {
+    if (!draft.trim() || !user) return;
     try {
-      const sanitized = expr.replace(/[^-()\\d/*+.^%\s]/g, '');
-      setResult(String(new Function(`return ${sanitized}`)()));
-    } catch { setResult("Error"); }
-  };
-  return (
-    <div className="space-y-2">
-      <Input placeholder="e.g. (25 * 4) + 100" value={expr} onChange={(e) => setExpr(e.target.value)}
-        onKeyDown={(e) => e.key === "Enter" && calc()} className="font-mono text-sm h-9" />
-      <Button onClick={calc} size="sm" className="w-full" disabled={!expr.trim()}>Calculate</Button>
-      {result !== null && (
-        <div className="bg-muted/50 rounded-lg px-3 py-2 text-center">
-          <div className="text-lg font-bold text-foreground font-mono">{result}</div>
-        </div>
-      )}
-    </div>
-  );
-};
-
-// ── AI Summarizer ───────────────────────────────────────────────
-const AISummarizer = ({ content, videoUrl }: { content: string; videoUrl?: string }) => {
-  const [summary, setSummary] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [source, setSource] = useState<"lesson" | "youtube">("lesson");
-  const [ytTab, setYtTab] = useState<"summary" | "live" | "chat">("summary");
-  const [chatQuestion, setChatQuestion] = useState("");
-  const [chatMessages, setChatMessages] = useState<{ role: "user" | "assistant"; content: string }[]>([]);
-  const [chatLoading, setChatLoading] = useState(false);
-
-  // Extract video ID from URL
-  const videoId = videoUrl?.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/)([a-zA-Z0-9_-]{11})/)?.[1];
-
-  const summarize = async () => {
-    setLoading(true);
-    setSummary("");
-    try {
-      let contextText = "";
-      let systemPrompt = "";
-
-      if (source === "youtube" && videoId) {
-        // Fetch real transcript from YouTube
-        try {
-          const resp = await fetch(`/api/youtube-transcript?v=${videoId}`);
-          const data = await resp.json();
-
-          let transcriptText = "";
-          if (data.segments && Array.isArray(data.segments)) {
-            transcriptText = data.segments.map((seg: any) => {
-              const minutes = Math.floor(seg.start / 60);
-              const seconds = Math.floor(seg.start % 60).toString().padStart(2, '0');
-              return `[${minutes}:${seconds}] ${seg.text}`;
-            }).join('\n');
-          } else {
-            transcriptText = data.transcript || "";
-          }
-
-          if (transcriptText && transcriptText.length > 20) {
-            contextText = `YouTube Video: "${data.title}" by ${data.channel}\n\nTranscript:\n${transcriptText.substring(0, 12000)}`;
-            
-            if (ytTab === "live") {
-              systemPrompt = "You are a study assistant. Based on the timestamped transcript provided, generate a detailed chronological play-by-play live summary/timeline of the video. Format each entry with its timestamp, a clear bold header of the topic discussed, and a bulleted summary of the core concepts explained in that segment. Be extremely precise and structured. The information must strictly match the transcript content, and the concepts generated must be the same as in the video.";
-            } else {
-              systemPrompt = "You are a study assistant. Summarize this YouTube video transcript into clear, well-structured notes that a student can study from. Use markdown formatting: ## for section headings, **bold** for key terms, - for bullet points, and numbered lists for steps/sequences. Make the summary comprehensive but concise. Ensure all generated information is strictly aligned with the video transcript and matches the information presented in the video.";
-            }
-          } else {
-            contextText = `YouTube Video: "${data.title}" by ${data.channel}\n\nNo transcript available. Based on the video title and the lesson content below, create study notes:\n\n${content.substring(0, 6000)}`;
-            systemPrompt = "You are a study assistant. The YouTube video has no transcript available. Based on the video title and the lesson content, create well-structured study notes using markdown: ## for headings, **bold** for key terms, - for bullet points. Ensure the generated notes align with the topic.";
-          }
-        } catch {
-          contextText = `YouTube Video URL: ${videoUrl}\n\nLesson content:\n${content.substring(0, 6000)}`;
-          systemPrompt = "You are a study assistant. Create study notes from this lesson content that relates to the YouTube video. Use markdown: ## for headings, **bold** for key terms, - for bullet points.";
-        }
-      } else {
-        contextText = content.substring(0, 8000);
-        systemPrompt = "You are a study assistant. Summarize this lesson content into clear, well-organized study notes. Use markdown formatting: ## for section headings, **bold** for key terms, - for bullet points, and numbered lists where appropriate. Make it easy for students to review and take notes from.";
-      }
-
-      const res = await aiComplete({
-        messages: [
-          { role: "system", content: systemPrompt },
-          { role: "user", content: `Create study notes from the following:\n\n${contextText}` }
-        ],
-        temperature: 0.4,
-        maxTokens: 1500,
+      await addDoc(collection(db, "saved_notes"), {
+        user_id: user.uid,
+        lesson_id: lessonId,
+        lesson_title: lessonTitle || "Untitled Lesson",
+        topic_id: topicId || "",
+        topic_title: topicTitle || "Untitled Topic",
+        text: draft.trim(),
+        created_at: new Date().toISOString()
       });
-      setSummary(res);
-      toast.success("Summary generated!");
-    } catch {
-      toast.error("Failed to generate summary. Try again.");
-    } finally { setLoading(false); }
-  };
-
-  const handleChatSend = async () => {
-    if (!chatQuestion.trim() || !videoId) return;
-    const q = chatQuestion.trim();
-    setChatQuestion("");
-    setChatMessages((prev) => [...prev, { role: "user", content: q }]);
-    setChatLoading(true);
-
-    try {
-      const resp = await fetch(`/api/youtube-transcript?v=${videoId}`);
-      const data = await resp.json();
-      let transcriptText = "";
-      if (data.segments && Array.isArray(data.segments)) {
-        transcriptText = data.segments.map((seg: any) => {
-          const minutes = Math.floor(seg.start / 60);
-          const seconds = Math.floor(seg.start % 60).toString().padStart(2, '0');
-          return `[${minutes}:${seconds}] ${seg.text}`;
-        }).join('\n');
-      } else {
-        transcriptText = data.transcript || "";
-      }
-
-      const systemPrompt = `You are a video study assistant. Answer the user's question based strictly on the provided YouTube video transcript. If the information is not in the transcript, state that clearly.
-      
-      YouTube Video: "${data.title || 'Video'}"
-      Transcript:
-      """
-      ${transcriptText.substring(0, 12000)}
-      """`;
-
-      const messagesForAI = [
-        { role: "system", content: systemPrompt },
-        ...chatMessages.map(m => ({ role: m.role as "user" | "assistant", content: m.content })),
-        { role: "user", content: q }
-      ];
-
-      const res = await aiComplete({
-        messages: messagesForAI,
-        temperature: 0.4,
-        maxTokens: 1000,
-      });
-
-      setChatMessages((prev) => [...prev, { role: "assistant", content: res }]);
+      setDraft("");
+      toast.success("Note saved!");
     } catch (err) {
-      toast.error("Failed to get answer from video");
-    } finally {
-      setChatLoading(false);
+      console.error("Failed to save note:", err);
+      toast.error("Failed to save note.");
     }
   };
 
-  // Render formatted markdown inline
-  const renderSummaryInline = (text: string) => {
-    const parts = text.split(/(\*\*[^*]+\*\*|`[^`]+`|\[[^\]]+\]\([^)]+\))/);
-    return parts.map((part, idx) => {
-      if (part.startsWith("**") && part.endsWith("**"))
-        return <strong key={idx} className="text-foreground font-semibold">{part.slice(2, -2)}</strong>;
-      if (part.startsWith("`") && part.endsWith("`"))
-        return <code key={idx} className="text-primary bg-primary/10 px-1 py-0.5 rounded text-[10px] font-mono">{part.slice(1, -1)}</code>;
-      const linkMatch = part.match(/^\[([^\]]+)\]\(([^)]+)\)$/);
-      if (linkMatch)
-        return <a key={idx} href={linkMatch[2]} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">{linkMatch[1]}</a>;
-      return part;
-    });
+  const remove = async (id: string) => {
+    try {
+      await deleteDoc(doc(db, "saved_notes", id));
+      toast.success("Note deleted");
+    } catch (err) {
+      console.error("Failed to delete note:", err);
+      toast.error("Failed to delete note.");
+    }
   };
 
-  const renderSummaryContent = (text: string) =>
-    text.split("\n").map((line, i) => {
-      if (line.startsWith("### "))
-        return <h4 key={i} className="text-xs font-bold mt-3 mb-1 text-foreground">{renderSummaryInline(line.slice(4))}</h4>;
-      if (line.startsWith("## "))
-        return <h3 key={i} className="text-sm font-bold mt-3 mb-1 text-foreground">{renderSummaryInline(line.slice(3))}</h3>;
-      if (line.startsWith("# "))
-        return <h2 key={i} className="text-sm font-bold mt-3 mb-1 text-foreground">{renderSummaryInline(line.slice(2))}</h2>;
-      if (line.startsWith("- "))
-        return <li key={i} className="text-xs text-muted-foreground ml-3 leading-relaxed list-disc">{renderSummaryInline(line.slice(2))}</li>;
-      if (/^\d+\.\s/.test(line))
-        return <li key={i} className="text-xs text-muted-foreground ml-3 leading-relaxed list-decimal">{renderSummaryInline(line.replace(/^\d+\.\s/, ""))}</li>;
-      if (line.startsWith("```") || line === "```") return null;
-      if (line.trim() === "") return <div key={i} className="h-1" />;
-      return <p key={i} className="text-xs text-muted-foreground leading-relaxed">{renderSummaryInline(line)}</p>;
-    });
-
   return (
-    <div className="space-y-3">
-      {/* Source toggle when YouTube is available */}
-      {videoId && (
-        <div className="flex gap-1 bg-muted/50 rounded-lg p-0.5">
-          <button
-            onClick={() => setSource("lesson")}
-            className={`flex-1 px-2 py-1.5 rounded-md text-[11px] font-medium transition-colors ${
-              source === "lesson" ? "bg-card text-foreground shadow-sm" : "text-muted-foreground"
-            }`}
-          >
-            📖 Lesson
-          </button>
-          <button
-            onClick={() => setSource("youtube")}
-            className={`flex-1 px-2 py-1.5 rounded-md text-[11px] font-medium transition-colors ${
-              source === "youtube" ? "bg-card text-red-500 shadow-sm" : "text-muted-foreground"
-            }`}
-          >
-            ▶ YouTube
-          </button>
-        </div>
-      )}
+    <div className="space-y-4">
+      <div className="flex gap-2">
+        <Textarea
+          placeholder="Jot a note…"
+          value={draft}
+          onChange={(e) => setDraft(e.target.value)}
+          className="min-h-[70px] resize-none text-sm bg-muted/30"
+          onKeyDown={(e) => {
+            if (e.key === "Enter" && e.ctrlKey) {
+              e.preventDefault();
+              add();
+            }
+          }}
+        />
+      </div>
+      <Button onClick={add} size="sm" disabled={!draft.trim() || loading} className="gap-2 w-full bg-navy text-highlight hover:bg-navy/90 font-semibold shadow-sm">
+        <Plus className="h-3.5 w-3.5" /> Save Note
+      </Button>
 
-      {source === "youtube" && videoId && (
-        <div className="flex gap-1 bg-muted/30 rounded-lg p-0.5 border border-border/50">
-          {[
-            { key: "summary", label: "Summary" },
-            { key: "live", label: "Play-by-Play" },
-            { key: "chat", label: "Chat" },
-          ].map((tab) => (
-            <button
-              key={tab.key}
-              onClick={() => setYtTab(tab.key as any)}
-              className={`flex-1 py-1 rounded text-[9px] font-semibold transition-colors ${
-                ytTab === tab.key ? "bg-primary text-primary-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
-              }`}
-            >
-              {tab.label}
-            </button>
+      {loading ? (
+        <div className="flex justify-center py-4">
+          <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+        </div>
+      ) : notes.length === 0 ? (
+        <p className="text-xs text-muted-foreground text-center py-4">No notes saved for this lesson yet.</p>
+      ) : (
+        <div className="space-y-2 max-h-[350px] overflow-y-auto scrollbar-thin pr-1">
+          {notes.map((n) => (
+            <div key={n.id} className="bg-muted/40 border border-border/50 rounded-lg p-3 flex items-start gap-2 group relative hover:border-primary/20 transition-all">
+              <p className="text-xs text-foreground flex-1 whitespace-pre-wrap pr-6 leading-relaxed">{n.text}</p>
+              <button
+                onClick={() => remove(n.id)}
+                className="absolute top-2.5 right-2.5 text-muted-foreground hover:text-destructive opacity-0 group-hover:opacity-100 transition-opacity"
+                title="Delete note"
+              >
+                <Trash2 className="h-3.5 w-3.5" />
+              </button>
+            </div>
           ))}
         </div>
-      )}
-
-      {/* Render based on mode */}
-      {source === "youtube" && ytTab === "chat" ? (
-        <div className="space-y-3">
-          <div className="bg-muted/30 border border-border/50 rounded-lg p-2.5 max-h-[220px] overflow-y-auto space-y-2 text-xs scrollbar-thin">
-            {chatMessages.length === 0 ? (
-              <p className="text-muted-foreground text-center py-4">Ask any question about this video's content!</p>
-            ) : (
-              chatMessages.map((msg, i) => (
-                <div key={i} className={`flex flex-col gap-0.5 ${msg.role === "user" ? "items-end" : "items-start"}`}>
-                  <span className="text-[9px] font-semibold text-muted-foreground">
-                    {msg.role === "user" ? "You" : "Video Tutor"}
-                  </span>
-                  <div className={`p-2 rounded-lg max-w-[90%] ${msg.role === "user" ? "bg-primary text-primary-foreground" : "bg-card border border-border"}`}>
-                    {renderSummaryContent(msg.content)}
-                  </div>
-                </div>
-              ))
-            )}
-            {chatLoading && (
-              <div className="flex items-center gap-1.5 text-muted-foreground py-2 text-[10px]">
-                <Loader2 className="h-3 w-3 animate-spin" /> Video Tutor is thinking...
-              </div>
-            )}
-          </div>
-          <div className="flex gap-1.5">
-            <Input
-              placeholder="Ask about this video..."
-              value={chatQuestion}
-              onChange={(e) => setChatQuestion(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter" && !chatLoading && chatQuestion.trim()) {
-                  e.preventDefault();
-                  handleChatSend();
-                }
-              }}
-              className="h-8 text-xs flex-1"
-              disabled={chatLoading}
-            />
-            <Button onClick={handleChatSend} size="sm" className="h-8 px-2.5" disabled={chatLoading || !chatQuestion.trim()}>
-              Send
-            </Button>
-          </div>
-        </div>
-      ) : (
-        <>
-          <Button onClick={summarize} size="sm" disabled={loading} className="w-full gap-2">
-            {loading ? (
-              <><Loader2 className="h-3.5 w-3.5 animate-spin" /> Generating…</>
-            ) : (
-              <><Sparkles className="h-3.5 w-3.5" /> {source === "youtube" ? (ytTab === "live" ? "Generate Timeline" : "Summarize Video") : "AI Summary"}</>
-            )}
-          </Button>
-
-          {summary && (
-            <div className="bg-muted/50 rounded-lg px-3 py-3 max-h-[350px] overflow-y-auto scrollbar-thin space-y-0.5">
-              {renderSummaryContent(summary)}
-            </div>
-          )}
-        </>
       )}
     </div>
   );
@@ -369,9 +143,6 @@ const LessonViewer = () => {
   const { isDeepFocus, toggleDeepFocus } = useDeepFocus();
   const [currentIndex, setCurrentIndex] = useState(0);
   const [showTools, setShowTools] = useState(false);
-  const [activeTool, setActiveTool] = useState<"notes" | "calc" | "summary">("notes");
-  const [videoUrl, setVideoUrl] = useState("");
-  const [activeVideoId, setActiveVideoId] = useState<string | null>(null);
 
   // Fetch topic and lessons from Firestore
   const { data: topic, isLoading: topicLoading } = useQuery({
@@ -400,8 +171,6 @@ const LessonViewer = () => {
     queryFn: async () => {
       if (!topicId) return [];
       try {
-        // NOTE: We intentionally do NOT use orderBy here to avoid requiring
-        // a Firestore composite index (topic_id + order). Sort client-side instead.
         const lessonsSnap = await getDocs(
           query(
             collection(db, "lessons"),
@@ -419,7 +188,6 @@ const LessonViewer = () => {
           order?: number;
           [key: string]: any;
         }));
-        // Sort by order field client-side
         return docs.sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
       } catch (error) {
         console.error("[LessonViewer] Lessons fetch error:", error);
@@ -471,46 +239,24 @@ const LessonViewer = () => {
   const totalLessons = lessons?.length ?? 0;
   const overallPct = totalLessons > 0 ? Math.round((completedSet.size / totalLessons) * 100) : 0;
 
-  // Auto-detect YouTube links in lesson content
-  useEffect(() => {
-    if (currentLesson?.content) {
-      const ytMatch = currentLesson.content.match(/(?:https?:\/\/)?(?:www\.)?(?:youtube\.com\/watch\?v=|youtu\.be\/)([a-zA-Z0-9_-]{11})/);
-      if (ytMatch) {
-        setActiveVideoId(ytMatch[1]);
-      } else {
-        setActiveVideoId(null);
-      }
-    }
-  }, [currentLesson]);
-
-  const handlePasteVideo = () => {
-    const id = extractYouTubeId(videoUrl);
-    if (id) {
-      setActiveVideoId(id);
-      toast.success("Video loaded!");
-    } else {
-      toast.error("Invalid YouTube URL");
-    }
-  };
-
   // Mark complete AND award XP
   const markComplete = useMutation({
     mutationFn: async () => {
       if (!user || !currentLesson || !topicId) return;
-      
+
       const batch = writeBatch(db);
       const progressRef = doc(db, "lesson_progress", `${user.uid}_${topicId}`);
-      
+
       const existingProgress = progress[0] || { completed_lessons: [] };
       const updated = Array.from(new Set([...(existingProgress.completed_lessons || []), currentLesson.id]));
-      
+
       batch.set(progressRef, {
         user_id: user.uid,
         topic_id: topicId,
         completed_lessons: updated,
         updated_at: new Date()
       }, { merge: true });
-      
+
       await batch.commit();
       await awardXP(user.uid, LESSON_XP, "lesson");
     },
@@ -518,64 +264,62 @@ const LessonViewer = () => {
       queryClient.invalidateQueries({ queryKey: ["lesson-progress", topicId, user?.uid] });
       queryClient.invalidateQueries({ queryKey: ["topics", user?.uid] });
       queryClient.invalidateQueries({ queryKey: ["totalXp"] });
-      toast.success(`Lesson completed! +${LESSON_XP} XP 🎉`);
+      toast.success(`Lesson completed! +${LESSON_XP} XP earned.`);
     },
-    onError: (error) => {
-      console.error("[LessonViewer] Mark complete error:", error);
-      toast.error("Failed to complete lesson");
+    onError: (err) => {
+      console.error("[LessonViewer] Complete mutation error:", err);
+      toast.error("Failed to update progress.");
     }
   });
 
   if (isLoading) {
     return (
-      <div className="p-6 md:p-8 max-w-5xl mx-auto space-y-6">
-        <Skeleton className="h-4 w-32" />
-        <Skeleton className="h-8 w-64" />
-        <Skeleton className="h-1.5 w-full" />
-        <Skeleton className="h-96 w-full rounded-xl" />
+      <div className="p-4 md:p-8 max-w-4xl mx-auto space-y-6">
+        <Skeleton className="h-6 w-32" />
+        <Skeleton className="h-10 w-3/4 animate-pulse" />
+        <Skeleton className="h-4 w-full animate-pulse" />
+        <div className="grid grid-cols-1 gap-5">
+          <Skeleton className="h-[400px] w-full" />
+        </div>
       </div>
     );
   }
 
   if (!currentLesson) {
     return (
-      <div className="p-6 md:p-8 max-w-3xl mx-auto text-center space-y-4 py-20">
-        <p className="text-muted-foreground">No lessons found for this topic.</p>
-        <Link to="/lessons" className="text-primary hover:underline text-sm">
-          ← Back to Lessons
+      <div className="p-8 text-center space-y-4">
+        <h2 className="text-xl font-bold text-foreground">No lessons found</h2>
+        <p className="text-muted-foreground text-sm">We couldn't load lessons for this topic.</p>
+        <Link to="/lessons">
+          <Button variant="outline" className="mt-2"><ArrowLeft className="h-4 w-4 mr-2" /> Back to Lessons</Button>
         </Link>
       </div>
     );
   }
 
-  // Rich markdown renderer with bold, inline code, and link support
+  // Content formatting helper
   const renderInline = (text: string) => {
-    // Split on **bold**, `code`, and [text](url) patterns
     const parts = text.split(/(\*\*[^*]+\*\*|`[^`]+`|\[[^\]]+\]\([^)]+\))/);
     return parts.map((part, idx) => {
-      if (part.startsWith("**") && part.endsWith("**")) {
-        return <strong key={idx} className="text-foreground font-semibold">{part.slice(2, -2)}</strong>;
-      }
-      if (part.startsWith("`") && part.endsWith("`")) {
+      if (part.startsWith("**") && part.endsWith("**"))
+        return <strong key={idx} className="text-foreground font-bold">{part.slice(2, -2)}</strong>;
+      if (part.startsWith("`") && part.endsWith("`"))
         return <code key={idx} className="text-primary bg-primary/10 px-1 py-0.5 rounded text-xs font-mono">{part.slice(1, -1)}</code>;
-      }
       const linkMatch = part.match(/^\[([^\]]+)\]\(([^)]+)\)$/);
-      if (linkMatch) {
+      if (linkMatch)
         return <a key={idx} href={linkMatch[2]} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">{linkMatch[1]}</a>;
-      }
       return part;
     });
   };
 
-  const renderContent = (content: string) =>
-    content.split("\n").map((line, i) => {
+  const renderContent = (text?: string) =>
+    (text ?? "").split("\n").map((line, i) => {
       if (line.startsWith("### "))
-        return <h4 key={i} className="text-base font-semibold mt-4 text-foreground">{renderInline(line.slice(4))}</h4>;
+        return <h3 key={i} className="text-lg font-bold mt-5 mb-2 text-foreground">{renderInline(line.slice(4))}</h3>;
       if (line.startsWith("## "))
-        return <h3 key={i} className="text-lg font-semibold mt-6 text-foreground">{renderInline(line.slice(3))}</h3>;
+        return <h2 key={i} className="text-xl font-bold mt-6 mb-3 text-foreground">{renderInline(line.slice(3))}</h2>;
       if (line.startsWith("# "))
-        return <h2 key={i} className="text-xl font-bold mt-6 text-foreground">{renderInline(line.slice(2))}</h2>;
-      if (line.startsWith("```") || line === "```") return null;
+        return <h1 key={i} className="text-2xl font-bold mt-8 mb-4 text-foreground">{renderInline(line.slice(2))}</h1>;
       if (line.startsWith("- "))
         return <li key={i} className="text-muted-foreground ml-4 leading-relaxed">{renderInline(line.slice(2))}</li>;
       if (/^\d+\.\s/.test(line))
@@ -594,12 +338,6 @@ const LessonViewer = () => {
       );
     });
 
-  const toolTabs = [
-    { key: "notes" as const, icon: StickyNote, label: "Notes" },
-    { key: "calc" as const, icon: Calculator, label: "Calculator" },
-    { key: "summary" as const, icon: Sparkles, label: "AI Summary" },
-  ];
-
   return (
     <div className={`p-4 md:p-8 max-w-6xl mx-auto space-y-5 ${isDeepFocus ? "reading-mode" : ""}`}>
 
@@ -615,15 +353,15 @@ const LessonViewer = () => {
         )}
 
         <div className="flex items-center gap-2 ml-auto">
-          {/* Quick Tools toggle */}
+          {/* Lesson Notes Toggle */}
           <Button
             variant="outline"
             size="sm"
             onClick={() => setShowTools(!showTools)}
             className={`gap-2 text-xs ${showTools ? "border-primary text-primary bg-primary/10" : "text-muted-foreground"}`}
           >
-            <Wrench className="h-3.5 w-3.5" />
-            <span className="hidden sm:inline">Quick Tools</span>
+            <StickyNote className="h-3.5 w-3.5" />
+            <span>Notes</span>
           </Button>
 
           {/* Deep Focus Mode toggle */}
@@ -674,106 +412,38 @@ const LessonViewer = () => {
 
       {/* ── Main content area (responsive grid with tools) ── */}
       <div className={`grid gap-5 ${showTools ? "lg:grid-cols-[1fr_320px]" : "grid-cols-1"}`}>
-        
-        {/* Left: Lesson + Video */}
-        <div className="space-y-5 min-w-0">
-          
-          {/* ── YouTube Workspace ─────────────────────────── */}
-          <div className="bg-card border border-border rounded-xl p-4 md:p-5 space-y-3">
-            <div className="flex items-center gap-2 text-sm font-semibold text-foreground">
-              <Youtube className="h-4 w-4 text-red-500" />
-              Video Workspace
-            </div>
-            
-            {activeVideoId ? (
-              <div className="space-y-3">
-                <div className="relative w-full aspect-video rounded-lg overflow-hidden bg-black">
-                  <iframe
-                    src={`https://www.youtube.com/embed/${activeVideoId}?rel=0`}
-                    className="absolute inset-0 w-full h-full"
-                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                    allowFullScreen
-                    title="Lesson Video"
-                  />
-                </div>
-                <div className="flex items-center gap-2">
-                  <Button variant="outline" size="sm" onClick={() => setActiveVideoId(null)} className="gap-1 text-xs">
-                    <X className="h-3 w-3" /> Remove Video
-                  </Button>
-                  <a href={`https://youtube.com/watch?v=${activeVideoId}`} target="_blank" rel="noopener noreferrer"
-                    className="text-xs text-muted-foreground hover:text-foreground inline-flex items-center gap-1">
-                    <ExternalLink className="h-3 w-3" /> Open on YouTube
-                  </a>
-                </div>
-              </div>
-            ) : (
-              <div className="flex gap-2">
-                <Input
-                  placeholder="Paste a YouTube URL…"
-                  value={videoUrl}
-                  onChange={(e) => setVideoUrl(e.target.value)}
-                  onKeyDown={(e) => e.key === "Enter" && handlePasteVideo()}
-                  className="h-9 text-sm flex-1"
-                />
-                <Button onClick={handlePasteVideo} size="sm" disabled={!videoUrl.trim()} className="gap-1 flex-shrink-0">
-                  <Play className="h-3.5 w-3.5" /> Load
-                </Button>
-              </div>
-            )}
-          </div>
 
-          {/* ── Lesson content card ─────────────────────────── */}
-          <div className="bg-card border border-border rounded-xl p-5 md:p-8 space-y-4 shadow-sm">
-            <div className="flex items-center gap-3 pb-4 border-b border-border">
-              <BookOpen className="h-5 w-5 text-primary" />
-              <span className="font-semibold text-foreground">Lesson Content</span>
-              <span className="ml-auto text-xs text-muted-foreground bg-muted px-2 py-0.5 rounded-full">
-                +{LESSON_XP} XP on complete
-              </span>
-            </div>
-            <div className="prose prose-sm max-w-none space-y-1">
-              {renderContent(currentLesson.content)}
-            </div>
+        {/* Left: Lesson content card */}
+        <div className="bg-card border border-border rounded-xl p-5 md:p-8 space-y-4 shadow-sm min-w-0">
+          <div className="flex items-center gap-3 pb-4 border-b border-border">
+            <BookOpen className="h-5 w-5 text-primary" />
+            <span className="font-semibold text-foreground">Lesson Content</span>
+            <span className="ml-auto text-xs text-muted-foreground bg-muted px-2 py-0.5 rounded-full">
+              +{LESSON_XP} XP on complete
+            </span>
+          </div>
+          <div className="prose prose-sm max-w-none space-y-1">
+            {renderContent(currentLesson.content)}
           </div>
         </div>
 
-        {/* Right: Quick Tools Sidebar (only when toggled) */}
+        {/* Right: Notes Sidebar (only when toggled) */}
         {showTools && (
           <div className="space-y-4 animate-in slide-in-from-right-4 duration-200">
             <div className="bg-card border border-border rounded-xl p-4 space-y-4 sticky top-4">
               <div className="flex items-center gap-2 text-sm font-semibold text-foreground pb-3 border-b border-border">
-                <Wrench className="h-4 w-4 text-primary" />
-                Quick Tools
+                <StickyNote className="h-4 w-4 text-primary" />
+                Lesson Notes
               </div>
 
-              {/* Tool tabs */}
-              <div className="flex gap-1 bg-muted/50 rounded-lg p-1">
-                {toolTabs.map(t => (
-                  <button
-                    key={t.key}
-                    onClick={() => setActiveTool(t.key)}
-                    className={`flex-1 flex items-center justify-center gap-1.5 px-2 py-2 rounded-md text-xs font-medium transition-colors ${
-                      activeTool === t.key
-                        ? "bg-card text-primary shadow-sm"
-                        : "text-muted-foreground hover:text-foreground"
-                    }`}
-                  >
-                    <t.icon className="h-3.5 w-3.5" />
-                    <span className="hidden xl:inline">{t.label}</span>
-                  </button>
-                ))}
-              </div>
-
-              {/* Active tool content */}
+              {/* Notes content */}
               <div className="min-h-[200px]">
-                {activeTool === "notes" && <MiniNotes lessonId={currentLesson.id} />}
-                {activeTool === "calc" && <MiniCalc />}
-                {activeTool === "summary" && (
-                  <AISummarizer
-                    content={currentLesson.content}
-                    videoUrl={activeVideoId ? `https://youtube.com/watch?v=${activeVideoId}` : undefined}
-                  />
-                )}
+                <MiniNotes
+                  lessonId={currentLesson.id}
+                  lessonTitle={currentLesson.title}
+                  topicId={topicId || ""}
+                  topicTitle={topic?.title || "Untitled Course"}
+                />
               </div>
             </div>
           </div>

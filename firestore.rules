@@ -184,5 +184,12 @@ service cloud.firestore {
       allow create: if isAuthenticated();
       allow update, delete: if isAuthenticated();
     }
+
+    // ── /saved_notes collection ───────────────────────
+    match /saved_notes/{noteId} {
+      allow read: if isOwner();
+      allow create: if isNewOwner();
+      allow update, delete: if isOwner();
+    }
   }
 }

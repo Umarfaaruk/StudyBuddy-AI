@@ -2,7 +2,7 @@ import { useState, useRef } from "react";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Upload, FileText, X, ArrowRight, Loader2, Search, FolderOpen, Sparkles, HardDrive, LayoutGrid, List, Plus, Library, BookOpenCheck, ExternalLink, Trash2, Clock, Filter, FileImage, FileType, AlertTriangle, Eye } from "lucide-react";
+import { Upload, FileText, X, ArrowRight, Loader2, Search, FolderOpen, Sparkles, HardDrive, LayoutGrid, List, Plus, Library, BookOpenCheck, ExternalLink, Trash2, Clock, Filter, FileImage, FileType, AlertTriangle, Eye, StickyNote } from "lucide-react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { db } from "@/lib/firebase";
 import { useAuth } from "@/contexts/AuthContext";
@@ -205,8 +205,50 @@ const MaterialUpload = () => {
   const [uploadProgress, setUploadProgress] = useState("");
   const [search, setSearch] = useState("");
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
-  const [activeFileTab, setActiveFileTab] = useState<"all" | "pdf" | "image" | "text">("all");
+  const [activeFileTab, setActiveFileTab] = useState<"all" | "pdf" | "image" | "text" | "notes">("all");
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
+
+  const { data: savedNotes, isLoading: isNotesLoading } = useQuery({
+    queryKey: ["saved-notes", user?.uid],
+    queryFn: async () => {
+      if (!user) return [];
+      try {
+        const q = query(
+          collection(db, "saved_notes"),
+          where("user_id", "==", user.uid),
+          orderBy("created_at", "desc")
+        );
+        const docs = await getDocs(q);
+        return docs.docs.map(doc => ({
+          id: doc.id,
+          ...doc.data()
+        } as {
+          id: string;
+          user_id: string;
+          lesson_id: string;
+          lesson_title: string;
+          topic_id: string;
+          topic_title: string;
+          text: string;
+          created_at: string;
+        }));
+      } catch (err) {
+        console.error("Failed to fetch saved notes:", err);
+        return [];
+      }
+    },
+    enabled: !!user,
+  });
+
+  const handleDeleteNote = async (id: string) => {
+    try {
+      await deleteDoc(doc(db, "saved_notes", id));
+      queryClient.invalidateQueries({ queryKey: ["saved-notes", user?.uid] });
+      toast.success("Note deleted");
+    } catch (error) {
+      toast.error("Failed to delete note");
+    }
+  };
 
   const { data: materials, isLoading } = useQuery({
     queryKey: ["materials", user?.uid],
@@ -451,7 +493,7 @@ const MaterialUpload = () => {
         {[
           { icon: FileText, label: "Total Files", value: materials?.length ?? 0 },
           { icon: Sparkles, label: "AI Ready", value: materials?.filter(m => m.processing_status === "completed" || m.processing_status === "ready").length ?? 0 },
-          { icon: FolderOpen, label: "Folders", value: 0 },
+          { icon: StickyNote, label: "Saved Notes", value: savedNotes?.length ?? 0 },
           { icon: HardDrive, label: "Storage", value: formatSize(materials?.reduce((s, m) => s + (m.file_size ?? 0), 0) ?? 0) },
         ].map((s) => (
           <div key={s.label} className="bg-card border border-border rounded-xl p-4">
@@ -481,6 +523,7 @@ const MaterialUpload = () => {
             { key: "pdf" as const, label: "PDFs", count: filteredMaterials.filter(m => m.content_type?.includes("pdf") || m.file_name?.endsWith(".pdf")).length },
             { key: "image" as const, label: "Images", count: filteredMaterials.filter(m => m.content_type?.startsWith("image/")).length },
             { key: "text" as const, label: "Text", count: filteredMaterials.filter(m => m.content_type === "text/plain" || m.file_name?.endsWith(".txt") || m.file_name?.endsWith(".md")).length },
+            { key: "notes" as const, label: "Saved Notes", count: savedNotes?.length ?? 0 },
           ].map((tab) => (
             <button
               key={tab.key}
@@ -510,6 +553,124 @@ const MaterialUpload = () => {
               </div>
             ))}
           </div>
+        ) : activeFileTab === "notes" ? (
+          isNotesLoading ? (
+            <div className="grid sm:grid-cols-2 md:grid-cols-3 gap-3">
+              {Array.from({ length: 3 }).map((_, i) => (
+                <div key={i} className="bg-card border border-border rounded-xl p-4 space-y-3">
+                  <div className="h-4 w-32 bg-muted animate-pulse rounded" />
+                  <div className="h-10 bg-muted animate-pulse rounded" />
+                </div>
+              ))}
+            </div>
+          ) : !savedNotes || savedNotes.length === 0 ? (
+            <div className="text-center py-12 border-2 border-dashed border-border rounded-xl">
+              <StickyNote className="h-10 w-10 text-muted-foreground/30 mx-auto mb-3" />
+              <p className="text-sm font-medium text-muted-foreground">No saved notes found</p>
+              <p className="text-xs text-muted-foreground/70 mt-1">Jot down quick notes while studying lessons to see them here.</p>
+            </div>
+          ) : viewMode === "grid" ? (
+            <div className="grid sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+              {savedNotes.map((n) => (
+                <div key={n.id} className="bg-card border border-border rounded-xl p-4 space-y-3 relative group hover:border-primary/30 hover:shadow-sm transition-all flex flex-col justify-between min-h-[160px]">
+                  {confirmDeleteId === n.id && (
+                    <div className="absolute inset-0 z-20 bg-card/95 backdrop-blur-sm border border-destructive/30 rounded-xl flex flex-col items-center justify-center gap-3 p-4 animate-in fade-in-0 zoom-in-95 duration-200">
+                      <AlertTriangle className="h-5 w-5 text-destructive" />
+                      <p className="text-xs font-medium text-center">Delete note?</p>
+                      <div className="flex gap-2">
+                        <Button size="sm" variant="outline" onClick={() => setConfirmDeleteId(null)} className="text-xs h-7">Cancel</Button>
+                        <Button size="sm" onClick={() => { handleDeleteNote(n.id); setConfirmDeleteId(null); }} className="text-xs h-7 bg-destructive text-destructive-foreground hover:bg-destructive/90 gap-1">
+                          <Trash2 className="h-3 w-3" /> Delete
+                        </Button>
+                      </div>
+                    </div>
+                  )}
+
+                  <button
+                    onClick={() => setConfirmDeleteId(n.id)}
+                    className="absolute top-2 right-2 p-1.5 rounded-lg text-muted-foreground/60 hover:text-destructive hover:bg-destructive/10 transition-all z-10 animate-in fade-in"
+                    title="Delete note"
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />
+                  </button>
+
+                  <div className="space-y-2 flex-1">
+                    <div className="flex items-center gap-1.5 text-xs text-muted-foreground font-semibold">
+                      <StickyNote className="h-3.5 w-3.5 text-accent" />
+                      <span>Saved Note</span>
+                    </div>
+                    <p className="text-xs text-foreground whitespace-pre-wrap line-clamp-4 leading-relaxed">{n.text}</p>
+                  </div>
+
+                  <div className="space-y-1 pt-2 border-t border-border/40 mt-auto">
+                    <div className="text-[10px] text-muted-foreground truncate" title={`${n.topic_title || 'Topic'} · ${n.lesson_title || 'Lesson'}`}>
+                      {n.topic_id ? (
+                        <Link to={`/lessons/${n.topic_id}`} className="text-primary hover:underline font-semibold">
+                          {n.topic_title || 'Go to Lesson'}
+                        </Link>
+                      ) : (
+                        <span>{n.topic_title || 'General'}</span>
+                      )}
+                      <span className="opacity-60"> · {n.lesson_title || 'Lesson'}</span>
+                    </div>
+                    <div className="text-[9px] text-muted-foreground flex items-center gap-1">
+                      <Clock className="h-2.5 w-2.5" /> {new Date(n.created_at).toLocaleDateString()}
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="space-y-2">
+              <div className="hidden md:grid grid-cols-[1fr_200px_100px_40px] gap-3 px-4 py-2 text-[10px] font-bold text-muted-foreground uppercase tracking-wider">
+                <span>Note Content</span>
+                <span>From Course/Lesson</span>
+                <span>Date</span>
+                <span></span>
+              </div>
+              {savedNotes.map((n) => (
+                <div key={n.id} className="flex items-center gap-4 bg-card border border-border rounded-xl p-4 hover:border-primary/30 hover:shadow-sm transition-all group relative">
+                  {confirmDeleteId === n.id && (
+                    <div className="absolute inset-0 z-20 bg-card/95 backdrop-blur-sm border border-destructive/30 rounded-xl flex items-center justify-center gap-3 p-4 animate-in fade-in-0 zoom-in-95 duration-200">
+                      <AlertTriangle className="h-5 w-5 text-destructive flex-shrink-0" />
+                      <p className="text-xs font-medium">Delete note?</p>
+                      <div className="flex gap-2">
+                        <Button size="sm" variant="outline" onClick={() => setConfirmDeleteId(null)} className="text-xs h-7">Cancel</Button>
+                        <Button size="sm" onClick={() => { handleDeleteNote(n.id); setConfirmDeleteId(null); }} className="text-xs h-7 bg-destructive text-destructive-foreground hover:bg-destructive/90 gap-1">
+                          <Trash2 className="h-3 w-3" /> Delete
+                        </Button>
+                      </div>
+                    </div>
+                  )}
+
+                  <StickyNote className="h-5 w-5 text-accent flex-shrink-0" />
+                  <div className="flex-1 min-w-0 pr-4">
+                    <p className="text-sm text-foreground whitespace-pre-wrap leading-relaxed">{n.text}</p>
+                  </div>
+                  <div className="w-[200px] text-xs text-muted-foreground truncate">
+                    {n.topic_id ? (
+                      <Link to={`/lessons/${n.topic_id}`} className="text-primary hover:underline font-semibold block truncate">
+                        {n.topic_title || 'Go to Course'}
+                      </Link>
+                    ) : (
+                      <span className="block truncate font-semibold">{n.topic_title || 'General'}</span>
+                    )}
+                    <span className="text-[10px] opacity-75 truncate block">{n.lesson_title || 'Lesson'}</span>
+                  </div>
+                  <div className="w-[100px] text-xs text-muted-foreground">
+                    {new Date(n.created_at).toLocaleDateString()}
+                  </div>
+                  <button
+                    onClick={() => setConfirmDeleteId(n.id)}
+                    className="p-1.5 rounded-lg text-muted-foreground/60 hover:text-destructive hover:bg-destructive/10 transition-all z-10"
+                    title="Delete note"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </button>
+                </div>
+              ))}
+            </div>
+          )
         ) : tabFilteredMaterials.length === 0 ? (
           <div className="text-center py-12 border-2 border-dashed border-border rounded-xl">
             <FolderOpen className="h-10 w-10 text-muted-foreground/30 mx-auto mb-3" />
