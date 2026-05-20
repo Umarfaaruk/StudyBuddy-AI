@@ -6,6 +6,10 @@ import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { aiComplete } from "@/lib/aiService";
 import ReactMarkdown from "react-markdown";
+import { useAuth } from "@/contexts/AuthContext";
+import { db } from "@/lib/firebase";
+import { collection, addDoc } from "firebase/firestore";
+import { useQueryClient } from "@tanstack/react-query";
 
 // ── Video Notebook Workspace (NotebookLM) Component ────────────────
 const VideoNotebookWorkspace = () => {
@@ -24,6 +28,49 @@ const VideoNotebookWorkspace = () => {
   const [notebookChatMessages, setNotebookChatMessages] = useState<Array<{ role: "user" | "assistant"; content: string }>>([]);
   const [isNotebookChatSending, setIsNotebookChatSending] = useState(false);
   const chatEndRef = useRef<HTMLDivElement>(null);
+  const [personalNotes, setPersonalNotes] = useState("");
+  const [isSavingNotes, setIsSavingNotes] = useState(false);
+  const { user } = useAuth();
+  const queryClient = useQueryClient();
+
+  const handleSaveNotesToResources = async () => {
+    if (!personalNotes.trim()) {
+      toast.error("Please write some notes first");
+      return;
+    }
+    if (!user) {
+      toast.error("You must be logged in to save notes");
+      return;
+    }
+    setIsSavingNotes(true);
+    try {
+      const fileName = `${workspaceVideoData?.title || "Video"}_Study_Notes.md`;
+      
+      await addDoc(collection(db, "materials"), {
+        user_id: user.uid,
+        file_name: fileName,
+        content_type: "text/markdown",
+        file_size: new Blob([personalNotes]).size,
+        processing_status: "completed",
+        uploaded_at: new Date().toISOString(),
+        extracted_text: personalNotes,
+        summary: `Personal study notes generated while studying the video "${workspaceVideoData?.title || "YouTube Video"}"`,
+        key_topics: [workspaceVideoData?.title || "Video Notes"],
+        content_length: personalNotes.length,
+        concepts: [
+          { name: workspaceVideoData?.title || "Video Notes", importance: "critical" }
+        ]
+      });
+
+      queryClient.invalidateQueries({ queryKey: ["materials", user.uid] });
+      toast.success("Study notes saved to your Resources section!");
+    } catch (err: any) {
+      console.error(err);
+      toast.error("Failed to save study notes to Resources");
+    } finally {
+      setIsSavingNotes(false);
+    }
+  };
 
   const extractYouTubeId = (url: string): string | null => {
     const patterns = [
@@ -240,10 +287,10 @@ ${workspaceVideoData.transcript.substring(0, 15000)}`
           </div>
         </div>
       ) : (
-        <div className="grid md:grid-cols-[280px_1fr] gap-6">
-          {/* Left side: Video Info & Tool selector */}
-          <div className="space-y-4 border-r border-border/50 pr-4">
-            <div className="rounded-lg overflow-hidden bg-black aspect-video relative">
+        <div className="grid lg:grid-cols-12 gap-6">
+          {/* Left Column: YouTube Video Player & User Notes */}
+          <div className="lg:col-span-7 space-y-4">
+            <div className="rounded-xl overflow-hidden bg-black aspect-video relative shadow-md border border-border">
               <iframe
                 src={`https://www.youtube.com/embed/${workspaceVideoData.id}`}
                 className="absolute inset-0 w-full h-full border-none"
@@ -252,51 +299,81 @@ ${workspaceVideoData.transcript.substring(0, 15000)}`
               />
             </div>
             <div>
-              <h3 className="text-xs font-semibold text-foreground line-clamp-2 leading-tight" title={workspaceVideoData.title}>
+              <h3 className="text-sm font-bold text-foreground line-clamp-2 leading-tight" title={workspaceVideoData.title}>
                 {workspaceVideoData.title}
               </h3>
-              <p className="text-[10px] text-muted-foreground mt-0.5">{workspaceVideoData.channel}</p>
+              <p className="text-xs text-muted-foreground mt-1">{workspaceVideoData.channel}</p>
             </div>
 
-            {/* Tool list (buttons) */}
-            <div className="space-y-1 pt-2 border-t border-border/40">
-              <p className="text-[10px] uppercase tracking-wider text-muted-foreground/75 font-semibold px-2 mb-1">Notebook Guide Tools</p>
-              {[
-                { key: "briefing" as const, label: "Briefing Document", icon: FileText, desc: "High-level summary of core ideas" },
-                { key: "study" as const, label: "Study Guide", icon: BookOpen, desc: "Key terms & comprehension essay prompts" },
-                { key: "faq" as const, label: "FAQ Generator", icon: HelpCircle, desc: "Questions & detailed answers" },
-                { key: "timeline" as const, label: "Timeline", icon: Clock, desc: "Chronological flow of discussion topics" },
-                { key: "podcast" as const, label: "Audio Overview (Script)", icon: Headphones, desc: "Alex & Robin podcast dialogue" },
-                { key: "chat" as const, label: "Ask Workspace Chat", icon: MessageSquare, desc: "Interactive chat with the video context" }
-              ].map((tool) => {
-                const Icon = tool.icon;
-                return (
-                  <button
-                    key={tool.key}
-                    onClick={() => setActiveNotebookTool(tool.key)}
-                    className={`w-full text-left px-3 py-2.5 rounded-lg flex items-start gap-2.5 transition-all ${
-                      activeNotebookTool === tool.key
-                        ? "bg-accent/10 text-accent font-semibold border-l-2 border-accent"
-                        : "text-muted-foreground hover:bg-muted/40 hover:text-foreground"
-                    }`}
+            {/* User Note Taking Area */}
+            <div className="bg-card border border-border rounded-xl p-4 space-y-3 shadow-sm">
+              <div className="flex justify-between items-center pb-2 border-b border-border/40">
+                <h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">My Study Notes</h4>
+                <div className="flex items-center gap-2">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="h-7 text-[10px] px-2"
+                    onClick={() => {
+                      if (!personalNotes.trim()) {
+                        toast.error("No notes to copy");
+                        return;
+                      }
+                      navigator.clipboard.writeText(personalNotes);
+                      toast.success("Notes copied to clipboard!");
+                    }}
                   >
-                    <Icon className="h-4 w-4 mt-0.5 flex-shrink-0" />
-                    <div className="min-w-0">
-                      <div className="text-xs leading-none">{tool.label}</div>
-                      <div className="text-[9px] text-muted-foreground/80 mt-1 truncate">{tool.desc}</div>
-                    </div>
-                  </button>
-                );
-              })}
+                    Copy Notes
+                  </Button>
+                  <Button
+                    size="sm"
+                    className="h-7 text-[10px] bg-accent text-accent-foreground hover:bg-accent/90 px-2"
+                    onClick={handleSaveNotesToResources}
+                    disabled={isSavingNotes || !personalNotes.trim()}
+                  >
+                    {isSavingNotes ? <Loader2 className="h-3 w-3 animate-spin" /> : "Save to Resources"}
+                  </Button>
+                </div>
+              </div>
+              <textarea
+                placeholder="Write your notes here while watching the video. You can copy AI summaries here or type your own takeaways."
+                value={personalNotes}
+                onChange={(e) => setPersonalNotes(e.target.value)}
+                className="w-full min-h-[160px] p-3 text-xs bg-muted/20 border border-border rounded-lg outline-none focus:border-accent/40 text-foreground resize-y font-mono"
+              />
             </div>
           </div>
 
-          {/* Right side: Tool Output area */}
-          <div className="bg-muted/10 border border-border/60 rounded-xl p-4 flex flex-col min-h-[400px]">
+          {/* Right Column: AI Study Tools & Chat */}
+          <div className="lg:col-span-5 flex flex-col bg-muted/10 border border-border/60 rounded-xl p-4 min-h-[500px]">
+            {/* Tabs for tools */}
+            <div className="flex border-b border-border/40 pb-2 mb-4 overflow-x-auto gap-1">
+              {[
+                { key: "briefing" as const, label: "Summary" },
+                { key: "study" as const, label: "Study Guide" },
+                { key: "faq" as const, label: "FAQ" },
+                { key: "timeline" as const, label: "Timeline" },
+                { key: "podcast" as const, label: "Podcast Script" },
+                { key: "chat" as const, label: "Ask AI Chat" }
+              ].map((tool) => (
+                <button
+                  key={tool.key}
+                  onClick={() => setActiveNotebookTool(tool.key)}
+                  className={`px-3 py-1.5 text-xs rounded-lg whitespace-nowrap transition-colors font-medium ${
+                    activeNotebookTool === tool.key
+                      ? "bg-accent/10 text-accent font-semibold"
+                      : "text-muted-foreground hover:text-foreground hover:bg-muted/40"
+                  }`}
+                >
+                  {tool.label}
+                </button>
+              ))}
+            </div>
+
             {generatingTool === activeNotebookTool ? (
               <div className="flex-1 flex flex-col items-center justify-center py-12 space-y-3">
                 <Loader2 className="h-8 w-8 animate-spin text-accent" />
-                <p className="text-xs text-muted-foreground animate-pulse">NotebookLM is indexing concepts and drafting content...</p>
+                <p className="text-xs text-muted-foreground animate-pulse text-center">AI Notebook is generating content parallelly...</p>
               </div>
             ) : activeNotebookTool === "chat" ? (
               /* Chat view */
@@ -341,7 +418,7 @@ ${workspaceVideoData.transcript.substring(0, 15000)}`
                     <div className="flex justify-start">
                       <div className="bg-card border border-border rounded-lg p-2.5 flex items-center gap-2">
                         <Loader2 className="h-3 w-3 animate-spin text-accent" />
-                        <span className="text-[10px] text-muted-foreground">NotebookLM is thinking...</span>
+                        <span className="text-[10px] text-muted-foreground">Thinking...</span>
                       </div>
                     </div>
                   )}
@@ -352,7 +429,7 @@ ${workspaceVideoData.transcript.substring(0, 15000)}`
                 <div className="flex gap-2 pt-3 border-t border-border/40 mt-auto">
                   <input
                     type="text"
-                    placeholder="Ask about this video... (e.g. 'What is the main takeaway?')"
+                    placeholder="Ask about this video..."
                     value={notebookChatInput}
                     onChange={(e) => setNotebookChatInput(e.target.value)}
                     className="flex-1 h-9 px-3 text-xs bg-muted/40 border border-border rounded-lg outline-none focus:border-accent/40 text-foreground transition-all"
@@ -361,33 +438,33 @@ ${workspaceVideoData.transcript.substring(0, 15000)}`
                   <Button
                     onClick={handleSendChatMessage}
                     disabled={isNotebookChatSending || !notebookChatInput.trim()}
-                    size="sm"
-                    className="bg-accent text-accent-foreground h-9 px-3"
+                    className="bg-accent text-accent-foreground hover:bg-accent/90 h-9 w-9 p-0 flex items-center justify-center rounded-lg"
                   >
                     <Send className="h-3.5 w-3.5" />
                   </Button>
                 </div>
               </div>
             ) : (
-              /* Standard Markdown output view */
-              <div className="flex-1 flex flex-col justify-between font-sans">
-                <div className="flex items-center justify-between pb-3 border-b border-border/40 font-sans">
-                  <span className="text-xs font-bold text-foreground font-sans">
-                    {activeNotebookTool === "briefing" && "Briefing Document"}
-                    {activeNotebookTool === "study" && "Study Guide"}
-                    {activeNotebookTool === "faq" && "FAQ Generator"}
-                    {activeNotebookTool === "timeline" && "Timeline / Milestone Flow"}
-                    {activeNotebookTool === "podcast" && "Podcast Dialogue Script"}
+              /* Markdown generated outputs */
+              <div className="flex-1 flex flex-col justify-between">
+                <div className="flex items-center justify-between pb-2.5 border-b border-border/40 mb-3">
+                  <span className="text-xs font-bold text-foreground">
+                    {activeNotebookTool === "briefing" && "📖 Summary notes"}
+                    {activeNotebookTool === "study" && "📝 Comprehension study guide"}
+                    {activeNotebookTool === "faq" && "❓ Frequently asked questions"}
+                    {activeNotebookTool === "timeline" && "⏰ Key timestamps & sequence"}
+                    {activeNotebookTool === "podcast" && "🎙️ Scripted dialog breakdown"}
                   </span>
                   {notebookOutputs[activeNotebookTool] && (
                     <button
                       onClick={() => {
-                        navigator.clipboard.writeText(notebookOutputs[activeNotebookTool]);
-                        toast.success("Copied to clipboard!");
+                        const noteSnippet = `\n\n### AI Generated ${activeNotebookTool.toUpperCase()}\n${notebookOutputs[activeNotebookTool]}`;
+                        setPersonalNotes(prev => prev + noteSnippet);
+                        toast.success("AI notes appended to study notes!");
                       }}
-                      className="text-[10px] text-muted-foreground hover:text-foreground flex items-center gap-1 transition-colors bg-muted/50 hover:bg-muted px-2 py-1 rounded"
+                      className="text-[10px] text-accent hover:underline flex items-center gap-1 transition-all bg-accent/5 hover:bg-accent/10 px-2 py-1 rounded border border-accent/20"
                     >
-                      <Copy className="h-3 w-3" /> Copy
+                      Append to My Notes
                     </button>
                   )}
                 </div>
@@ -399,7 +476,7 @@ ${workspaceVideoData.transcript.substring(0, 15000)}`
                   ) : (
                     <div className="flex flex-col items-center justify-center py-12 text-center text-muted-foreground space-y-2">
                       <Sparkles className="h-8 w-8 opacity-30 animate-pulse" />
-                      <p className="text-xs font-sans">Select a tool to generate analysis.</p>
+                      <p className="text-xs font-sans">Generating details...</p>
                     </div>
                   )}
                 </div>
