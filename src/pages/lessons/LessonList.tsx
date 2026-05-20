@@ -1,12 +1,12 @@
 import { useState, lazy, Suspense } from "react";
 import { Link } from "react-router-dom";
-import { BookOpen, ChevronRight, Search, Calculator, Atom, FlaskConical, Leaf, FileText, Loader2, Sparkles, Plus, CalendarDays } from "lucide-react";
+import { BookOpen, ChevronRight, Search, Calculator, Atom, FlaskConical, Leaf, FileText, Loader2, Sparkles, Plus, CalendarDays, Trash2, AlertTriangle } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/AuthContext";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { collection, query, getDocs, where, doc, writeBatch } from "firebase/firestore";
+import { collection, query, getDocs, where, doc, writeBatch, deleteDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { aiComplete } from "@/lib/aiService";
 import { toast } from "sonner";
@@ -26,6 +26,8 @@ const LessonList = () => {
   const [search, setSearch] = useState("");
   const [generatingFor, setGeneratingFor] = useState<string | null>(null);
   const [showPlanner, setShowPlanner] = useState(false);
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
   const queryClient = useQueryClient();
 
   // Fetch user materials
@@ -63,7 +65,14 @@ const LessonList = () => {
           progressSnap.docs.map(doc => [doc.id.split("_")[1], doc.data()])
         );
 
-        return topicsData.map(topic => {
+        const filteredTopicsData = topicsData.filter(topic => {
+          if (topic.is_custom) {
+            return topic.user_id === user.uid;
+          }
+          return true;
+        });
+
+        return filteredTopicsData.map(topic => {
           const progress = progressMap.get(topic.id);
           const completed = progress?.completed_lessons?.length ?? 0;
           const total = topic.lesson_count ?? 0;
@@ -98,6 +107,40 @@ const LessonList = () => {
   if (topics.some((t: any) => t.is_custom) && !subjectNames.includes("Your Courses")) {
     subjectNames.push("Your Courses");
   }
+
+  // ── Delete a course (topic + its lessons + progress) ────────────
+  const handleDeleteCourse = async (topicId: string, topicTitle: string) => {
+    if (!user) return;
+    setDeletingId(topicId);
+    try {
+      const batch = writeBatch(db);
+
+      // 1. Delete all lessons for this topic
+      const lessonsSnap = await getDocs(
+        query(collection(db, "lessons"), where("topic_id", "==", topicId))
+      );
+      lessonsSnap.docs.forEach(d => batch.delete(d.ref));
+
+      // 2. Delete lesson_progress for this topic + user
+      try {
+        const progressRef = doc(db, "lesson_progress", `${user.uid}_${topicId}`);
+        batch.delete(progressRef);
+      } catch {}
+
+      // 3. Delete the topic document itself
+      batch.delete(doc(db, "topics", topicId));
+
+      await batch.commit();
+      toast.success(`"${topicTitle}" removed successfully`);
+      queryClient.invalidateQueries({ queryKey: ["topics", user.uid] });
+    } catch (error) {
+      console.error("[LessonList] Delete course error:", error);
+      toast.error("Failed to delete course. Try again.");
+    } finally {
+      setDeletingId(null);
+      setConfirmDeleteId(null);
+    }
+  };
 
   const handleGenerateCourse = async (material: any) => {
     if (!user) return;
@@ -302,38 +345,88 @@ ${materialContent}`;
               </div>
             ))
           : filtered.map((t) => (
-              <Link
-                key={t.id}
-                to={`/lessons/${t.id}`}
-                className="flex items-center gap-4 bg-card border border-border rounded-xl p-5 hover:border-primary/40 hover:shadow-sm transition-all group"
-              >
-                {/* Icon */}
-                <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center flex-shrink-0">
-                  {iconMap[t.subjectIcon] ?? <BookOpen className="h-5 w-5 text-primary" />}
-                </div>
-
-                {/* Info */}
-                <div className="flex-1 min-w-0">
-                  <div className="text-sm font-semibold text-foreground">{t.title}</div>
-                  <div className="text-xs text-muted-foreground mt-0.5">
-                    {t.subjectName} · {t.completedLessons}/{t.totalLessons} lessons
+              <div key={t.id} className="relative group">
+                {/* ── Delete Confirmation Overlay ── */}
+                {confirmDeleteId === t.id && (
+                  <div className="absolute inset-0 z-20 bg-card/95 backdrop-blur-sm border border-destructive/30 rounded-xl flex items-center justify-center gap-3 p-4 animate-in fade-in-0 zoom-in-95 duration-200">
+                    <AlertTriangle className="h-5 w-5 text-destructive flex-shrink-0" />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-foreground">Delete "{t.title}"?</p>
+                      <p className="text-xs text-muted-foreground">This will remove all lessons & progress permanently.</p>
+                    </div>
+                    <div className="flex gap-2 flex-shrink-0">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => setConfirmDeleteId(null)}
+                        className="text-xs h-8"
+                      >
+                        Cancel
+                      </Button>
+                      <Button
+                        size="sm"
+                        onClick={() => handleDeleteCourse(t.id, t.title)}
+                        disabled={deletingId === t.id}
+                        className="text-xs h-8 bg-destructive text-destructive-foreground hover:bg-destructive/90 gap-1.5"
+                      >
+                        {deletingId === t.id ? (
+                          <><Loader2 className="h-3 w-3 animate-spin" /> Deleting…</>
+                        ) : (
+                          <><Trash2 className="h-3 w-3" /> Delete</>
+                        )}
+                      </Button>
+                    </div>
                   </div>
-                  {/* Progress bar — success green */}
-                  <div className="h-1.5 bg-muted rounded-full overflow-hidden mt-2 w-full max-w-xs">
-                    <div
-                      className="h-full bg-success rounded-full transition-all duration-500"
-                      style={{ width: `${t.pct}%` }}
-                    />
-                  </div>
+                )}
+
+                <div className="flex items-center gap-4 bg-card border border-border rounded-xl p-5 hover:border-primary/40 hover:shadow-sm transition-all">
+                  {/* Delete button (visible on hover) */}
+                  <button
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      setConfirmDeleteId(t.id);
+                    }}
+                    className="absolute top-2 right-2 p-1.5 rounded-lg text-muted-foreground/60 hover:text-destructive hover:bg-destructive/10 transition-all z-10"
+                    title="Remove course"
+                    aria-label={`Remove course ${t.title}`}
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />
+                  </button>
+
+                  <Link
+                    to={`/lessons/${t.id}`}
+                    className="flex items-center gap-4 flex-1 min-w-0"
+                  >
+                    {/* Icon */}
+                    <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center flex-shrink-0">
+                      {iconMap[t.subjectIcon] ?? <BookOpen className="h-5 w-5 text-primary" />}
+                    </div>
+
+                    {/* Info */}
+                    <div className="flex-1 min-w-0">
+                      <div className="text-sm font-semibold text-foreground">{t.title}</div>
+                      <div className="text-xs text-muted-foreground mt-0.5">
+                        {t.subjectName} · {t.completedLessons}/{t.totalLessons} lessons
+                      </div>
+                      {/* Progress bar — success green */}
+                      <div className="h-1.5 bg-muted rounded-full overflow-hidden mt-2 w-full max-w-xs">
+                        <div
+                          className="h-full bg-success rounded-full transition-all duration-500"
+                          style={{ width: `${t.pct}%` }}
+                        />
+                      </div>
+                    </div>
+
+                    {/* Completion % */}
+                    <span className={`text-xs font-bold ${t.pct === 100 ? "text-success" : "text-muted-foreground"}`}>
+                      {t.pct}%
+                    </span>
+
+                    <ChevronRight className="h-4 w-4 text-muted-foreground group-hover:text-foreground transition-colors" />
+                  </Link>
                 </div>
-
-                {/* Completion % */}
-                <span className={`text-xs font-bold ${t.pct === 100 ? "text-success" : "text-muted-foreground"}`}>
-                  {t.pct}%
-                </span>
-
-                <ChevronRight className="h-4 w-4 text-muted-foreground group-hover:text-foreground transition-colors" />
-              </Link>
+              </div>
             ))}
 
         {!isLoading && filtered.length === 0 && filter !== "Your Courses" && (

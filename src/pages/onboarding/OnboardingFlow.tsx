@@ -227,6 +227,18 @@ const OnboardingFlow = () => {
       }, { merge: true });
 
       toast.success("Welcome to EduOnx! 🚀");
+      // Update cache synchronously to prevent race conditions during navigation
+      const newProfileData = {
+        user_id: user.uid,
+        onboarding_completed: true,
+        learner_type: learnerType,
+        main_purpose: mainPurpose,
+        current_goal: currentGoal,
+        updated_at: new Date().toISOString(),
+      };
+      queryClient.setQueryData(["profile-onboarding-check", user.uid], newProfileData);
+      queryClient.setQueryData(["profile", user.uid], newProfileData);
+
       // Invalidate the profile cache so ProtectedRoute sees onboarding_completed: true
       queryClient.invalidateQueries({ queryKey: ["profile-onboarding-check", user.uid] });
       queryClient.invalidateQueries({ queryKey: ["profile", user.uid] });

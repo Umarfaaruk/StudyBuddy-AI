@@ -105,6 +105,10 @@ const AISummarizer = ({ content, videoUrl }: { content: string; videoUrl?: strin
   const [summary, setSummary] = useState("");
   const [loading, setLoading] = useState(false);
   const [source, setSource] = useState<"lesson" | "youtube">("lesson");
+  const [ytTab, setYtTab] = useState<"summary" | "live" | "chat">("summary");
+  const [chatQuestion, setChatQuestion] = useState("");
+  const [chatMessages, setChatMessages] = useState<{ role: "user" | "assistant"; content: string }[]>([]);
+  const [chatLoading, setChatLoading] = useState(false);
 
   // Extract video ID from URL
   const videoId = videoUrl?.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/)([a-zA-Z0-9_-]{11})/)?.[1];
@@ -122,9 +126,25 @@ const AISummarizer = ({ content, videoUrl }: { content: string; videoUrl?: strin
           const resp = await fetch(`/api/youtube-transcript?v=${videoId}`);
           const data = await resp.json();
 
-          if (data.transcript && data.transcript.length > 20) {
-            contextText = `YouTube Video: "${data.title}" by ${data.channel}\n\nTranscript:\n${data.transcript.substring(0, 12000)}`;
-            systemPrompt = "You are a study assistant. Summarize this YouTube video transcript into clear, well-structured notes that a student can study from. Use markdown formatting: ## for section headings, **bold** for key terms, - for bullet points, and numbered lists for steps/sequences. Make the summary comprehensive but concise.";
+          let transcriptText = "";
+          if (data.segments && Array.isArray(data.segments)) {
+            transcriptText = data.segments.map((seg: any) => {
+              const minutes = Math.floor(seg.start / 60);
+              const seconds = Math.floor(seg.start % 60).toString().padStart(2, '0');
+              return `[${minutes}:${seconds}] ${seg.text}`;
+            }).join('\n');
+          } else {
+            transcriptText = data.transcript || "";
+          }
+
+          if (transcriptText && transcriptText.length > 20) {
+            contextText = `YouTube Video: "${data.title}" by ${data.channel}\n\nTranscript:\n${transcriptText.substring(0, 12000)}`;
+            
+            if (ytTab === "live") {
+              systemPrompt = "You are a study assistant. Based on the timestamped transcript provided, generate a detailed chronological play-by-play live summary/timeline of the video. Format each entry with its timestamp, a clear bold header of the topic discussed, and a bulleted summary of the core concepts explained in that segment. Be extremely precise and structured.";
+            } else {
+              systemPrompt = "You are a study assistant. Summarize this YouTube video transcript into clear, well-structured notes that a student can study from. Use markdown formatting: ## for section headings, **bold** for key terms, - for bullet points, and numbered lists for steps/sequences. Make the summary comprehensive but concise.";
+            }
           } else {
             contextText = `YouTube Video: "${data.title}" by ${data.channel}\n\nNo transcript available. Based on the video title and the lesson content below, create study notes:\n\n${content.substring(0, 6000)}`;
             systemPrompt = "You are a study assistant. The YouTube video has no transcript available. Based on the video title and the lesson content, create well-structured study notes using markdown: ## for headings, **bold** for key terms, - for bullet points.";
@@ -151,6 +171,55 @@ const AISummarizer = ({ content, videoUrl }: { content: string; videoUrl?: strin
     } catch {
       toast.error("Failed to generate summary. Try again.");
     } finally { setLoading(false); }
+  };
+
+  const handleChatSend = async () => {
+    if (!chatQuestion.trim() || !videoId) return;
+    const q = chatQuestion.trim();
+    setChatQuestion("");
+    setChatMessages((prev) => [...prev, { role: "user", content: q }]);
+    setChatLoading(true);
+
+    try {
+      const resp = await fetch(`/api/youtube-transcript?v=${videoId}`);
+      const data = await resp.json();
+      let transcriptText = "";
+      if (data.segments && Array.isArray(data.segments)) {
+        transcriptText = data.segments.map((seg: any) => {
+          const minutes = Math.floor(seg.start / 60);
+          const seconds = Math.floor(seg.start % 60).toString().padStart(2, '0');
+          return `[${minutes}:${seconds}] ${seg.text}`;
+        }).join('\n');
+      } else {
+        transcriptText = data.transcript || "";
+      }
+
+      const systemPrompt = `You are a video study assistant. Answer the user's question based strictly on the provided YouTube video transcript. If the information is not in the transcript, state that clearly.
+      
+      YouTube Video: "${data.title || 'Video'}"
+      Transcript:
+      """
+      ${transcriptText.substring(0, 12000)}
+      """`;
+
+      const messagesForAI = [
+        { role: "system", content: systemPrompt },
+        ...chatMessages.map(m => ({ role: m.role as "user" | "assistant", content: m.content })),
+        { role: "user", content: q }
+      ];
+
+      const res = await aiComplete({
+        messages: messagesForAI,
+        temperature: 0.4,
+        maxTokens: 1000,
+      });
+
+      setChatMessages((prev) => [...prev, { role: "assistant", content: res }]);
+    } catch (err) {
+      toast.error("Failed to get answer from video");
+    } finally {
+      setChatLoading(false);
+    }
   };
 
   // Render formatted markdown inline
@@ -209,14 +278,85 @@ const AISummarizer = ({ content, videoUrl }: { content: string; videoUrl?: strin
         </div>
       )}
 
-      <Button onClick={summarize} size="sm" disabled={loading} className="w-full gap-2">
-        {loading ? <><Loader2 className="h-3.5 w-3.5 animate-spin" /> Generating…</> : <><Sparkles className="h-3.5 w-3.5" /> {source === "youtube" ? "Summarize Video" : "AI Summary"}</>}
-      </Button>
-
-      {summary && (
-        <div className="bg-muted/50 rounded-lg px-3 py-3 max-h-[350px] overflow-y-auto scrollbar-thin space-y-0.5">
-          {renderSummaryContent(summary)}
+      {source === "youtube" && videoId && (
+        <div className="flex gap-1 bg-muted/30 rounded-lg p-0.5 border border-border/50">
+          {[
+            { key: "summary", label: "Summary" },
+            { key: "live", label: "Play-by-Play" },
+            { key: "chat", label: "Chat" },
+          ].map((tab) => (
+            <button
+              key={tab.key}
+              onClick={() => setYtTab(tab.key as any)}
+              className={`flex-1 py-1 rounded text-[9px] font-semibold transition-colors ${
+                ytTab === tab.key ? "bg-primary text-primary-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              {tab.label}
+            </button>
+          ))}
         </div>
+      )}
+
+      {/* Render based on mode */}
+      {source === "youtube" && ytTab === "chat" ? (
+        <div className="space-y-3">
+          <div className="bg-muted/30 border border-border/50 rounded-lg p-2.5 max-h-[220px] overflow-y-auto space-y-2 text-xs scrollbar-thin">
+            {chatMessages.length === 0 ? (
+              <p className="text-muted-foreground text-center py-4">Ask any question about this video's content!</p>
+            ) : (
+              chatMessages.map((msg, i) => (
+                <div key={i} className={`flex flex-col gap-0.5 ${msg.role === "user" ? "items-end" : "items-start"}`}>
+                  <span className="text-[9px] font-semibold text-muted-foreground">
+                    {msg.role === "user" ? "You" : "Video Tutor"}
+                  </span>
+                  <div className={`p-2 rounded-lg max-w-[90%] ${msg.role === "user" ? "bg-primary text-primary-foreground" : "bg-card border border-border"}`}>
+                    {renderSummaryContent(msg.content)}
+                  </div>
+                </div>
+              ))
+            )}
+            {chatLoading && (
+              <div className="flex items-center gap-1.5 text-muted-foreground py-2 text-[10px]">
+                <Loader2 className="h-3 w-3 animate-spin" /> Video Tutor is thinking...
+              </div>
+            )}
+          </div>
+          <div className="flex gap-1.5">
+            <Input
+              placeholder="Ask about this video..."
+              value={chatQuestion}
+              onChange={(e) => setChatQuestion(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && !chatLoading && chatQuestion.trim()) {
+                  e.preventDefault();
+                  handleChatSend();
+                }
+              }}
+              className="h-8 text-xs flex-1"
+              disabled={chatLoading}
+            />
+            <Button onClick={handleChatSend} size="sm" className="h-8 px-2.5" disabled={chatLoading || !chatQuestion.trim()}>
+              Send
+            </Button>
+          </div>
+        </div>
+      ) : (
+        <>
+          <Button onClick={summarize} size="sm" disabled={loading} className="w-full gap-2">
+            {loading ? (
+              <><Loader2 className="h-3.5 w-3.5 animate-spin" /> Generating…</>
+            ) : (
+              <><Sparkles className="h-3.5 w-3.5" /> {source === "youtube" ? (ytTab === "live" ? "Generate Timeline" : "Summarize Video") : "AI Summary"}</>
+            )}
+          </Button>
+
+          {summary && (
+            <div className="bg-muted/50 rounded-lg px-3 py-3 max-h-[350px] overflow-y-auto scrollbar-thin space-y-0.5">
+              {renderSummaryContent(summary)}
+            </div>
+          )}
+        </>
       )}
     </div>
   );

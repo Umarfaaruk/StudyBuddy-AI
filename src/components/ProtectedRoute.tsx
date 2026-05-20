@@ -62,6 +62,11 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
     return <Navigate to="/onboarding" replace />;
   }
 
+  // Redirect to dashboard if already completed onboarding and trying to visit onboarding page
+  if (isOnboardingPage && profile?.onboarding_completed) {
+    return <Navigate to="/dashboard" replace />;
+  }
+
   return <>{children}</>;
 };
 

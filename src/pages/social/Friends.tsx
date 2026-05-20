@@ -76,7 +76,7 @@ const Friends = () => {
       try {
         const snap = await getDocs(
           query(
-            collection(db, "users"),
+            collection(db, "profiles"),
             where("__name__", "in", friendUserIds.slice(0, 10))
           )
         );
@@ -115,7 +115,7 @@ const Friends = () => {
     try {
       const snap = await getDocs(
         query(
-          collection(db, "users"),
+          collection(db, "profiles"),
           where("full_name", ">=", search),
           where("full_name", "<=", search + "\uf8ff")
         )

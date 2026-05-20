@@ -107,7 +107,7 @@ const DoubtInput = () => {
   };
 
   const handleSubmit = () => {
-    if (!question.trim() && !attachedFile) return;
+    if (!question.trim() && !attachedFile && !youtubeUrl.trim()) return;
 
     // For image attachments, redirect to camera Q&A flow with the image
     if (attachedFile && ALLOWED_IMAGE_TYPES.includes(attachedFile.type) && filePreview) {
@@ -121,7 +121,7 @@ const DoubtInput = () => {
     }
 
     // For text questions (with or without PDF context), use the standard solution flow
-    if (question.trim()) {
+    if (question.trim() || youtubeUrl.trim()) {
       let fullQuestion = question.trim();
       
       // If a PDF is attached, note it in the question context
@@ -129,12 +129,16 @@ const DoubtInput = () => {
         fullQuestion = `[Attached file: ${attachedFile.name}]\n\n${fullQuestion}`;
       }
 
-      // If a YouTube URL is provided, include it in the question context
-      if (youtubeUrl.trim()) {
-        fullQuestion = `[YouTube Video: ${youtubeUrl.trim()}]\n\nPlease answer the following question using information from this YouTube video:\n\n${fullQuestion}`;
+      if (!fullQuestion && youtubeUrl.trim()) {
+        fullQuestion = "Please summarize this video and explain the main concepts discussed.";
       }
       
-      navigate("/doubts/solution", { state: { question: fullQuestion } });
+      navigate("/doubts/solution", { 
+        state: { 
+          question: fullQuestion,
+          youtubeUrl: youtubeUrl.trim() || undefined
+        } 
+      });
     }
   };
 
@@ -165,7 +169,7 @@ const DoubtInput = () => {
           value={question}
           onChange={(e) => setQuestion(e.target.value)}
           className="min-h-[120px] resize-none"
-          onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey && (question.trim() || attachedFile)) { e.preventDefault(); handleSubmit(); } }}
+          onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey && (question.trim() || attachedFile || youtubeUrl.trim())) { e.preventDefault(); handleSubmit(); } }}
         />
 
         {/* File attachment preview */}
@@ -256,7 +260,7 @@ const DoubtInput = () => {
           <Button
             onClick={handleSubmit}
             className="gap-2 bg-navy text-highlight hover:bg-navy/90 font-semibold"
-            disabled={!question.trim() && !attachedFile}
+            disabled={!question.trim() && !attachedFile && !youtubeUrl.trim()}
           >
             <Send className="h-4 w-4" /> Get Solution
           </Button>

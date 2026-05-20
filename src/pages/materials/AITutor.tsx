@@ -151,9 +151,6 @@ const AITutor = () => {
   const [selectedMaterialId, setSelectedMaterialId] = useState<string | null>(null);
   const [selectedMaterial, setSelectedMaterial] = useState<Material | null>(null);
   const [uploading, setUploading] = useState(false);
-  const [linkUrl, setLinkUrl] = useState("");
-  const [linkContext, setLinkContext] = useState<string | null>(null);
-  const [summarizingLink, setSummarizingLink] = useState(false);
   const chatEndRef = useRef<HTMLDivElement>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -264,68 +261,7 @@ const AITutor = () => {
     }
   };
 
-  /**
-   * Extract YouTube video ID from URL
-   */
-  function extractYouTubeId(url: string): string | null {
-    const patterns = [
-      /(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/)([a-zA-Z0-9_-]{11})/,
-      /^([a-zA-Z0-9_-]{11})$/,
-    ];
-    for (const p of patterns) {
-      const m = url.match(p);
-      if (m) return m[1];
-    }
-    return null;
-  }
 
-  /**
-   * Handle link/URL submission — summarize the content
-   */
-  const handleLinkSubmit = async () => {
-    if (!linkUrl.trim()) return;
-    const url = linkUrl.trim();
-    const ytId = extractYouTubeId(url);
-
-    setSummarizingLink(true);
-    try {
-      let prompt = "";
-      if (ytId) {
-        prompt = `The user has provided a YouTube video link: ${url}
-
-Please provide a comprehensive summary and study notes for this YouTube video. Since you cannot access the video directly, ask the user what the video topic is, or if the title/description is available, work with that.
-
-For now, provide:
-1. A note that you've registered this YouTube link (Video ID: ${ytId})
-2. Ask the user to share the video topic/title so you can provide targeted study notes
-3. Offer to help with questions about the video content once they share more context
-
-Format your response with markdown headings and bullet points.`;
-      } else {
-        prompt = `The user has shared this link: ${url}
-
-Please:
-1. Acknowledge the link
-2. Provide a brief explanation of what this resource likely contains based on the URL
-3. Offer to help the user understand or study the content from this resource
-4. Ask if they have specific questions about the linked content
-
-Format your response with markdown headings and bullet points.`;
-      }
-
-      setLinkContext(url);
-      const userMsg: Message = { role: "user", content: `📎 Shared link: ${url}` };
-      const newHistory = [...messages, userMsg];
-      setMessages(newHistory);
-      setLinkUrl("");
-      streamResponse(prompt, messages);
-    } catch (err) {
-      console.error("[AITutor] Link processing error:", err);
-      toast.error("Failed to process the link.");
-    } finally {
-      setSummarizingLink(false);
-    }
-  };
 
   const streamResponse = async (userMessage: string, history: Message[]) => {
     const controller = new AbortController();
@@ -549,42 +485,7 @@ Format your response with markdown headings and bullet points.`;
           />
         </div>
 
-        {/* Link/URL Input */}
-        <div className="px-6 pb-3 border-b border-border">
-          <div className="flex items-center gap-2">
-            <Link2 className="h-4 w-4 text-muted-foreground flex-shrink-0" />
-            <input
-              type="url"
-              placeholder="Paste a YouTube or web link to get a summary…"
-              value={linkUrl}
-              onChange={(e) => setLinkUrl(e.target.value)}
-              onKeyDown={(e) => { if (e.key === "Enter") handleLinkSubmit(); }}
-              className="flex-1 h-9 text-sm bg-transparent border-none outline-none text-foreground placeholder:text-muted-foreground"
-            />
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handleLinkSubmit}
-              disabled={!linkUrl.trim() || summarizingLink}
-              className="h-9 gap-1.5 text-xs flex-shrink-0"
-            >
-              {summarizingLink ? (
-                <Loader2 className="h-3.5 w-3.5 animate-spin" />
-              ) : (
-                <Sparkles className="h-3.5 w-3.5" />
-              )}
-              {summarizingLink ? "Processing…" : "Summarize"}
-            </Button>
-          </div>
-          {linkContext && (
-            <div className="flex items-center gap-2 mt-1.5">
-              <span className="text-[10px] text-muted-foreground truncate">Active link: {linkContext}</span>
-              <button onClick={() => setLinkContext(null)} className="text-muted-foreground hover:text-foreground">
-                <X className="h-3 w-3" />
-              </button>
-            </div>
-          )}
-        </div>
+
       </div>
 
       {/* Chat Area */}

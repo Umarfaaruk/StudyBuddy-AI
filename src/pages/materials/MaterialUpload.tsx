@@ -2,7 +2,7 @@ import { useState, useRef } from "react";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Upload, FileText, X, ArrowRight, Loader2, Search, FolderOpen, Sparkles, HardDrive, LayoutGrid, List, Plus, Library, BookOpenCheck, ExternalLink } from "lucide-react";
+import { Upload, FileText, X, ArrowRight, Loader2, Search, FolderOpen, Sparkles, HardDrive, LayoutGrid, List, Plus, Library, BookOpenCheck, ExternalLink, Trash2, Clock, Filter, FileImage, FileType, AlertTriangle, Eye } from "lucide-react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { db } from "@/lib/firebase";
 import { useAuth } from "@/contexts/AuthContext";
@@ -205,6 +205,8 @@ const MaterialUpload = () => {
   const [uploadProgress, setUploadProgress] = useState("");
   const [search, setSearch] = useState("");
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
+  const [activeFileTab, setActiveFileTab] = useState<"all" | "pdf" | "image" | "text">("all");
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
 
   const { data: materials, isLoading } = useQuery({
     queryKey: ["materials", user?.uid],
@@ -216,18 +218,18 @@ const MaterialUpload = () => {
         orderBy("uploaded_at", "desc")
       );
       const docs = await getDocs(q);
-      return docs.docs.map(doc => ({ 
-        id: doc.id, 
-        ...doc.data() 
-      } as { 
-        id: string; 
-        file_name: string; 
-        content_type: string; 
-        file_size: number; 
-        processing_status: string; 
-        extracted_text: string; 
-        summary: string; 
-        key_topics: string[]; 
+      return docs.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      } as {
+        id: string;
+        file_name: string;
+        content_type: string;
+        file_size: number;
+        processing_status: string;
+        extracted_text: string;
+        summary: string;
+        key_topics: string[];
         content_length: number;
         file_data?: string;
         uploaded_at?: any;
@@ -268,35 +270,35 @@ const MaterialUpload = () => {
 
           let fileData = null;
           if (file.type.startsWith("image/")) {
-             setUploadProgress(`Optimizing image ${file.name}...`);
-             const canvas = document.createElement('canvas');
-             const ctx = canvas.getContext('2d');
-             const img = document.createElement('img');
-             const reader = new FileReader();
-             fileData = await new Promise<string>((resolve) => {
-               reader.onload = (ev) => {
-                 img.onload = () => {
-                   const maxDim = 1200;
-                   let width = img.width;
-                   let height = img.height;
-                   if (width > maxDim || height > maxDim) {
-                     if (width > height) {
-                       height = Math.round((height * maxDim) / width);
-                       width = maxDim;
-                     } else {
-                       width = Math.round((width * maxDim) / height);
-                       height = maxDim;
-                     }
-                   }
-                   canvas.width = width;
-                   canvas.height = height;
-                   ctx?.drawImage(img, 0, 0, width, height);
-                   resolve(canvas.toDataURL('image/jpeg', 0.8));
-                 };
-                 img.src = ev.target?.result as string;
-               };
-               reader.readAsDataURL(file);
-             });
+            setUploadProgress(`Optimizing image ${file.name}...`);
+            const canvas = document.createElement('canvas');
+            const ctx = canvas.getContext('2d');
+            const img = document.createElement('img');
+            const reader = new FileReader();
+            fileData = await new Promise<string>((resolve) => {
+              reader.onload = (ev) => {
+                img.onload = () => {
+                  const maxDim = 1200;
+                  let width = img.width;
+                  let height = img.height;
+                  if (width > maxDim || height > maxDim) {
+                    if (width > height) {
+                      height = Math.round((height * maxDim) / width);
+                      width = maxDim;
+                    } else {
+                      width = Math.round((width * maxDim) / height);
+                      height = maxDim;
+                    }
+                  }
+                  canvas.width = width;
+                  canvas.height = height;
+                  ctx?.drawImage(img, 0, 0, width, height);
+                  resolve(canvas.toDataURL('image/jpeg', 0.8));
+                };
+                img.src = ev.target?.result as string;
+              };
+              reader.readAsDataURL(file);
+            });
           }
 
           setUploadProgress(`Analyzing ${file.name} with AI...`);
@@ -331,7 +333,7 @@ const MaterialUpload = () => {
               content_length: file.size,
               processed_at: new Date().toISOString(),
             });
-          } catch {}
+          } catch { }
 
           toast.warning(`${file.name} uploaded with limited processing.`);
         } finally {
@@ -364,6 +366,41 @@ const MaterialUpload = () => {
   const filteredMaterials = (materials ?? []).filter((m) =>
     m.file_name.toLowerCase().includes(search.toLowerCase())
   );
+
+  // Filter by file type tab
+  const tabFilteredMaterials = filteredMaterials.filter((m) => {
+    if (activeFileTab === "all") return true;
+    if (activeFileTab === "pdf") return m.content_type?.includes("pdf") || m.file_name?.endsWith(".pdf");
+    if (activeFileTab === "image") return m.content_type?.startsWith("image/");
+    if (activeFileTab === "text") return m.content_type === "text/plain" || m.file_name?.endsWith(".txt") || m.file_name?.endsWith(".md");
+    return true;
+  });
+
+  const formatDate = (dateStr: string | undefined) => {
+    if (!dateStr) return "Unknown";
+    try {
+      const d = new Date(dateStr);
+      return d.toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" });
+    } catch {
+      return "Unknown";
+    }
+  };
+
+  const getFileTypeLabel = (material: any) => {
+    if (material?.content_type?.includes("pdf")) return "PDF";
+    if (material?.content_type?.startsWith("image/")) return "Image";
+    if (material?.content_type === "text/plain" || material?.file_name?.endsWith(".txt")) return "Text";
+    if (material?.file_name?.endsWith(".md")) return "Markdown";
+    if (material?.file_name?.endsWith(".docx")) return "Word";
+    return "File";
+  };
+
+  const getFileTypeColor = (material: any) => {
+    if (material?.content_type?.includes("pdf")) return "text-red-500 bg-red-500/10";
+    if (material?.content_type?.startsWith("image/")) return "text-violet-500 bg-violet-500/10";
+    if (material?.content_type === "text/plain" || material?.file_name?.endsWith(".txt") || material?.file_name?.endsWith(".md")) return "text-blue-500 bg-blue-500/10";
+    return "text-muted-foreground bg-muted";
+  };
 
   const statusBadge = (status: string) => {
     const styles = {
@@ -425,10 +462,11 @@ const MaterialUpload = () => {
         ))}
       </div>
 
-      <div className="space-y-4">
+      <div className="space-y-5">
+        {/* ── Section Header: My Files ────────────────────────── */}
         <div className="flex items-center justify-between">
-          <h3 className="text-sm font-semibold flex items-center gap-2">
-            <Sparkles className="h-4 w-4 text-muted-foreground" /> Recent Materials
+          <h3 className="text-lg font-bold flex items-center gap-2 text-foreground">
+            <FolderOpen className="h-5 w-5 text-primary" /> My Files
           </h3>
           <div className="flex items-center gap-1">
             <Button variant="ghost" size="icon" onClick={() => setViewMode("grid")} className={viewMode === "grid" ? "bg-muted" : ""}><LayoutGrid className="h-4 w-4" /></Button>
@@ -436,44 +474,172 @@ const MaterialUpload = () => {
           </div>
         </div>
 
-        {viewMode === "grid" ? (
-          <div className="grid sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-            {filteredMaterials.map((f) => (
-              <div key={f.id} className="bg-card border border-border rounded-xl p-4 space-y-3 relative">
-                <button onClick={() => handleDelete(f.id)} className="absolute top-2 right-2 text-muted-foreground/60 hover:text-destructive transition-colors bg-background/50 rounded-full p-1 z-10" title="Delete file" aria-label="Delete file">
-                  <X className="h-4 w-4" />
-                </button>
-                <div className="flex justify-center py-2">{fileIcon(f)}</div>
-                <div className="text-sm font-medium truncate">{f.file_name}</div>
-                {statusBadge(f.processing_status)}
-                {(f.processing_status === "ready" || f.processing_status === "completed") && (
-                  <Link to={`/materials/learn/${f.id}`}>
-                    <Button size="sm" className="w-full bg-[hsl(var(--navy))] text-xs gap-1">Learn <ArrowRight className="h-3 w-3" /></Button>
-                  </Link>
-                )}
+        {/* ── File Type Tabs ────────────────────────── */}
+        <div className="flex gap-2 overflow-x-auto pb-1">
+          {[
+            { key: "all" as const, label: "All Files", count: filteredMaterials.length },
+            { key: "pdf" as const, label: "PDFs", count: filteredMaterials.filter(m => m.content_type?.includes("pdf") || m.file_name?.endsWith(".pdf")).length },
+            { key: "image" as const, label: "Images", count: filteredMaterials.filter(m => m.content_type?.startsWith("image/")).length },
+            { key: "text" as const, label: "Text", count: filteredMaterials.filter(m => m.content_type === "text/plain" || m.file_name?.endsWith(".txt") || m.file_name?.endsWith(".md")).length },
+          ].map((tab) => (
+            <button
+              key={tab.key}
+              onClick={() => setActiveFileTab(tab.key)}
+              className={`px-3 py-1.5 rounded-lg text-xs font-medium border whitespace-nowrap transition-all ${activeFileTab === tab.key
+                ? "bg-primary text-primary-foreground border-primary shadow-sm"
+                : "bg-card border-border text-muted-foreground hover:text-foreground hover:border-primary/30"
+                }`}
+            >
+              {tab.label} {tab.count > 0 && <span className="ml-1 opacity-70">({tab.count})</span>}
+            </button>
+          ))}
+        </div>
+
+        {/* ── File List / Grid ────────────────────────── */}
+        {isLoading ? (
+          <div className="grid sm:grid-cols-2 md:grid-cols-3 gap-3">
+            {Array.from({ length: 3 }).map((_, i) => (
+              <div key={i} className="bg-card border border-border rounded-xl p-4 space-y-3">
+                <div className="flex items-center gap-3">
+                  <div className="h-10 w-10 rounded-lg bg-muted animate-pulse" />
+                  <div className="flex-1 space-y-2">
+                    <div className="h-4 w-32 bg-muted animate-pulse rounded" />
+                    <div className="h-3 w-20 bg-muted animate-pulse rounded" />
+                  </div>
+                </div>
               </div>
             ))}
-            <div onClick={() => fileInputRef.current?.click()} className="border-2 border-dashed rounded-xl p-4 flex flex-col items-center justify-center gap-2 cursor-pointer hover:border-accent/50 min-h-[180px]">
-              <Plus className="h-6 w-6 text-muted-foreground" />
-              <span className="text-xs text-muted-foreground">Add Material</span>
+          </div>
+        ) : tabFilteredMaterials.length === 0 ? (
+          <div className="text-center py-12 border-2 border-dashed border-border rounded-xl">
+            <FolderOpen className="h-10 w-10 text-muted-foreground/30 mx-auto mb-3" />
+            <p className="text-sm font-medium text-muted-foreground">
+              {filteredMaterials.length === 0 ? "No files uploaded yet" : `No ${activeFileTab} files found`}
+            </p>
+            <p className="text-xs text-muted-foreground/70 mt-1">Upload your study materials to get started</p>
+            <Button onClick={() => fileInputRef.current?.click()} variant="outline" size="sm" className="mt-4 gap-2">
+              <Upload className="h-3.5 w-3.5" /> Upload File
+            </Button>
+          </div>
+        ) : viewMode === "grid" ? (
+          <div className="grid sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+            {tabFilteredMaterials.map((f) => (
+              <div key={f.id} className="bg-card border border-border rounded-xl p-4 space-y-3 relative group hover:border-primary/30 hover:shadow-sm transition-all">
+                {/* Delete confirmation overlay */}
+                {confirmDeleteId === f.id && (
+                  <div className="absolute inset-0 z-20 bg-card/95 backdrop-blur-sm border border-destructive/30 rounded-xl flex flex-col items-center justify-center gap-3 p-4 animate-in fade-in-0 zoom-in-95 duration-200">
+                    <AlertTriangle className="h-6 w-6 text-destructive" />
+                    <p className="text-xs font-medium text-foreground text-center">Delete "{f.file_name}"?</p>
+                    <div className="flex gap-2">
+                      <Button size="sm" variant="outline" onClick={() => setConfirmDeleteId(null)} className="text-xs h-7">Cancel</Button>
+                      <Button size="sm" onClick={() => { handleDelete(f.id); setConfirmDeleteId(null); }} className="text-xs h-7 bg-destructive text-destructive-foreground hover:bg-destructive/90 gap-1">
+                        <Trash2 className="h-3 w-3" /> Delete
+                      </Button>
+                    </div>
+                  </div>
+                )}
+
+                {/* Delete button */}
+                <button
+                  onClick={() => setConfirmDeleteId(f.id)}
+                  className="absolute top-2 right-2 p-1.5 rounded-lg text-muted-foreground/60 hover:text-destructive hover:bg-destructive/10 transition-all z-10"
+                  title="Delete file"
+                  aria-label={`Delete ${f.file_name}`}
+                >
+                  <Trash2 className="h-3.5 w-3.5" />
+                </button>
+
+                {/* File icon / preview */}
+                <div className="flex justify-center py-2">{fileIcon(f)}</div>
+
+                {/* File name */}
+                <div className="text-sm font-medium truncate" title={f.file_name}>{f.file_name}</div>
+
+                {/* File meta row */}
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${getFileTypeColor(f)}`}>
+                    {getFileTypeLabel(f)}
+                  </span>
+                  <span className="text-[10px] text-muted-foreground">{formatSize(f.file_size)}</span>
+                </div>
+
+                {/* Upload date */}
+                <div className="text-[10px] text-muted-foreground flex items-center gap-1">
+                  <Clock className="h-3 w-3" /> {formatDate(f.uploaded_at)}
+                </div>
+
+                {/* Status + Learn button */}
+                <div className="flex items-center justify-between gap-2">
+                  {statusBadge(f.processing_status)}
+                  {(f.processing_status === "ready" || f.processing_status === "completed") && (
+                    <Link to={`/materials/learn/${f.id}`}>
+                      <Button size="sm" className="h-7 text-[11px] bg-[hsl(var(--navy))] gap-1">
+                        Learn <ArrowRight className="h-3 w-3" />
+                      </Button>
+                    </Link>
+                  )}
+                </div>
+              </div>
+            ))}
+            {/* Add file card */}
+            <div onClick={() => fileInputRef.current?.click()} className="border-2 border-dashed rounded-xl p-4 flex flex-col items-center justify-center gap-2 cursor-pointer hover:border-accent/50 hover:bg-accent/5 transition-all min-h-[220px]">
+              <div className="h-12 w-12 rounded-full bg-primary/10 flex items-center justify-center">
+                <Plus className="h-6 w-6 text-primary" />
+              </div>
+              <span className="text-xs font-medium text-muted-foreground">Upload File</span>
+              <span className="text-[10px] text-muted-foreground/60">PDF, TXT, Images</span>
             </div>
           </div>
         ) : (
+          /* ── List View ── */
           <div className="space-y-2">
-            {filteredMaterials.map((f) => (
-              <div key={f.id} className="flex items-center gap-4 bg-card border border-border rounded-xl p-4">
+            {/* List header */}
+            <div className="hidden md:grid grid-cols-[1fr_100px_100px_80px_80px_40px] gap-3 px-4 py-2 text-[10px] font-bold text-muted-foreground uppercase tracking-wider">
+              <span>File Name</span>
+              <span>Type</span>
+              <span>Size</span>
+              <span>Date</span>
+              <span>Status</span>
+              <span></span>
+            </div>
+            {tabFilteredMaterials.map((f) => (
+              <div key={f.id} className="flex items-center gap-4 bg-card border border-border rounded-xl p-4 hover:border-primary/30 hover:shadow-sm transition-all group relative">
+                {/* Delete confirmation overlay for list view */}
+                {confirmDeleteId === f.id && (
+                  <div className="absolute inset-0 z-20 bg-card/95 backdrop-blur-sm border border-destructive/30 rounded-xl flex items-center justify-center gap-3 p-4 animate-in fade-in-0 zoom-in-95 duration-200">
+                    <AlertTriangle className="h-5 w-5 text-destructive flex-shrink-0" />
+                    <p className="text-xs font-medium text-foreground">Delete "{f.file_name}"?</p>
+                    <div className="flex gap-2">
+                      <Button size="sm" variant="outline" onClick={() => setConfirmDeleteId(null)} className="text-xs h-7">Cancel</Button>
+                      <Button size="sm" onClick={() => { handleDelete(f.id); setConfirmDeleteId(null); }} className="text-xs h-7 bg-destructive text-destructive-foreground hover:bg-destructive/90 gap-1">
+                        <Trash2 className="h-3 w-3" /> Delete
+                      </Button>
+                    </div>
+                  </div>
+                )}
+
                 {fileIcon(f)}
                 <div className="flex-1 min-w-0">
                   <div className="text-sm font-medium truncate">{f.file_name}</div>
-                  <div className="text-xs text-muted-foreground">{formatSize(f.file_size)}</div>
+                  <div className="text-[10px] text-muted-foreground flex items-center gap-2 mt-0.5">
+                    <span className={`font-bold px-1.5 py-0.5 rounded ${getFileTypeColor(f)}`}>{getFileTypeLabel(f)}</span>
+                    <span>{formatSize(f.file_size)}</span>
+                    <span className="flex items-center gap-0.5"><Clock className="h-2.5 w-2.5" /> {formatDate(f.uploaded_at)}</span>
+                  </div>
                 </div>
                 {statusBadge(f.processing_status)}
                 {(f.processing_status === "ready" || f.processing_status === "completed") && (
                   <Link to={`/materials/learn/${f.id}`}>
-                    <Button size="sm" variant="outline" className="text-xs gap-1">Learn <ArrowRight className="h-3 w-3" /></Button>
+                    <Button size="sm" variant="outline" className="text-xs gap-1 h-8">Learn <ArrowRight className="h-3 w-3" /></Button>
                   </Link>
                 )}
-                <Button variant="ghost" size="icon" onClick={() => handleDelete(f.id)} className="text-muted-foreground hover:text-destructive"><X className="h-4 w-4" /></Button>
+                <button
+                  onClick={() => setConfirmDeleteId(f.id)}
+                  className="p-1.5 rounded-lg text-muted-foreground/60 hover:text-destructive hover:bg-destructive/10 transition-all"
+                  title="Delete file"
+                >
+                  <Trash2 className="h-4 w-4" />
+                </button>
               </div>
             ))}
           </div>
@@ -584,11 +750,10 @@ const NDLISearch = () => {
             <button
               key={t}
               onClick={() => setType(t)}
-              className={`px-3 py-2 rounded-lg text-xs font-medium border whitespace-nowrap transition-colors capitalize ${
-                type === t
-                  ? "bg-primary text-primary-foreground border-primary"
-                  : "bg-card border-border text-foreground hover:border-primary/40"
-              }`}
+              className={`px-3 py-2 rounded-lg text-xs font-medium border whitespace-nowrap transition-colors capitalize ${type === t
+                ? "bg-primary text-primary-foreground border-primary"
+                : "bg-card border-border text-foreground hover:border-primary/40"
+                }`}
             >
               {t === "all" ? "All Books" : "Free eBooks"}
             </button>
@@ -630,11 +795,10 @@ const NDLISearch = () => {
                       </div>
                       {item.subject && <div className="text-[10px] text-muted-foreground line-clamp-1">{item.subject}</div>}
                       <div className="flex items-center gap-2 flex-wrap">
-                        <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full uppercase ${
-                          item.hasFullText 
-                            ? "bg-green-500/10 text-green-600" 
-                            : "bg-muted text-muted-foreground"
-                        }`}>
+                        <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full uppercase ${item.hasFullText
+                          ? "bg-green-500/10 text-green-600"
+                          : "bg-muted text-muted-foreground"
+                          }`}>
                           {item.type}
                         </span>
                         {item.pages && (

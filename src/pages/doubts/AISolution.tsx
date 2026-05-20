@@ -25,6 +25,7 @@ const AISolution = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
   const question = (location.state as { question?: string })?.question as string | undefined;
+  const youtubeUrl = (location.state as { youtubeUrl?: string })?.youtubeUrl as string | undefined;
   const [answer, setAnswer] = useState("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -56,6 +57,37 @@ const AISolution = () => {
       abortControllerRef.current = controller;
 
       try {
+        let youtubeContext = "";
+        if (youtubeUrl) {
+          const extractYouTubeId = (url: string): string | null => {
+            const patterns = [
+              /(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/)([a-zA-Z0-9_-]{11})/,
+              /^([a-zA-Z0-9_-]{11})$/,
+            ];
+            for (const p of patterns) {
+              const m = url.match(p);
+              if (m) return m[1];
+            }
+            return null;
+          };
+          const videoId = extractYouTubeId(youtubeUrl);
+          if (videoId) {
+            try {
+              const resp = await fetch(`/api/youtube-transcript?v=${videoId}`, {
+                signal: controller.signal
+              });
+              if (resp.ok) {
+                const data = await resp.json();
+                if (data.transcript) {
+                  youtubeContext = `\n\nYouTube Video Context:\nTitle: "${data.title || 'Video'}"\nChannel: "${data.channel || 'Unknown'}"\nTranscript:\n${data.transcript.substring(0, 15000)}`;
+                }
+              }
+            } catch (err) {
+              console.error("[AISolution] Failed to fetch youtube transcript:", err);
+            }
+          }
+        }
+
         const systemPrompt = `You are an expert, patient tutor helping students solve doubts and understand concepts.
 
 When answering:
@@ -73,7 +105,7 @@ When answering:
           {
             messages: [
               { role: "system", content: systemPrompt },
-              { role: "user", content: question },
+              { role: "user", content: (question || "") + youtubeContext },
             ],
             temperature: 0.7,
             maxTokens: 4096,
@@ -104,7 +136,7 @@ When answering:
             await addDoc(collection(db, "doubt_messages"), {
               doubt_session_id: sessionRef.id,
               role: "user",
-              message_text: question,
+              message_text: question + (youtubeUrl ? `\n\nYouTube URL: ${youtubeUrl}` : ""),
               created_at: new Date().toISOString(),
             });
             await addDoc(collection(db, "doubt_messages"), {
@@ -136,7 +168,7 @@ When answering:
     };
 
     run();
-  }, [question, navigate, user]);
+  }, [question, youtubeUrl, navigate, user]);
 
   const cancelStream = () => {
     if (abortControllerRef.current) {
