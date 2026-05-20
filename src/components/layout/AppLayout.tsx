@@ -2,7 +2,7 @@ import { Link, Outlet, useLocation } from "react-router-dom";
 import {
   LayoutDashboard, BookOpen, MessageCircleQuestion, Trophy,
   BarChart3, Upload, Settings, User, Flame, Gamepad2, Bot,
-  Timer, Focus, X, ChevronLeft, MessageSquare, Camera, Menu
+  Timer, Focus, X, ChevronLeft, MessageSquare, Camera, Menu, Wrench
 } from "lucide-react";
 import { useDeepFocus } from "@/hooks/useDeepFocus";
 import GlobalTimer from "@/components/GlobalTimer";
@@ -14,6 +14,7 @@ const sidebarLinks = [
   { to: "/dashboard", icon: LayoutDashboard, label: "Dashboard" },
   { to: "/lessons", icon: BookOpen, label: "Lessons" },
   { to: "/doubts", icon: MessageCircleQuestion, label: "Ask Doubt" },
+  { to: "/tools", icon: Wrench, label: "Quick Tools" },
   { to: "/quiz", icon: Gamepad2, label: "Practice Arena" },
   { to: "/materials", icon: Upload, label: "Resources" },
   { to: "/materials/tutor", icon: Bot, label: "AI Tutor" },
