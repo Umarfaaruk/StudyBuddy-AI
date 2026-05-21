@@ -29,7 +29,60 @@ const DoubtInput = () => {
   const [question, setQuestion] = useState("");
   const [attachedFile, setAttachedFile] = useState<File | null>(null);
   const [filePreview, setFilePreview] = useState<string | null>(null);
+  const [isListening, setIsListening] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const recognitionRef = useRef<any>(null);
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+      if (SpeechRecognition) {
+        recognitionRef.current = new SpeechRecognition();
+        recognitionRef.current.continuous = false;
+        recognitionRef.current.interimResults = false;
+
+        recognitionRef.current.onresult = (event: any) => {
+          const transcript = event.results[0][0].transcript;
+          setQuestion((prev) => prev ? `${prev} ${transcript}` : transcript);
+          setIsListening(false);
+        };
+
+        recognitionRef.current.onerror = (event: any) => {
+          console.error("Speech recognition error:", event.error);
+          setIsListening(false);
+          if (event.error === "not-allowed") {
+            toast.error("Microphone access denied. Please check your browser permissions.");
+          } else {
+            toast.error("Failed to recognize speech. Please try again.");
+          }
+        };
+
+        recognitionRef.current.onend = () => {
+          setIsListening(false);
+        };
+      }
+    }
+  }, []);
+
+  const toggleListening = () => {
+    if (!recognitionRef.current) {
+      toast.error("Voice input is not supported in your browser.");
+      return;
+    }
+
+    if (isListening) {
+      recognitionRef.current.stop();
+      setIsListening(false);
+    } else {
+      try {
+        recognitionRef.current.start();
+        setIsListening(true);
+        toast.info("Listening...");
+      } catch (err) {
+        console.error("Failed to start listening:", err);
+      }
+    }
+  };
 
 
 
@@ -285,7 +338,12 @@ const DoubtInput = () => {
 
           <div className="flex items-center gap-1">
             <button
-              className="p-2.5 rounded-xl text-gray-400 hover:text-[#1D4ED8] hover:bg-[#1D4ED8]/5 transition-all"
+              onClick={toggleListening}
+              className={`p-2.5 rounded-xl transition-all ${
+                isListening 
+                  ? "text-red-500 bg-red-50 animate-pulse" 
+                  : "text-gray-400 hover:text-[#1D4ED8] hover:bg-[#1D4ED8]/5"
+              }`}
               title="Voice input"
             >
               <Mic className="h-5 w-5" />
