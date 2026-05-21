@@ -86,55 +86,7 @@ const DoubtInput = () => {
 
 
 
-  // Fetch recent doubts from Firestore
-  const { data: history } = useQuery({
-    queryKey: ["recent-doubts", user?.uid],
-    queryFn: async () => {
-      if (!user) return [];
-      try {
-        const q = query(
-          collection(db, "doubt_sessions"),
-          where("user_id", "==", user.uid),
-          orderBy("created_at", "desc"),
-          limit(5)
-        );
-        const snap = await getDocs(q);
-        return snap.docs.map((d) => ({
-          id: d.id,
-          ...d.data()
-        } as {
-          id: string;
-          user_id: string;
-          created_at: string;
-          [key: string]: any;
-        }));
-      } catch (indexErr: any) {
-        if (indexErr?.code === "failed-precondition" || indexErr?.message?.includes("index")) {
-          console.warn("[DoubtInput] Composite index missing, falling back to client-side sort");
-          try {
-            const qFallback = query(
-              collection(db, "doubt_sessions"),
-              where("user_id", "==", user.uid)
-            );
-            const snapFallback = await getDocs(qFallback);
-            return snapFallback.docs
-              .map((d) => ({ id: d.id, ...d.data() } as { id: string; user_id: string; created_at: string; [key: string]: any }))
-              .sort((a, b) => {
-                const dateA = a.created_at ? new Date(a.created_at).getTime() : 0;
-                const dateB = b.created_at ? new Date(b.created_at).getTime() : 0;
-                return dateB - dateA;
-              })
-              .slice(0, 5);
-          } catch {
-            return [];
-          }
-        }
-        console.error("[DoubtInput] Recent doubts fetch error:", indexErr);
-        return [];
-      }
-    },
-    enabled: !!user,
-  });
+  // Removed history fetch as it's no longer displayed on this screen
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -264,29 +216,12 @@ const DoubtInput = () => {
           </div>
         </div>
 
-        {/* Recent doubts as example messages */}
-        {(history?.length ?? 0) > 0 && (
-          <div className="space-y-6 max-w-2xl mx-auto w-full">
-            {history?.slice(0, 2).map((d) => (
-              <div key={d.id} className="w-full">
-                {/* User message bubble - right aligned */}
-                <div className="flex justify-end w-full">
-                  <Link
-                    to={`/doubts/session/${d.id}`}
-                    className="bg-[#F3F4F6] rounded-2xl rounded-tr-sm px-5 py-3.5 max-w-[85%] sm:max-w-[75%] transition-all hover:bg-[#E5E7EB]"
-                  >
-                    <p className="text-[15px] text-gray-800 leading-relaxed">{d.question_preview}</p>
-                  </Link>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-
-        {/* Empty state for chat - Clean, no big buttons as requested */}
-        {(!history || history.length === 0) && (
-          <div className="flex-1"></div>
-        )}
+        {/* Empty state explanation */}
+        <div className="max-w-2xl mx-auto w-full pl-14">
+          <p className="text-[15px] text-gray-500 leading-relaxed bg-white p-4 rounded-2xl border border-gray-100 shadow-sm">
+            Welcome to the Ask Doubt section! I'm here to help you understand any topic. You can type your questions below, attach images or PDFs for deeper context, or use your microphone to ask directly. Use the tabs above to explore complex concepts or summarize YouTube videos.
+          </p>
+        </div>
       </div>
 
       {/* ── File attachment preview ── */}
