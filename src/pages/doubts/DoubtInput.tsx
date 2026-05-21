@@ -13,6 +13,7 @@ import { useQuery } from "@tanstack/react-query";
 import { db } from "@/lib/firebase";
 import { collection, query, where, orderBy, getDocs, limit } from "firebase/firestore";
 import { toast } from "sonner";
+import ConceptExplorerWorkspace from "../tools/ConceptExplorerWorkspace";
 import { aiComplete } from "@/lib/aiService";
 import ReactMarkdown from "react-markdown";
 
@@ -202,38 +203,36 @@ const DoubtInput = () => {
 
         {/* Empty state for chat */}
         {(!history || history.length === 0) && (
-          <div className="mt-8 flex flex-col items-center justify-center space-y-6 text-center">
-            <div className="bg-blue-50 p-6 rounded-full">
-              <MessageSquare className="h-12 w-12 text-[#1D4ED8]" />
+          <div className="mt-4 mb-12 flex flex-col space-y-12">
+            {/* Standard Chat Empty State */}
+            <div className="flex flex-col items-center justify-center text-center">
+              <div className="bg-blue-50 p-6 rounded-full mb-6">
+                <MessageSquare className="h-12 w-12 text-[#1D4ED8]" />
+              </div>
+              <div className="space-y-2">
+                <h2 className="text-2xl font-bold text-[#0F172A] tracking-tight">Ask your AI Tutor</h2>
+                <p className="text-sm text-gray-500 max-w-sm mx-auto">
+                  Ask me anything about your studies, upload documents or images, and get instant help.
+                </p>
+              </div>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 max-w-2xl mt-8 w-full px-4">
+                <button onClick={() => setQuestion("Can you explain quantum computing simply?")} className="p-4 bg-white border border-gray-200 rounded-xl text-left hover:shadow-md transition-shadow hover:border-[#1D4ED8]/30">
+                  <span className="text-lg mb-2 block">⚛️</span>
+                  <p className="text-sm font-medium text-[#0F172A]">Explain quantum computing</p>
+                  <p className="text-xs text-gray-400 mt-1">in simple terms</p>
+                </button>
+                <button onClick={() => setQuestion("How do I structure a persuasive essay?")} className="p-4 bg-white border border-gray-200 rounded-xl text-left hover:shadow-md transition-shadow hover:border-[#1D4ED8]/30">
+                  <span className="text-lg mb-2 block">📝</span>
+                  <p className="text-sm font-medium text-[#0F172A]">Essay structure</p>
+                  <p className="text-xs text-gray-400 mt-1">help me organize my thoughts</p>
+                </button>
+              </div>
             </div>
-            <div className="space-y-2">
-              <h2 className="text-xl font-bold text-[#0F172A]">Start a new conversation</h2>
-              <p className="text-sm text-gray-500 max-w-sm mx-auto">
-                Ask me anything about your studies, upload documents or images, and get instant help from your AI Tutor.
-              </p>
-            </div>
-            
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 max-w-2xl mt-8">
-              <button onClick={() => setQuestion("Can you explain quantum computing simply?")} className="p-4 bg-white border border-gray-200 rounded-xl text-left hover:shadow-md transition-shadow hover:border-[#1D4ED8]/30">
-                <span className="text-lg mb-2 block">⚛️</span>
-                <p className="text-sm font-medium text-[#0F172A]">Explain quantum computing</p>
-                <p className="text-xs text-gray-400 mt-1">in simple terms</p>
-              </button>
-              <button onClick={() => setQuestion("How do I structure a persuasive essay?")} className="p-4 bg-white border border-gray-200 rounded-xl text-left hover:shadow-md transition-shadow hover:border-[#1D4ED8]/30">
-                <span className="text-lg mb-2 block">📝</span>
-                <p className="text-sm font-medium text-[#0F172A]">Essay structure</p>
-                <p className="text-xs text-gray-400 mt-1">help me organize my thoughts</p>
-              </button>
-              <button onClick={() => fileInputRef.current?.click()} className="p-4 bg-white border border-gray-200 rounded-xl text-left hover:shadow-md transition-shadow hover:border-[#1D4ED8]/30">
-                <span className="text-lg mb-2 block">📸</span>
-                <p className="text-sm font-medium text-[#0F172A]">Upload a math problem</p>
-                <p className="text-xs text-gray-400 mt-1">take a picture to solve</p>
-              </button>
-              <button onClick={() => setQuestion("Help me create a study schedule for finals.")} className="p-4 bg-white border border-gray-200 rounded-xl text-left hover:shadow-md transition-shadow hover:border-[#1D4ED8]/30">
-                <span className="text-lg mb-2 block">📅</span>
-                <p className="text-sm font-medium text-[#0F172A]">Study schedule</p>
-                <p className="text-xs text-gray-400 mt-1">plan my week</p>
-              </button>
+
+            {/* AI Concept Explorer Section */}
+            <div className="border-t border-gray-100 pt-10">
+              <ConceptExplorerWorkspace />
             </div>
           </div>
         )}
