@@ -145,9 +145,11 @@ const DoubtInput = () => {
     }
   };
 
+  const handleClearChat = () => {
     setQuestion("");
     setAttachedFile(null);
     setFilePreview(null);
+  };
 
   return (
     <div className="flex flex-col h-full min-h-[calc(100vh-24px)]">
