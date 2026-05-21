@@ -140,45 +140,6 @@ const AppLayout = () => {
               );
             })}
           </nav>
-
-          {/* Music Player Widget */}
-          <div className="px-4 pb-5 flex-shrink-0">
-            {/* Waveform */}
-            <div className="flex justify-center py-3">
-              <WaveformBars />
-            </div>
-
-            <div className="bg-[#8b5cf6] rounded-2xl p-4 shadow-xl">
-              <div className="flex items-center gap-3 mb-3">
-                <div className="h-10 w-10 rounded-lg bg-white/20 flex items-center justify-center flex-shrink-0">
-                  <span className="text-lg">🎧</span>
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="text-white text-sm font-semibold truncate">Read: The Future...</div>
-                  <div className="text-white/60 text-xs">Estimated time: 45m</div>
-                </div>
-              </div>
-              {/* Controls */}
-              <div className="flex items-center justify-center gap-6">
-                <button className="text-white/70 hover:text-white transition-colors">
-                  <SkipBack className="h-4 w-4" />
-                </button>
-                <button
-                  onClick={() => setIsPlaying(!isPlaying)}
-                  className="h-10 w-10 rounded-full bg-white flex items-center justify-center hover:scale-105 transition-transform shadow-lg"
-                >
-                  {isPlaying ? (
-                    <Pause className="h-4 w-4 text-[#8b5cf6]" />
-                  ) : (
-                    <Play className="h-4 w-4 text-[#8b5cf6] ml-0.5" />
-                  )}
-                </button>
-                <button className="text-white/70 hover:text-white transition-colors">
-                  <SkipForward className="h-4 w-4" />
-                </button>
-              </div>
-            </div>
-          </div>
         </aside>
       )}
 
