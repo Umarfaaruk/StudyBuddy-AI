@@ -18,6 +18,7 @@ import eduonxLogo from "@/assets/eduonx-logo.png";
 const sidebarLinks = [
   { to: "/dashboard", icon: LayoutDashboard, label: "Dashboard" },
   { to: "/lessons", icon: BookOpen, label: "Academy" },
+  { to: "/materials/tutor", icon: Bot, label: "AI Tutor" },
   { to: "/progress", icon: BarChart3, label: "Insights" },
   { to: "/doubts", icon: MessageCircleQuestion, label: "Ask Doubt" },
   { to: "/leaderboard", icon: Trophy, label: "Leaderboard" },
