@@ -14,6 +14,7 @@ import { db } from "@/lib/firebase";
 import { collection, query, where, orderBy, getDocs, limit } from "firebase/firestore";
 import { toast } from "sonner";
 import ConceptExplorerWorkspace from "../tools/ConceptExplorerWorkspace";
+import YoutubeSummarizer from "../tools/YoutubeSummarizer";
 import { aiComplete } from "@/lib/aiService";
 import ReactMarkdown from "react-markdown";
 
@@ -24,6 +25,7 @@ const ALLOWED_FILE_TYPES = [...ALLOWED_IMAGE_TYPES, "application/pdf", "text/pla
 const DoubtInput = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
+  const [activeTab, setActiveTab] = useState<"chat" | "concept" | "youtube">("chat");
   const [question, setQuestion] = useState("");
   const [attachedFile, setAttachedFile] = useState<File | null>(null);
   const [filePreview, setFilePreview] = useState<string | null>(null);
@@ -153,21 +155,48 @@ const DoubtInput = () => {
   };
 
   return (
-    <div className="flex flex-col h-full min-h-[calc(100vh-24px)]">
-      {/* ── Chat Header ── */}
-      <div className="flex items-center justify-between px-6 md:px-8 pt-6 pb-4">
-        <div className="flex-1" />
-        <h1 className="text-xl font-bold text-[#0F172A]">New Chat</h1>
-        <div className="flex-1 flex justify-end">
+    <div className="flex flex-col h-full min-h-[calc(100vh-24px)] bg-[#f8fafc] rounded-3xl overflow-hidden shadow-sm border border-gray-100">
+      
+      {/* ── Tabs Header ── */}
+      <div className="flex items-center justify-center pt-6 pb-2 px-6">
+        <div className="flex bg-gray-100/80 p-1.5 rounded-2xl gap-1">
           <button
-            onClick={handleClearChat}
-            className="flex items-center gap-2 px-4 py-2 rounded-xl border border-gray-200 text-sm font-medium text-gray-600 hover:bg-white hover:shadow-sm transition-all"
+            onClick={() => setActiveTab("chat")}
+            className={`px-6 py-2.5 rounded-xl text-sm font-medium transition-all ${activeTab === "chat" ? "bg-white text-blue-600 shadow-sm" : "text-gray-500 hover:text-gray-700 hover:bg-gray-200/50"}`}
           >
-            <Trash2 className="h-4 w-4" />
-            Clear chat
+            Ask Doubt Chat
+          </button>
+          <button
+            onClick={() => setActiveTab("concept")}
+            className={`px-6 py-2.5 rounded-xl text-sm font-medium transition-all ${activeTab === "concept" ? "bg-white text-blue-600 shadow-sm" : "text-gray-500 hover:text-gray-700 hover:bg-gray-200/50"}`}
+          >
+            Concept Explorer
+          </button>
+          <button
+            onClick={() => setActiveTab("youtube")}
+            className={`px-6 py-2.5 rounded-xl text-sm font-medium transition-all ${activeTab === "youtube" ? "bg-white text-blue-600 shadow-sm" : "text-gray-500 hover:text-gray-700 hover:bg-gray-200/50"}`}
+          >
+            YouTube Summarizer
           </button>
         </div>
       </div>
+
+      {activeTab === "chat" && (
+        <>
+          {/* ── Chat Header ── */}
+          <div className="flex items-center justify-between px-6 md:px-8 pt-4 pb-4">
+            <div className="flex-1" />
+            <h1 className="text-xl font-bold text-[#0F172A]">New Chat</h1>
+            <div className="flex-1 flex justify-end">
+              <button
+                onClick={handleClearChat}
+                className="flex items-center gap-2 px-4 py-2 rounded-xl border border-gray-200 bg-white/50 text-sm font-medium text-gray-600 hover:bg-white hover:shadow-sm transition-all"
+              >
+                <Trash2 className="h-4 w-4" />
+                Clear chat
+              </button>
+            </div>
+          </div>
 
       {/* ── Chat Messages Area ── */}
       <div className="flex-1 overflow-y-auto px-6 md:px-8 space-y-6 scrollbar-thin">
@@ -201,40 +230,9 @@ const DoubtInput = () => {
           </div>
         )}
 
-        {/* Empty state for chat */}
+        {/* Empty state for chat - Clean, no big buttons as requested */}
         {(!history || history.length === 0) && (
-          <div className="mt-4 mb-12 flex flex-col space-y-12">
-            {/* Standard Chat Empty State */}
-            <div className="flex flex-col items-center justify-center text-center">
-              <div className="bg-blue-50 p-6 rounded-full mb-6">
-                <MessageSquare className="h-12 w-12 text-[#1D4ED8]" />
-              </div>
-              <div className="space-y-2">
-                <h2 className="text-2xl font-bold text-[#0F172A] tracking-tight">Ask your AI Tutor</h2>
-                <p className="text-sm text-gray-500 max-w-sm mx-auto">
-                  Ask me anything about your studies, upload documents or images, and get instant help.
-                </p>
-              </div>
-              
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 max-w-2xl mt-8 w-full px-4">
-                <button onClick={() => setQuestion("Can you explain quantum computing simply?")} className="p-4 bg-white border border-gray-200 rounded-xl text-left hover:shadow-md transition-shadow hover:border-[#1D4ED8]/30">
-                  <span className="text-lg mb-2 block">⚛️</span>
-                  <p className="text-sm font-medium text-[#0F172A]">Explain quantum computing</p>
-                  <p className="text-xs text-gray-400 mt-1">in simple terms</p>
-                </button>
-                <button onClick={() => setQuestion("How do I structure a persuasive essay?")} className="p-4 bg-white border border-gray-200 rounded-xl text-left hover:shadow-md transition-shadow hover:border-[#1D4ED8]/30">
-                  <span className="text-lg mb-2 block">📝</span>
-                  <p className="text-sm font-medium text-[#0F172A]">Essay structure</p>
-                  <p className="text-xs text-gray-400 mt-1">help me organize my thoughts</p>
-                </button>
-              </div>
-            </div>
-
-            {/* AI Concept Explorer Section */}
-            <div className="border-t border-gray-100 pt-10">
-              <ConceptExplorerWorkspace />
-            </div>
-          </div>
+          <div className="flex-1"></div>
         )}
       </div>
 
@@ -287,14 +285,14 @@ const DoubtInput = () => {
 
           <div className="flex items-center gap-1">
             <button
-              className="p-2 rounded-xl text-gray-400 hover:text-[#1D4ED8] hover:bg-[#1D4ED8]/5 transition-all"
+              className="p-2.5 rounded-xl text-gray-400 hover:text-[#1D4ED8] hover:bg-[#1D4ED8]/5 transition-all"
               title="Voice input"
             >
               <Mic className="h-5 w-5" />
             </button>
             <button
               onClick={() => fileInputRef.current?.click()}
-              className="p-2 rounded-xl text-gray-400 hover:text-[#1D4ED8] hover:bg-[#1D4ED8]/5 transition-all"
+              className="p-2.5 rounded-xl text-gray-400 hover:text-[#1D4ED8] hover:bg-[#1D4ED8]/5 transition-all"
               title="Attach file"
             >
               <Paperclip className="h-5 w-5" />
@@ -302,13 +300,27 @@ const DoubtInput = () => {
             <button
               onClick={handleSubmit}
               disabled={!question.trim() && !attachedFile}
-              className="h-10 w-10 rounded-xl bg-[#1D4ED8] text-white flex items-center justify-center hover:bg-[#2563EB] disabled:opacity-40 disabled:cursor-not-allowed transition-all shadow-md hover:shadow-lg"
+              className="h-10 w-10 ml-1.5 rounded-2xl bg-[#a7b5ff] text-white flex items-center justify-center hover:bg-[#1D4ED8] disabled:opacity-40 disabled:cursor-not-allowed transition-all shadow-sm"
             >
               <Send className="h-4 w-4" />
             </button>
           </div>
         </div>
       </div>
+      </>
+      )}
+
+      {activeTab === "concept" && (
+        <div className="flex-1 p-6 md:p-8 overflow-y-auto">
+          <ConceptExplorerWorkspace />
+        </div>
+      )}
+
+      {activeTab === "youtube" && (
+        <div className="flex-1 p-6 md:p-8 overflow-y-auto">
+          <YoutubeSummarizer />
+        </div>
+      )}
     </div>
   );
 };
