@@ -28,62 +28,7 @@ const DoubtInput = () => {
   const [filePreview, setFilePreview] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // ── AI Analogy & Roadmap Generator States ──────────────────────
-  const [concept, setConcept] = useState("");
-  const [explainLevel, setExplainLevel] = useState<"child" | "student" | "expert">("student");
-  const [outputFormat, setOutputFormat] = useState<"analogy" | "roadmap" | "application">("analogy");
-  const [generatorResult, setGeneratorResult] = useState("");
-  const [isGeneratingConcept, setIsGeneratingConcept] = useState(false);
 
-  const handleGenerateConcept = async () => {
-    if (!concept.trim()) {
-      toast.error("Please enter a concept or topic first");
-      return;
-    }
-    setIsGeneratingConcept(true);
-    setGeneratorResult("");
-    try {
-      let levelPrompt = "";
-      if (explainLevel === "child") {
-        levelPrompt = "Explain like I am 5 years old, using extremely simple vocabulary, vivid storytelling, and fun characters or everyday objects.";
-      } else if (explainLevel === "student") {
-        levelPrompt = "Explain like I am a high school student, using clear academic concepts, relatable teenage analogies, and structured formatting.";
-      } else {
-        levelPrompt = "Explain like I am a college graduate or professor, using precise terminology, deep conceptual rigor, and professional metaphors.";
-      }
-
-      let formatPrompt = "";
-      if (outputFormat === "analogy") {
-        formatPrompt = "Provide a highly creative, immersive metaphor or analogy that makes this complex concept instantly intuitive. Contrast the metaphor directly with the actual scientific or mathematical mechanisms.";
-      } else if (outputFormat === "roadmap") {
-        formatPrompt = "Provide a step-by-step learning roadmap or milestones outline, showing exactly what pre-requisites to master first, the core concepts, and advanced topics to study next in sequence.";
-      } else {
-        formatPrompt = "Provide a detailed guide on real-world industrial, medical, or scientific applications of this concept, demonstrating exactly how it is used in modern careers or technologies.";
-      }
-
-      const prompt = `You are a world-class academic tutor and master educator. 
-Explain the following concept: "${concept}".
-Level: ${levelPrompt}
-Focus Format: ${formatPrompt}
-
-Format your output using gorgeous markdown with bullet points, numbered lists, and bold text headers where appropriate. Make the explanation feel premium, highly engaging, and easy to read.`;
-
-      const result = await aiComplete({
-        messages: [
-          { role: "system", content: "You are an expert tutor specializing in visual analogies and conceptual roadmap breakdowns. Respond in high-quality markdown." },
-          { role: "user", content: prompt }
-        ],
-        temperature: 0.7
-      });
-      setGeneratorResult(result);
-      toast.success("Explanation generated!");
-    } catch (err: any) {
-      console.error(err);
-      toast.error("Failed to generate concept explanation");
-    } finally {
-      setIsGeneratingConcept(false);
-    }
-  };
 
   // Fetch recent doubts from Firestore
   const { data: history } = useQuery({
@@ -200,13 +145,9 @@ Format your output using gorgeous markdown with bullet points, numbered lists, a
     }
   };
 
-  const handleClearChat = () => {
     setQuestion("");
     setAttachedFile(null);
     setFilePreview(null);
-    setGeneratorResult("");
-    setConcept("");
-  };
 
   return (
     <div className="flex flex-col h-full min-h-[calc(100vh-24px)]">
@@ -257,179 +198,40 @@ Format your output using gorgeous markdown with bullet points, numbered lists, a
           </div>
         )}
 
-        {/* Concept Explorer response */}
-        {generatorResult && (
-          <div className="space-y-4">
-            {/* AI Response */}
-            <div className="flex items-start gap-4">
-              <div className="h-11 w-11 rounded-full bg-[#f4a261] flex items-center justify-center flex-shrink-0 shadow-md">
-                <span className="text-white text-lg">🤖</span>
-              </div>
-              <div className="flex-1 max-w-[80%]">
-                <div className="prose prose-sm max-w-none text-[#0F172A]/90 leading-relaxed">
-                  <ReactMarkdown>{generatorResult}</ReactMarkdown>
-                </div>
-              </div>
-              {/* Side actions */}
-              <div className="flex flex-col gap-2 pt-2">
-                <button
-                  onClick={() => {
-                    navigator.clipboard.writeText(generatorResult);
-                    toast.success("Copied to clipboard!");
-                  }}
-                  className="p-2 rounded-xl hover:bg-white hover:shadow-sm text-gray-400 hover:text-[#1D4ED8] transition-all"
-                >
-                  <Share2 className="h-4 w-4" />
-                </button>
-                <button className="p-2 rounded-xl hover:bg-white hover:shadow-sm text-gray-400 hover:text-[#1D4ED8] transition-all">
-                  <Star className="h-4 w-4" />
-                </button>
-                <button className="p-2 rounded-xl hover:bg-white hover:shadow-sm text-gray-400 hover:text-[#1D4ED8] transition-all">
-                  <MoreVertical className="h-4 w-4" />
-                </button>
-              </div>
+        {/* Empty state for chat */}
+        {(!history || history.length === 0) && (
+          <div className="mt-8 flex flex-col items-center justify-center space-y-6 text-center">
+            <div className="bg-blue-50 p-6 rounded-full">
+              <MessageSquare className="h-12 w-12 text-[#1D4ED8]" />
             </div>
-
-            {/* Embedded resource cards */}
-            <div className="ml-[60px] flex gap-4">
-              <div className="flex items-center gap-2 px-4 py-3 rounded-xl bg-white border border-gray-100 shadow-sm hover:shadow-md transition-all cursor-pointer">
-                <FolderOpen className="h-5 w-5 text-[#1D4ED8]" />
-                <span className="text-sm font-medium text-gray-600">Chat files</span>
-              </div>
-              <div className="flex items-center gap-2 px-4 py-3 rounded-xl bg-white border border-gray-100 shadow-sm hover:shadow-md transition-all cursor-pointer">
-                <ImageIcon className="h-5 w-5 text-[#1D4ED8]" />
-                <span className="text-sm font-medium text-gray-600">Images</span>
-              </div>
-              <Link
-                to="/materials"
-                className="flex items-center gap-2 px-4 py-3 rounded-xl bg-white border border-gray-100 shadow-sm hover:shadow-md transition-all cursor-pointer"
-              >
-                <Upload className="h-5 w-5 text-[#1D4ED8]" />
-                <span className="text-sm font-medium text-gray-600">Upload</span>
-              </Link>
+            <div className="space-y-2">
+              <h2 className="text-xl font-bold text-[#0F172A]">Start a new conversation</h2>
+              <p className="text-sm text-gray-500 max-w-sm mx-auto">
+                Ask me anything about your studies, upload documents or images, and get instant help from your AI Tutor.
+              </p>
             </div>
-          </div>
-        )}
-
-        {/* Loading indicator for concept generation */}
-        {isGeneratingConcept && (
-          <div className="flex items-start gap-4">
-            <div className="h-11 w-11 rounded-full bg-[#f4a261] flex items-center justify-center flex-shrink-0 shadow-md">
-              <span className="text-white text-lg">🤖</span>
-            </div>
-            <div className="flex items-center gap-3 py-4">
-              <Loader2 className="h-5 w-5 animate-spin text-[#1D4ED8]" />
-              <span className="text-sm text-gray-400 animate-pulse">AI Tutor is crafting your explanation...</span>
-            </div>
-          </div>
-        )}
-
-        {/* Empty state with concept explorer */}
-        {!generatorResult && !isGeneratingConcept && (
-          <div className="mt-8">
-            <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 space-y-5">
-              <div className="flex items-center gap-2 pb-3 border-b border-gray-100">
-                <Atom className="h-5 w-5 text-[#1D4ED8] animate-pulse" />
-                <h2 className="font-bold text-lg text-[#0F172A]">AI Concept Explorer & Analogy Studio</h2>
-              </div>
-
-              <div className="grid md:grid-cols-[1fr_320px] gap-6">
-                {/* Left panel: Input options & Generate */}
-                <div className="space-y-5">
-                  <div className="space-y-2">
-                    <label htmlFor="concept-input" className="text-xs font-semibold text-gray-400 uppercase tracking-wider">
-                      Enter a topic or complex concept
-                    </label>
-                    <input
-                      id="concept-input"
-                      type="text"
-                      placeholder="e.g. Quantum Superposition, Recursion in JavaScript, Krebs Cycle..."
-                      value={concept}
-                      onChange={(e) => setConcept(e.target.value)}
-                      className="w-full h-11 px-4 text-sm bg-[#F3F4F6] border border-gray-200 rounded-xl outline-none focus:border-[#1D4ED8]/40 focus:ring-2 focus:ring-[#1D4ED8]/10 text-[#0F172A] transition-all"
-                      onKeyDown={(e) => e.key === "Enter" && handleGenerateConcept()}
-                    />
-                  </div>
-
-                  <div className="grid sm:grid-cols-2 gap-4">
-                    {/* Explanation Level */}
-                    <div className="space-y-2">
-                      <label className="text-xs font-semibold text-gray-400 uppercase tracking-wider block">
-                        Explanation Level
-                      </label>
-                      <div className="flex flex-col gap-1.5">
-                        {[
-                          { key: "child" as const, label: "Explain Like I'm 5 🧸" },
-                          { key: "student" as const, label: "High School Student 🎒" },
-                          { key: "expert" as const, label: "College / Professional 🎓" },
-                        ].map((lvl) => (
-                          <button
-                            key={lvl.key}
-                            onClick={() => setExplainLevel(lvl.key)}
-                            className={`text-left px-3 py-2 text-xs rounded-xl border transition-all ${
-                              explainLevel === lvl.key
-                                ? "bg-[#1D4ED8]/10 text-[#1D4ED8] border-[#1D4ED8] font-semibold"
-                                : "bg-white border-gray-200 text-gray-500 hover:bg-gray-50 hover:text-[#0F172A]"
-                            }`}
-                          >
-                            {lvl.label}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-
-                    {/* Output Mode */}
-                    <div className="space-y-2">
-                      <label className="text-xs font-semibold text-gray-400 uppercase tracking-wider block">
-                        Studio Focus Format
-                      </label>
-                      <div className="flex flex-col gap-1.5">
-                        {[
-                          { key: "analogy" as const, label: "Creative Analogy ✨" },
-                          { key: "roadmap" as const, label: "Learning Roadmap 🗺️" },
-                          { key: "application" as const, label: "Real-World Uses 🚀" },
-                        ].map((fmt) => (
-                          <button
-                            key={fmt.key}
-                            onClick={() => setOutputFormat(fmt.key)}
-                            className={`text-left px-3 py-2 text-xs rounded-xl border transition-all ${
-                              outputFormat === fmt.key
-                                ? "bg-[#1D4ED8]/10 text-[#1D4ED8] border-[#1D4ED8] font-semibold"
-                                : "bg-white border-gray-200 text-gray-500 hover:bg-gray-50 hover:text-[#0F172A]"
-                            }`}
-                          >
-                            {fmt.label}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                  </div>
-
-                  <Button
-                    onClick={handleGenerateConcept}
-                    disabled={isGeneratingConcept || !concept.trim()}
-                    className="w-full bg-[#1D4ED8] text-white hover:bg-[#2563EB] h-11 gap-2 font-semibold rounded-xl"
-                  >
-                    {isGeneratingConcept ? (
-                      <>
-                        <Loader2 className="h-4 w-4 animate-spin" />
-                        Generating Explanation...
-                      </>
-                    ) : (
-                      <>
-                        <Sparkles className="h-4 w-4" />
-                        Explore Concept
-                      </>
-                    )}
-                  </Button>
-                </div>
-
-                {/* Right panel: Preview / Info */}
-                <div className="bg-[#F3F4F6] border border-gray-200 rounded-2xl p-5 flex flex-col items-center justify-center min-h-[260px]">
-                  <Lightbulb className="h-10 w-10 text-gray-300 mb-3" />
-                  <p className="text-sm text-gray-400 text-center">Your custom explanation or roadmap will display in the chat above.</p>
-                </div>
-              </div>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 max-w-2xl mt-8">
+              <button onClick={() => setQuestion("Can you explain quantum computing simply?")} className="p-4 bg-white border border-gray-200 rounded-xl text-left hover:shadow-md transition-shadow hover:border-[#1D4ED8]/30">
+                <span className="text-lg mb-2 block">⚛️</span>
+                <p className="text-sm font-medium text-[#0F172A]">Explain quantum computing</p>
+                <p className="text-xs text-gray-400 mt-1">in simple terms</p>
+              </button>
+              <button onClick={() => setQuestion("How do I structure a persuasive essay?")} className="p-4 bg-white border border-gray-200 rounded-xl text-left hover:shadow-md transition-shadow hover:border-[#1D4ED8]/30">
+                <span className="text-lg mb-2 block">📝</span>
+                <p className="text-sm font-medium text-[#0F172A]">Essay structure</p>
+                <p className="text-xs text-gray-400 mt-1">help me organize my thoughts</p>
+              </button>
+              <button onClick={() => fileInputRef.current?.click()} className="p-4 bg-white border border-gray-200 rounded-xl text-left hover:shadow-md transition-shadow hover:border-[#1D4ED8]/30">
+                <span className="text-lg mb-2 block">📸</span>
+                <p className="text-sm font-medium text-[#0F172A]">Upload a math problem</p>
+                <p className="text-xs text-gray-400 mt-1">take a picture to solve</p>
+              </button>
+              <button onClick={() => setQuestion("Help me create a study schedule for finals.")} className="p-4 bg-white border border-gray-200 rounded-xl text-left hover:shadow-md transition-shadow hover:border-[#1D4ED8]/30">
+                <span className="text-lg mb-2 block">📅</span>
+                <p className="text-sm font-medium text-[#0F172A]">Study schedule</p>
+                <p className="text-xs text-gray-400 mt-1">plan my week</p>
+              </button>
             </div>
           </div>
         )}

@@ -100,77 +100,12 @@ const Dashboard = () => {
         </div>
       </div>
 
-      {/* ── Hero Row: Banner + Leaderboard ───────────────────── */}
-      <div className="grid lg:grid-cols-5 gap-5">
-        {/* Purple Gradient Banner */}
-        <div className="lg:col-span-3 relative overflow-hidden rounded-2xl bg-gradient-to-br from-[#1D4ED8] to-[#2563EB] p-7 md:p-9 text-white min-h-[220px] flex flex-col justify-between">
-          {/* Decorative circles */}
-          <div className="absolute -top-10 -right-10 w-40 h-40 bg-white/10 rounded-full blur-sm" />
-          <div className="absolute bottom-4 right-16 w-24 h-24 bg-white/5 rounded-full" />
-          <div className="absolute top-1/2 right-8 w-16 h-16 bg-white/10 rounded-full" />
 
-          <div className="relative z-10">
-            <span className="inline-block text-xs font-semibold tracking-widest uppercase bg-white/20 backdrop-blur-sm px-3 py-1 rounded-full mb-4">
-              Edu-Nox
-            </span>
-            <h2 className="text-xl md:text-2xl font-bold leading-snug max-w-md">
-              "Failure is just feedback, adjust n try again"
-            </h2>
-            <p className="text-white/70 text-sm mt-1">— Piyush</p>
-          </div>
-
-          <div className="relative z-10 mt-6">
-            <Link
-              to="/materials"
-              className="inline-flex items-center gap-2 border-2 border-white/60 text-white px-5 py-2 rounded-xl text-sm font-semibold hover:bg-white/10 transition-colors"
-            >
-              Get Started
-              <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M13 7l5 5m0 0l-5 5m5-5H6" />
-              </svg>
-            </Link>
-          </div>
-        </div>
-
-        {/* Leaderboard Widget */}
-        <div className="lg:col-span-2 bg-white rounded-2xl shadow-sm p-6 flex flex-col">
-          <div className="flex items-center justify-between mb-5">
-            <h3 className="text-base font-bold text-gray-900 flex items-center gap-2">
-              <Trophy className="h-5 w-5 text-[#1D4ED8]" />
-              Leaderboard
-            </h3>
-            <Link to="/leaderboard" className="text-xs font-semibold text-[#1D4ED8] hover:underline">
-              See more
-            </Link>
-          </div>
-          <div className="space-y-3 flex-1">
-            {leaderboardUsers.map((u, idx) => (
-              <div key={u.name} className="flex items-center gap-3 px-3 py-2.5 rounded-xl bg-gray-50/80 hover:bg-gray-100/80 transition-colors">
-                <span className="text-xs font-bold text-gray-400 w-5">#{idx + 1}</span>
-                <div className={`h-9 w-9 rounded-full ${u.color} flex items-center justify-center text-white text-sm font-bold shadow-sm`}>
-                  {u.avatar}
-                </div>
-                <span className="flex-1 text-sm font-medium text-gray-800">{u.name}</span>
-                <span className="text-xs font-bold text-[#1D4ED8] bg-[#1D4ED8]/10 px-2.5 py-1 rounded-lg">{u.xp}</span>
-              </div>
-            ))}
-            {/* Current user */}
-            <div className="flex items-center gap-3 px-3 py-2.5 rounded-xl bg-[#1D4ED8]/5 border border-[#1D4ED8]/20">
-              <span className="text-xs font-bold text-[#1D4ED8] w-5">You</span>
-              <div className="h-9 w-9 rounded-full bg-[#1D4ED8] flex items-center justify-center text-white text-sm font-bold shadow-sm">
-                {(displayName[0] ?? "Y").toUpperCase()}
-              </div>
-              <span className="flex-1 text-sm font-medium text-gray-800">{displayName}</span>
-              <span className="text-xs font-bold text-[#1D4ED8] bg-[#1D4ED8]/10 px-2.5 py-1 rounded-lg">{totalXp.toLocaleString()} XP</span>
-            </div>
-          </div>
-        </div>
-      </div>
 
       {/* ── Action Cards + Chart Row ────────────────────────── */}
       <div className="grid lg:grid-cols-12 gap-5">
         {/* Left column: New Doc + Focus Timer */}
-        <div className="lg:col-span-3 space-y-5">
+        <div className="lg:col-span-4 space-y-5">
           {/* New Doc card */}
           <Link
             to="/materials"
@@ -217,7 +152,7 @@ const Dashboard = () => {
         </div>
 
         {/* Center: Retention Trajectory */}
-        <div className="lg:col-span-5 bg-white rounded-2xl shadow-sm p-6">
+        <div className="lg:col-span-8 bg-white rounded-2xl shadow-sm p-6">
           <div className="flex items-center justify-between mb-5">
             <h3 className="text-base font-bold text-gray-900 flex items-center gap-2">
               <BarChart3 className="h-5 w-5 text-[#1D4ED8]" />
@@ -244,28 +179,6 @@ const Dashboard = () => {
           </div>
         </div>
 
-        {/* Right: Chat / Conversations preview */}
-        <div className="lg:col-span-4 bg-[#0F172A] rounded-2xl p-5 text-white flex flex-col">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-sm font-bold flex items-center gap-2">
-              <Bot className="h-4 w-4 text-[#1D4ED8]" />
-              AI Tutor Chat
-            </h3>
-            <Link to="/materials/tutor" className="text-xs text-[#1D4ED8] hover:underline font-medium">
-              Open →
-            </Link>
-          </div>
-          <div className="flex-1 space-y-3 overflow-hidden">
-            <div className="bg-white/10 rounded-xl px-4 py-3 text-xs text-white/80 leading-relaxed">
-              💡 Hey {displayName}! Ready to learn something new today? Upload a document or ask me anything.
-            </div>
-            <div className="bg-[#1D4ED8]/20 rounded-xl px-4 py-3 text-xs text-white/90 leading-relaxed ml-6">
-              What topics should I focus on this week?
-            </div>
-            <div className="bg-white/10 rounded-xl px-4 py-3 text-xs text-white/80 leading-relaxed">
-              Based on your progress, I'd recommend reviewing your weak areas. Keep that streak going! 🔥
-            </div>
-          </div>
         </div>
       </div>
 
