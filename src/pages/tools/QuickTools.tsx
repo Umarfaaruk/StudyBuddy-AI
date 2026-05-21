@@ -489,12 +489,11 @@ ${workspaceVideoData.transcript.substring(0, 15000)}`
   );
 };
 
-import AITutor from "../materials/AITutor";
 import DoubtInput from "../doubts/DoubtInput";
 
 // ── Main Quick Tools Page ────────────────────────────────────────
 const QuickTools = () => {
-  const [activeTab, setActiveTab] = useState<"tutor" | "youtube" | "doubt">("tutor");
+  const [activeTab, setActiveTab] = useState<"youtube" | "doubt">("youtube");
 
   return (
     <div className="p-6 md:p-8 max-w-6xl mx-auto space-y-8 font-sans">
@@ -511,14 +510,6 @@ const QuickTools = () => {
 
       {/* Tabs */}
       <div className="flex space-x-2 border-b border-gray-100 pb-4 overflow-x-auto">
-        <button
-          onClick={() => setActiveTab("tutor")}
-          className={`px-4 py-2 rounded-xl text-sm font-semibold transition-all whitespace-nowrap ${
-            activeTab === "tutor" ? "bg-[#131526] text-white shadow-md" : "text-gray-500 hover:text-gray-900 hover:bg-gray-100"
-          }`}
-        >
-          🤖 AI Tutor
-        </button>
         <button
           onClick={() => setActiveTab("youtube")}
           className={`px-4 py-2 rounded-xl text-sm font-semibold transition-all whitespace-nowrap ${
@@ -539,7 +530,6 @@ const QuickTools = () => {
 
       {/* Content */}
       <div className="min-h-[600px] -mx-6 md:-mx-8">
-        {activeTab === "tutor" && <AITutor />}
         {activeTab === "youtube" && (
           <div className="px-6 md:px-8">
             <VideoNotebookWorkspace />
