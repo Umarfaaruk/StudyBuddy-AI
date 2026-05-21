@@ -116,36 +116,7 @@ const AppLayout = () => {
               );
             })}
 
-            {/* AI Tutor Chat Widget */}
-            <div className="mt-4 px-2">
-              <Link to="/materials/tutor" className="block bg-[#1a1c2e] rounded-2xl p-4 shadow-xl border border-white/5 hover:border-white/10 transition-colors group">
-                <div className="flex items-center justify-between mb-4">
-                  <div className="flex items-center gap-2">
-                    <Bot className="h-4 w-4 text-[#8b5cf6]" />
-                    <span className="text-white text-sm font-bold">AI Tutor Chat</span>
-                  </div>
-                  <span className="text-[#8b5cf6] text-xs font-semibold group-hover:underline">Open &rarr;</span>
-                </div>
-                
-                <div className="space-y-3">
-                  <div className="bg-[#2a2d3e] rounded-xl p-3 rounded-bl-sm">
-                    <p className="text-white/80 text-[11px] leading-relaxed">
-                      💡 Hey {firstName}! Ready to learn something new today? Upload a document or ask me anything.
-                    </p>
-                  </div>
-                  <div className="bg-[#36265c] rounded-xl p-3 rounded-br-sm ml-4">
-                    <p className="text-white/90 text-[11px] leading-relaxed">
-                      What topics should I focus on this week?
-                    </p>
-                  </div>
-                  <div className="bg-[#2a2d3e] rounded-xl p-3 rounded-bl-sm">
-                    <p className="text-white/80 text-[11px] leading-relaxed">
-                      Based on your progress, I'd recommend reviewing your weak areas. Keep that streak going! 🔥
-                    </p>
-                  </div>
-                </div>
-              </Link>
-            </div>
+
 
             {/* Library Section */}
             <div className="pt-4 pb-1">
