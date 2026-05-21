@@ -52,8 +52,8 @@ const PracticeArena = () => {
               onClick={() => setDifficulty(lvl)}
               className={`px-5 py-2 rounded-full text-xs font-bold border-2 transition-all duration-200 ${
                 difficulty === lvl
-                  ? "bg-[#8b5cf6] text-white border-[#8b5cf6] shadow-md shadow-[#8b5cf6]/20"
-                  : "bg-white text-gray-500 border-gray-200 hover:border-[#8b5cf6]/40 hover:text-[#8b5cf6]"
+                  ? "bg-[#1D4ED8] text-white border-[#1D4ED8] shadow-md shadow-[#1D4ED8]/20"
+                  : "bg-white text-gray-500 border-gray-200 hover:border-[#1D4ED8]/40 hover:text-[#1D4ED8]"
               }`}
             >
               {lvl}
@@ -85,13 +85,13 @@ const PracticeArena = () => {
             materials?.map((m) => (
               <div
                 key={m.id}
-                className="bg-white rounded-2xl border border-gray-100 shadow-sm hover:shadow-lg hover:border-[#8b5cf6]/30 transition-all duration-300 overflow-hidden flex flex-col group"
+                className="bg-white rounded-2xl border border-gray-100 shadow-sm hover:shadow-lg hover:border-[#1D4ED8]/30 transition-all duration-300 overflow-hidden flex flex-col group"
               >
                 {/* Thumbnail Area */}
                 <div className="relative h-44 bg-gradient-to-br from-gray-100 to-gray-50 flex items-center justify-center overflow-hidden">
-                  <FileText className="h-12 w-12 text-gray-300 group-hover:text-[#8b5cf6]/30 transition-colors duration-300" />
+                  <FileText className="h-12 w-12 text-gray-300 group-hover:text-[#1D4ED8]/30 transition-colors duration-300" />
                   {/* PDF Badge */}
-                  <span className="absolute top-3 left-3 bg-[#8b5cf6]/90 text-white text-[10px] font-bold px-2 py-0.5 rounded-md uppercase tracking-wide">
+                  <span className="absolute top-3 left-3 bg-[#1D4ED8]/90 text-white text-[10px] font-bold px-2 py-0.5 rounded-md uppercase tracking-wide">
                     PDF Document
                   </span>
                 </div>
@@ -116,7 +116,7 @@ const PracticeArena = () => {
                     >
                       <Button
                         size="sm"
-                        className="w-full bg-[#8b5cf6] hover:bg-[#7c3aed] text-white text-xs font-bold gap-1.5 rounded-lg shadow-sm shadow-[#8b5cf6]/20 transition-all duration-200"
+                        className="w-full bg-[#1D4ED8] hover:bg-[#2563EB] text-white text-xs font-bold gap-1.5 rounded-lg shadow-sm shadow-[#1D4ED8]/20 transition-all duration-200"
                       >
                         <Gamepad2 className="h-3.5 w-3.5" /> Quiz
                       </Button>
@@ -129,7 +129,7 @@ const PracticeArena = () => {
                       <Button
                         size="sm"
                         variant="outline"
-                        className="w-full text-xs font-bold gap-1.5 rounded-lg border-gray-200 text-gray-600 hover:border-[#8b5cf6]/40 hover:text-[#8b5cf6] transition-all duration-200"
+                        className="w-full text-xs font-bold gap-1.5 rounded-lg border-gray-200 text-gray-600 hover:border-[#1D4ED8]/40 hover:text-[#1D4ED8] transition-all duration-200"
                       >
                         <BrainCircuit className="h-3.5 w-3.5" /> Flashcards
                       </Button>
@@ -140,13 +140,13 @@ const PracticeArena = () => {
             ))
           ) : (
             <div className="col-span-full text-center py-16 bg-gray-50/60 rounded-2xl border-2 border-dashed border-gray-200">
-              <div className="h-14 w-14 rounded-2xl bg-[#8b5cf6]/10 flex items-center justify-center mx-auto mb-4">
-                <FileText className="h-7 w-7 text-[#8b5cf6]/50" />
+              <div className="h-14 w-14 rounded-2xl bg-[#1D4ED8]/10 flex items-center justify-center mx-auto mb-4">
+                <FileText className="h-7 w-7 text-[#1D4ED8]/50" />
               </div>
               <p className="text-sm text-gray-500 mb-1 font-medium">No materials uploaded yet</p>
               <p className="text-xs text-gray-400 mb-5">Upload a PDF or text to start practicing!</p>
               <Link to="/materials">
-                <Button size="sm" className="bg-[#8b5cf6] hover:bg-[#7c3aed] text-white font-bold rounded-lg px-6 shadow-sm shadow-[#8b5cf6]/20">
+                <Button size="sm" className="bg-[#1D4ED8] hover:bg-[#2563EB] text-white font-bold rounded-lg px-6 shadow-sm shadow-[#1D4ED8]/20">
                   Upload Material
                 </Button>
               </Link>

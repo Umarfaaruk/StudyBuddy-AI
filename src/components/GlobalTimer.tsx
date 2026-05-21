@@ -526,8 +526,6 @@ const GlobalTimer = () => {
   const statusColor = isActive ? "text-green-400 animate-pulse" : "text-amber-400";
   const statusLabel = isActive ? "Running" : paused ? "Paused" : saving ? "Saving…" : "Stopped";
 
-  if (!user) return null;
-
   // Restore saved position from localStorage on mount
   useEffect(() => {
     try {
@@ -608,6 +606,8 @@ const GlobalTimer = () => {
         userSelect: 'none',
       }
     : { cursor: 'grab', userSelect: 'none' as const };
+
+  if (!user) return null;
 
   return (
     <div

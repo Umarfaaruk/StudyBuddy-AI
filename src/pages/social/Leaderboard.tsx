@@ -128,7 +128,7 @@ const Leaderboard = () => {
               onClick={() => setTimeFilter(f.key)}
               className={`px-5 py-2 rounded-full text-sm font-semibold transition-all duration-200 ${
                 timeFilter === f.key
-                  ? "bg-[#8b5cf6] text-white shadow-lg shadow-purple-200"
+                  ? "bg-[#1D4ED8] text-white shadow-lg shadow-blue-200"
                   : "text-gray-500 hover:text-gray-700 hover:bg-gray-200/60"
               }`}
             >
@@ -250,13 +250,13 @@ const Leaderboard = () => {
                     key={`row-${u.name}-${u.rank}`}
                     className={`grid grid-cols-[50px_1fr_120px] md:grid-cols-[50px_1fr_140px] gap-4 items-center px-5 py-3.5 transition-all duration-200 group ${
                       u.isYou
-                        ? "bg-[#8b5cf6]/5 border-l-4 border-l-[#8b5cf6]"
+                        ? "bg-[#1D4ED8]/5 border-l-4 border-l-[#1D4ED8]"
                         : "hover:bg-gray-50/80 border-l-4 border-l-transparent"
                     }`}
                   >
                     {/* Rank */}
                     <div className="flex items-center">
-                      <span className={`text-sm font-extrabold ${u.rank <= 3 ? "text-[#8b5cf6]" : "text-gray-400"}`}>
+                      <span className={`text-sm font-extrabold ${u.rank <= 3 ? "text-[#1D4ED8]" : "text-gray-400"}`}>
                         #{u.rank}
                       </span>
                     </div>
@@ -265,7 +265,7 @@ const Leaderboard = () => {
                     <div className="flex items-center gap-3">
                       <div className={`h-9 w-9 rounded-full flex items-center justify-center text-xs font-bold shrink-0 transition-transform duration-200 group-hover:scale-110 ${
                         u.isYou
-                          ? "bg-gradient-to-br from-[#8b5cf6] to-[#7c3aed] text-white shadow-md shadow-purple-200"
+                          ? "bg-gradient-to-br from-[#1D4ED8] to-[#2563EB] text-white shadow-md shadow-blue-200"
                           : "bg-gray-100 text-gray-600"
                       }`}>
                         {u.avatar}
@@ -275,14 +275,14 @@ const Leaderboard = () => {
                           {u.isYou ? "You" : u.name}
                         </span>
                         {u.isYou && (
-                          <span className="text-[10px] text-[#8b5cf6] font-medium">Your position</span>
+                          <span className="text-[10px] text-[#1D4ED8] font-medium">Your position</span>
                         )}
                       </div>
                     </div>
 
                     {/* XP */}
                     <div className="text-right">
-                      <span className={`text-sm font-bold ${u.isYou ? "text-[#8b5cf6]" : "text-gray-700"}`}>
+                      <span className={`text-sm font-bold ${u.isYou ? "text-[#1D4ED8]" : "text-gray-700"}`}>
                         {u.xp.toLocaleString()}
                       </span>
                       <span className="text-xs text-gray-400 ml-1">XP</span>
@@ -303,7 +303,7 @@ const Leaderboard = () => {
             <div className="relative w-32 h-32">
               <svg className="w-full h-full -rotate-90" viewBox="0 0 120 120">
                 {/* Background circle */}
-                <circle cx="60" cy="60" r="54" fill="none" stroke="#f3f4f6" strokeWidth="8" />
+                <circle cx="60" cy="60" r="54" fill="none" stroke="#F3F4F6" strokeWidth="8" />
                 {/* Progress arc */}
                 <circle
                   cx="60" cy="60" r="54"
@@ -317,8 +317,8 @@ const Leaderboard = () => {
                 />
                 <defs>
                   <linearGradient id="progressGradient" x1="0%" y1="0%" x2="100%" y2="0%">
-                    <stop offset="0%" stopColor="#8b5cf6" />
-                    <stop offset="100%" stopColor="#7c3aed" />
+                    <stop offset="0%" stopColor="#1D4ED8" />
+                    <stop offset="100%" stopColor="#2563EB" />
                   </linearGradient>
                 </defs>
               </svg>
@@ -333,7 +333,7 @@ const Leaderboard = () => {
           </div>
 
           {/* Apex Architect Award */}
-          <div className="bg-gradient-to-br from-[#8b5cf6] to-[#6d28d9] rounded-2xl shadow-lg shadow-purple-200/50 p-6 text-white relative overflow-hidden">
+          <div className="bg-gradient-to-br from-[#1D4ED8] to-[#1E40AF] rounded-2xl shadow-lg shadow-blue-200/50 p-6 text-white relative overflow-hidden">
             {/* Decorative background circles */}
             <div className="absolute -top-6 -right-6 w-24 h-24 rounded-full bg-white/10" />
             <div className="absolute -bottom-8 -left-8 w-32 h-32 rounded-full bg-white/5" />
@@ -345,7 +345,7 @@ const Leaderboard = () => {
                 </div>
                 <div>
                   <h4 className="font-bold text-sm">Apex Architect</h4>
-                  <p className="text-[10px] text-purple-200">Top Achievement</p>
+                  <p className="text-[10px] text-blue-200">Top Achievement</p>
                 </div>
               </div>
 
@@ -354,7 +354,7 @@ const Leaderboard = () => {
                 <div className="flex items-center gap-3">
                   <span className="text-2xl">🏆</span>
                   <div className="text-center">
-                    <p className="text-xs font-semibold text-purple-100">Rank #{myRank}</p>
+                    <p className="text-xs font-semibold text-blue-100">Rank #{myRank}</p>
                     <p className="text-lg font-black">{xp.toLocaleString()} XP</p>
                   </div>
                   <span className="text-2xl">🏆</span>
@@ -363,7 +363,7 @@ const Leaderboard = () => {
 
               <div className="flex items-center gap-2 mt-3 pt-3 border-t border-white/20">
                 <Flame className="h-4 w-4 text-orange-300" />
-                <span className="text-xs font-semibold text-purple-100">
+                <span className="text-xs font-semibold text-blue-100">
                   {streak?.current_streak ?? 0} day streak
                 </span>
                 <Star className="h-3 w-3 text-yellow-300 ml-auto" />
@@ -376,8 +376,8 @@ const Leaderboard = () => {
           {/* Your Stats card */}
           <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5 space-y-3">
             <div className="flex items-center gap-2 mb-1">
-              <div className="h-7 w-7 rounded-lg bg-[#8b5cf6]/10 flex items-center justify-center">
-                <Zap className="h-3.5 w-3.5 text-[#8b5cf6]" />
+              <div className="h-7 w-7 rounded-lg bg-[#1D4ED8]/10 flex items-center justify-center">
+                <Zap className="h-3.5 w-3.5 text-[#1D4ED8]" />
               </div>
               <h4 className="font-bold text-gray-900 text-sm">Your Stats</h4>
             </div>
@@ -389,7 +389,7 @@ const Leaderboard = () => {
               <div className="h-px bg-gray-100" />
               <div className="flex items-center justify-between">
                 <span className="text-xs text-gray-500">Current Rank</span>
-                <span className="text-sm font-bold text-[#8b5cf6]">#{myRank}</span>
+                <span className="text-sm font-bold text-[#1D4ED8]">#{myRank}</span>
               </div>
               <div className="h-px bg-gray-100" />
               <div className="flex items-center justify-between">

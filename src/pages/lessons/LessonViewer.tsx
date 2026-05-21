@@ -97,7 +97,7 @@ const MiniNotes = ({
           placeholder="Jot a note…"
           value={draft}
           onChange={(e) => setDraft(e.target.value)}
-          className="min-h-[70px] resize-none text-sm bg-gray-50 border-gray-200 rounded-xl focus-visible:ring-[#8b5cf6]"
+          className="min-h-[70px] resize-none text-sm bg-gray-50 border-gray-200 rounded-xl focus-visible:ring-[#1D4ED8]"
           onKeyDown={(e) => {
             if (e.key === "Enter" && e.ctrlKey) {
               e.preventDefault();
@@ -106,20 +106,20 @@ const MiniNotes = ({
           }}
         />
       </div>
-      <Button onClick={add} size="sm" disabled={!draft.trim() || loading} className="gap-2 w-full bg-[#1e1b2e] text-white hover:bg-[#1e1b2e]/90 font-semibold shadow-sm rounded-xl">
-        <Plus className="h-3.5 w-3.5 text-[#8b5cf6]" /> Save Note
+      <Button onClick={add} size="sm" disabled={!draft.trim() || loading} className="gap-2 w-full bg-[#0F172A] text-white hover:bg-[#0F172A]/90 font-semibold shadow-sm rounded-xl">
+        <Plus className="h-3.5 w-3.5 text-[#1D4ED8]" /> Save Note
       </Button>
 
       {loading ? (
         <div className="flex justify-center py-4">
-          <Loader2 className="h-4 w-4 animate-spin text-[#8b5cf6]" />
+          <Loader2 className="h-4 w-4 animate-spin text-[#1D4ED8]" />
         </div>
       ) : notes.length === 0 ? (
         <p className="text-xs text-gray-500 text-center py-4">No notes saved for this lesson yet.</p>
       ) : (
         <div className="space-y-2 max-h-[350px] overflow-y-auto scrollbar-thin pr-1">
           {notes.map((n) => (
-            <div key={n.id} className="bg-gray-50 border border-gray-100 rounded-xl p-3 flex items-start gap-2 group relative hover:border-[#8b5cf6]/30 transition-all">
+            <div key={n.id} className="bg-gray-50 border border-gray-100 rounded-xl p-3 flex items-start gap-2 group relative hover:border-[#1D4ED8]/30 transition-all">
               <p className="text-xs text-gray-700 flex-1 whitespace-pre-wrap pr-6 leading-relaxed">{n.text}</p>
               <button
                 onClick={() => remove(n.id)}
@@ -304,10 +304,10 @@ const LessonViewer = () => {
       if (part.startsWith("**") && part.endsWith("**"))
         return <strong key={idx} className="text-gray-900 font-bold">{part.slice(2, -2)}</strong>;
       if (part.startsWith("`") && part.endsWith("`"))
-        return <code key={idx} className="text-[#8b5cf6] bg-[#f5f3ff] px-1.5 py-0.5 rounded-md text-xs font-mono border border-[#8b5cf6]/10">{part.slice(1, -1)}</code>;
+        return <code key={idx} className="text-[#1D4ED8] bg-[#DBEAFE] px-1.5 py-0.5 rounded-md text-xs font-mono border border-[#1D4ED8]/10">{part.slice(1, -1)}</code>;
       const linkMatch = part.match(/^\[([^\]]+)\]\(([^)]+)\)$/);
       if (linkMatch)
-        return <a key={idx} href={linkMatch[2]} target="_blank" rel="noopener noreferrer" className="text-[#8b5cf6] hover:text-[#7c3aed] font-medium underline underline-offset-2">{linkMatch[1]}</a>;
+        return <a key={idx} href={linkMatch[2]} target="_blank" rel="noopener noreferrer" className="text-[#1D4ED8] hover:text-[#2563EB] font-medium underline underline-offset-2">{linkMatch[1]}</a>;
       return part;
     });
   };
@@ -321,13 +321,13 @@ const LessonViewer = () => {
       if (line.startsWith("# "))
         return <h1 key={i} className="text-2xl font-bold mt-10 mb-5 text-gray-900 tracking-tight">{renderInline(line.slice(2))}</h1>;
       if (line.startsWith("- "))
-        return <li key={i} className="text-gray-600 ml-5 mb-2 leading-relaxed flex items-start"><span className="mr-2 mt-2 h-1.5 w-1.5 rounded-full bg-[#8b5cf6] flex-shrink-0"></span><span>{renderInline(line.slice(2))}</span></li>;
+        return <li key={i} className="text-gray-600 ml-5 mb-2 leading-relaxed flex items-start"><span className="mr-2 mt-2 h-1.5 w-1.5 rounded-full bg-[#1D4ED8] flex-shrink-0"></span><span>{renderInline(line.slice(2))}</span></li>;
       if (/^\d+\.\s/.test(line))
         return <li key={i} className="text-gray-600 ml-5 mb-2 list-decimal leading-relaxed">{renderInline(line.replace(/^\d+\.\s/, ""))}</li>;
       if (line.trim() === "") return <br key={i} />;
       if (line.startsWith("  "))
         return (
-          <div key={i} className="font-mono text-sm text-[#8b5cf6] bg-[#f5f3ff] border border-[#8b5cf6]/10 px-4 py-2 rounded-xl my-2 overflow-x-auto">
+          <div key={i} className="font-mono text-sm text-[#1D4ED8] bg-[#DBEAFE] border border-[#1D4ED8]/10 px-4 py-2 rounded-xl my-2 overflow-x-auto">
             {line}
           </div>
         );
@@ -357,7 +357,7 @@ const LessonViewer = () => {
             variant="outline"
             size="sm"
             onClick={() => setShowTools(!showTools)}
-            className={`gap-2 text-xs rounded-xl transition-all ${showTools ? "border-[#8b5cf6] text-[#8b5cf6] bg-[#f5f3ff]" : "text-gray-500 border-gray-200 hover:bg-gray-50"}`}
+            className={`gap-2 text-xs rounded-xl transition-all ${showTools ? "border-[#1D4ED8] text-[#1D4ED8] bg-[#DBEAFE]" : "text-gray-500 border-gray-200 hover:bg-gray-50"}`}
           >
             <StickyNote className="h-3.5 w-3.5" />
             <span>Notes</span>
@@ -370,7 +370,7 @@ const LessonViewer = () => {
             onClick={toggleDeepFocus}
             className={`gap-2 text-xs rounded-xl transition-all ${
               isDeepFocus
-                ? "border-[#8b5cf6] text-[#8b5cf6] bg-[#f5f3ff]"
+                ? "border-[#1D4ED8] text-[#1D4ED8] bg-[#DBEAFE]"
                 : "text-gray-500 border-gray-200 hover:bg-gray-50"
             }`}
           >
@@ -386,7 +386,7 @@ const LessonViewer = () => {
       {/* ── Topic / lesson metadata ───────────────────────── */}
       <div className="space-y-3">
         <div className="flex items-center gap-2 text-xs text-gray-500 flex-wrap">
-          <span className="bg-[#f5f3ff] text-[#8b5cf6] px-2.5 py-1 rounded-full font-bold tracking-wide uppercase text-[10px]">
+          <span className="bg-[#DBEAFE] text-[#1D4ED8] px-2.5 py-1 rounded-full font-bold tracking-wide uppercase text-[10px]">
             {(topic?.subjects as { name?: string })?.name ?? topic?.subject ?? "Subject"}
           </span>
           <span className="font-medium">Lesson {currentIndex + 1} of {totalLessons}</span>
@@ -414,11 +414,11 @@ const LessonViewer = () => {
         {/* Left: Lesson content card */}
         <div className="bg-white border border-gray-100 rounded-2xl p-6 md:p-10 shadow-sm min-w-0">
           <div className="flex items-center gap-3 pb-5 border-b border-gray-100 mb-6">
-            <div className="h-8 w-8 rounded-lg bg-[#f5f3ff] flex items-center justify-center">
-              <BookOpen className="h-4 w-4 text-[#8b5cf6]" />
+            <div className="h-8 w-8 rounded-lg bg-[#DBEAFE] flex items-center justify-center">
+              <BookOpen className="h-4 w-4 text-[#1D4ED8]" />
             </div>
             <span className="font-semibold text-gray-900">Lesson Content</span>
-            <span className="ml-auto text-[10px] font-bold tracking-widest uppercase text-[#8b5cf6] bg-[#f5f3ff] px-2.5 py-1 rounded-full">
+            <span className="ml-auto text-[10px] font-bold tracking-widest uppercase text-[#1D4ED8] bg-[#DBEAFE] px-2.5 py-1 rounded-full">
               +{LESSON_XP} XP
             </span>
           </div>
@@ -432,7 +432,7 @@ const LessonViewer = () => {
           <div className="animate-in slide-in-from-right-4 duration-200">
             <div className="bg-white border border-gray-100 rounded-2xl p-5 sticky top-6 shadow-sm">
               <div className="flex items-center gap-2 text-sm font-semibold text-gray-900 pb-4 border-b border-gray-100 mb-4">
-                <StickyNote className="h-4 w-4 text-[#8b5cf6]" />
+                <StickyNote className="h-4 w-4 text-[#1D4ED8]" />
                 Lesson Notes
               </div>
               <div className="min-h-[200px]">
@@ -465,7 +465,7 @@ const LessonViewer = () => {
           className={`gap-2 flex-1 min-h-[48px] rounded-xl font-semibold transition-all shadow-sm ${
             isCompleted
               ? "bg-emerald-50 text-emerald-600 border border-emerald-200 hover:bg-emerald-100"
-              : "bg-gradient-to-r from-[#8b5cf6] to-[#7c3aed] text-white hover:opacity-90"
+              : "bg-gradient-to-r from-[#1D4ED8] to-[#2563EB] text-white hover:opacity-90"
           }`}
           disabled={isCompleted || markComplete.isPending}
         >
@@ -479,7 +479,7 @@ const LessonViewer = () => {
         </Button>
 
         <Button
-          className="gap-2 min-h-[48px] rounded-xl bg-[#1e1b2e] text-white hover:bg-[#1e1b2e]/90 font-medium shadow-sm"
+          className="gap-2 min-h-[48px] rounded-xl bg-[#0F172A] text-white hover:bg-[#0F172A]/90 font-medium shadow-sm"
           disabled={currentIndex >= totalLessons - 1}
           onClick={() => setCurrentIndex((i) => i + 1)}
         >

@@ -13,7 +13,7 @@ import { useQuery } from "@tanstack/react-query";
 import { db } from "@/lib/firebase";
 import { doc, getDoc } from "firebase/firestore";
 
-import eduonxLogo from "@/assets/eduonx-logo.png";
+import eduonxLogoOnDark from "@/assets/eduonx-logo-on-dark.png";
 
 const sidebarLinks = [
   { to: "/dashboard", icon: LayoutDashboard, label: "Dashboard" },
@@ -78,12 +78,12 @@ const AppLayout = () => {
   const firstName = displayName.split(" ")[0];
 
   return (
-    <div className="min-h-screen bg-[#131526] flex">
+    <div className="min-h-screen bg-[#0F172A] flex">
       <GlobalTimer />
 
       {/* ── Desktop Sidebar ────────────────────────────── */}
       {!isDeepFocus && (
-        <aside className="hidden md:flex w-[260px] flex-col fixed inset-y-0 left-0 z-30 bg-[#131526]">
+        <aside className="hidden md:flex w-[260px] flex-col fixed inset-y-0 left-0 z-30 bg-[#0F172A]">
           {/* User Avatar & Greeting */}
           <div className="px-6 pt-8 pb-6 flex-shrink-0">
             <div className="flex flex-col items-start">
@@ -106,7 +106,7 @@ const AppLayout = () => {
                   key={link.to}
                   to={link.to}
                   className={`flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 ${active
-                    ? "bg-white text-[#131526] shadow-md font-semibold"
+                    ? "bg-white text-[#0F172A] shadow-md font-semibold"
                     : "text-white/60 hover:text-white hover:bg-white/[0.08]"
                     }`}
                 >
@@ -133,7 +133,7 @@ const AppLayout = () => {
                   key={link.to}
                   to={link.to}
                   className={`flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 ${active
-                    ? "bg-white text-[#131526] shadow-md font-semibold"
+                    ? "bg-white text-[#0F172A] shadow-md font-semibold"
                     : "text-white/60 hover:text-white hover:bg-white/[0.08]"
                     }`}
                 >
@@ -150,7 +150,7 @@ const AppLayout = () => {
       {!isDeepFocus && mobileMenuOpen && (
         <div className="md:hidden fixed inset-0 z-50 flex">
           <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setMobileMenuOpen(false)} />
-          <aside className="relative w-72 bg-[#131526] flex flex-col h-full animate-in slide-in-from-left duration-200">
+          <aside className="relative w-72 bg-[#0F172A] flex flex-col h-full animate-in slide-in-from-left duration-200">
             <div className="px-5 py-5 flex items-center justify-between">
               <div className="flex items-center gap-3">
                 <div className="h-10 w-10 rounded-full bg-[#f4a261] flex items-center justify-center text-lg font-bold text-white">
@@ -176,7 +176,7 @@ const AppLayout = () => {
                     to={link.to}
                     onClick={() => setMobileMenuOpen(false)}
                     className={`flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all ${active
-                      ? "bg-white text-[#131526] font-semibold"
+                      ? "bg-white text-[#0F172A] font-semibold"
                       : "text-white/60 hover:text-white hover:bg-white/[0.08]"
                       }`}
                   >
@@ -192,7 +192,7 @@ const AppLayout = () => {
 
       {/* ── Deep Focus Mode — minimal top bar ──────────────── */}
       {isDeepFocus && (
-        <div className="fixed top-0 left-0 right-0 z-30 h-12 bg-[#131526] border-b border-white/10 flex items-center justify-between px-6">
+        <div className="fixed top-0 left-0 right-0 z-30 h-12 bg-[#0F172A] border-b border-white/10 flex items-center justify-between px-6">
           <div className="flex items-center gap-2 text-sm font-semibold text-white">
             <Focus className="h-4 w-4" />
             Deep Focus Mode
@@ -209,11 +209,11 @@ const AppLayout = () => {
 
       {/* ── Mobile Top Header ───────────────────────────────── */}
       {!isDeepFocus && (
-        <div className="md:hidden fixed top-0 left-0 right-0 z-20 bg-[#131526] border-b border-white/10 flex items-center justify-between px-4 h-14">
+        <div className="md:hidden fixed top-0 left-0 right-0 z-20 bg-[#0F172A] border-b border-white/10 flex items-center justify-between px-4 h-14">
           <button onClick={() => setMobileMenuOpen(true)} className="p-2 -ml-1 text-white/60 hover:text-white">
             <Menu className="h-5 w-5" />
           </button>
-          <img src={eduonxLogo} alt="EduOnx" className="h-[28px] w-auto object-contain brightness-0 invert" />
+          <img src={eduonxLogoOnDark} alt="EduOnx" className="block h-[28px] w-auto object-contain" />
           <Link to="/profile" className="p-2 -mr-1">
             <User className="h-5 w-5 text-white/60" />
           </Link>
@@ -222,7 +222,7 @@ const AppLayout = () => {
 
       {/* ── Mobile Bottom Nav ──────────────────────────────── */}
       {!isDeepFocus && (
-        <nav className="md:hidden fixed bottom-0 left-0 right-0 z-30 bg-[#131526]/95 backdrop-blur-sm border-t border-white/10 flex safe-area-pb">
+        <nav className="md:hidden fixed bottom-0 left-0 right-0 z-30 bg-[#0F172A]/95 backdrop-blur-sm border-t border-white/10 flex safe-area-pb">
           {mobileNavLinks.map((link) => {
             const active =
               pathname === link.to ||
@@ -231,7 +231,7 @@ const AppLayout = () => {
               <Link
                 key={link.to}
                 to={link.to}
-                className={`flex-1 flex flex-col items-center gap-1 py-2.5 min-h-[56px] justify-center text-[10px] font-medium transition-colors ${active ? "text-[#8b5cf6]" : "text-white/40"
+                className={`flex-1 flex flex-col items-center gap-1 py-2.5 min-h-[56px] justify-center text-[10px] font-medium transition-colors ${active ? "text-[#1D4ED8]" : "text-white/40"
                   }`}
               >
                 <link.icon className="h-5 w-5" />
@@ -253,7 +253,7 @@ const AppLayout = () => {
           <div
             className={`${isDeepFocus
               ? ""
-              : "md:bg-[#f3f4f6] md:rounded-[2rem] md:flex-1 md:overflow-y-auto md:shadow-2xl scrollbar-thin"
+              : "md:bg-[#F3F4F6] md:rounded-[2rem] md:flex-1 md:overflow-y-auto md:shadow-2xl scrollbar-thin"
               }`}
           >
             <Outlet />

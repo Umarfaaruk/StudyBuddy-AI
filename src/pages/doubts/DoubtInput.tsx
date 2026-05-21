@@ -213,7 +213,7 @@ Format your output using gorgeous markdown with bullet points, numbered lists, a
       {/* ── Chat Header ── */}
       <div className="flex items-center justify-between px-6 md:px-8 pt-6 pb-4">
         <div className="flex-1" />
-        <h1 className="text-xl font-bold text-[#0f172a]">New Chat</h1>
+        <h1 className="text-xl font-bold text-[#0F172A]">New Chat</h1>
         <div className="flex-1 flex justify-end">
           <button
             onClick={handleClearChat}
@@ -234,7 +234,7 @@ Format your output using gorgeous markdown with bullet points, numbered lists, a
           </div>
           <div className="pt-1">
             <div className="text-sm text-gray-400 font-medium">Hi!</div>
-            <div className="text-xl font-bold text-[#0f172a]">how can I help?</div>
+            <div className="text-xl font-bold text-[#0F172A]">how can I help?</div>
           </div>
         </div>
 
@@ -249,7 +249,7 @@ Format your output using gorgeous markdown with bullet points, numbered lists, a
                     to={`/doubts/session/${d.id}`}
                     className="bg-white rounded-2xl px-5 py-3 max-w-[70%] shadow-sm border border-gray-100 hover:shadow-md transition-shadow"
                   >
-                    <p className="text-sm text-[#0f172a]">{d.question_preview}</p>
+                    <p className="text-sm text-[#0F172A]">{d.question_preview}</p>
                   </Link>
                 </div>
               </div>
@@ -266,7 +266,7 @@ Format your output using gorgeous markdown with bullet points, numbered lists, a
                 <span className="text-white text-lg">🤖</span>
               </div>
               <div className="flex-1 max-w-[80%]">
-                <div className="prose prose-sm max-w-none text-[#0f172a]/90 leading-relaxed">
+                <div className="prose prose-sm max-w-none text-[#0F172A]/90 leading-relaxed">
                   <ReactMarkdown>{generatorResult}</ReactMarkdown>
                 </div>
               </div>
@@ -277,14 +277,14 @@ Format your output using gorgeous markdown with bullet points, numbered lists, a
                     navigator.clipboard.writeText(generatorResult);
                     toast.success("Copied to clipboard!");
                   }}
-                  className="p-2 rounded-xl hover:bg-white hover:shadow-sm text-gray-400 hover:text-[#8b5cf6] transition-all"
+                  className="p-2 rounded-xl hover:bg-white hover:shadow-sm text-gray-400 hover:text-[#1D4ED8] transition-all"
                 >
                   <Share2 className="h-4 w-4" />
                 </button>
-                <button className="p-2 rounded-xl hover:bg-white hover:shadow-sm text-gray-400 hover:text-[#8b5cf6] transition-all">
+                <button className="p-2 rounded-xl hover:bg-white hover:shadow-sm text-gray-400 hover:text-[#1D4ED8] transition-all">
                   <Star className="h-4 w-4" />
                 </button>
-                <button className="p-2 rounded-xl hover:bg-white hover:shadow-sm text-gray-400 hover:text-[#8b5cf6] transition-all">
+                <button className="p-2 rounded-xl hover:bg-white hover:shadow-sm text-gray-400 hover:text-[#1D4ED8] transition-all">
                   <MoreVertical className="h-4 w-4" />
                 </button>
               </div>
@@ -293,18 +293,18 @@ Format your output using gorgeous markdown with bullet points, numbered lists, a
             {/* Embedded resource cards */}
             <div className="ml-[60px] flex gap-4">
               <div className="flex items-center gap-2 px-4 py-3 rounded-xl bg-white border border-gray-100 shadow-sm hover:shadow-md transition-all cursor-pointer">
-                <FolderOpen className="h-5 w-5 text-[#8b5cf6]" />
+                <FolderOpen className="h-5 w-5 text-[#1D4ED8]" />
                 <span className="text-sm font-medium text-gray-600">Chat files</span>
               </div>
               <div className="flex items-center gap-2 px-4 py-3 rounded-xl bg-white border border-gray-100 shadow-sm hover:shadow-md transition-all cursor-pointer">
-                <ImageIcon className="h-5 w-5 text-[#8b5cf6]" />
+                <ImageIcon className="h-5 w-5 text-[#1D4ED8]" />
                 <span className="text-sm font-medium text-gray-600">Images</span>
               </div>
               <Link
                 to="/materials"
                 className="flex items-center gap-2 px-4 py-3 rounded-xl bg-white border border-gray-100 shadow-sm hover:shadow-md transition-all cursor-pointer"
               >
-                <Upload className="h-5 w-5 text-[#8b5cf6]" />
+                <Upload className="h-5 w-5 text-[#1D4ED8]" />
                 <span className="text-sm font-medium text-gray-600">Upload</span>
               </Link>
             </div>
@@ -318,7 +318,7 @@ Format your output using gorgeous markdown with bullet points, numbered lists, a
               <span className="text-white text-lg">🤖</span>
             </div>
             <div className="flex items-center gap-3 py-4">
-              <Loader2 className="h-5 w-5 animate-spin text-[#8b5cf6]" />
+              <Loader2 className="h-5 w-5 animate-spin text-[#1D4ED8]" />
               <span className="text-sm text-gray-400 animate-pulse">AI Tutor is crafting your explanation...</span>
             </div>
           </div>
@@ -329,8 +329,8 @@ Format your output using gorgeous markdown with bullet points, numbered lists, a
           <div className="mt-8">
             <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 space-y-5">
               <div className="flex items-center gap-2 pb-3 border-b border-gray-100">
-                <Atom className="h-5 w-5 text-[#8b5cf6] animate-pulse" />
-                <h2 className="font-bold text-lg text-[#0f172a]">AI Concept Explorer & Analogy Studio</h2>
+                <Atom className="h-5 w-5 text-[#1D4ED8] animate-pulse" />
+                <h2 className="font-bold text-lg text-[#0F172A]">AI Concept Explorer & Analogy Studio</h2>
               </div>
 
               <div className="grid md:grid-cols-[1fr_320px] gap-6">
@@ -346,7 +346,7 @@ Format your output using gorgeous markdown with bullet points, numbered lists, a
                       placeholder="e.g. Quantum Superposition, Recursion in JavaScript, Krebs Cycle..."
                       value={concept}
                       onChange={(e) => setConcept(e.target.value)}
-                      className="w-full h-11 px-4 text-sm bg-[#f3f4f6] border border-gray-200 rounded-xl outline-none focus:border-[#8b5cf6]/40 focus:ring-2 focus:ring-[#8b5cf6]/10 text-[#0f172a] transition-all"
+                      className="w-full h-11 px-4 text-sm bg-[#F3F4F6] border border-gray-200 rounded-xl outline-none focus:border-[#1D4ED8]/40 focus:ring-2 focus:ring-[#1D4ED8]/10 text-[#0F172A] transition-all"
                       onKeyDown={(e) => e.key === "Enter" && handleGenerateConcept()}
                     />
                   </div>
@@ -368,8 +368,8 @@ Format your output using gorgeous markdown with bullet points, numbered lists, a
                             onClick={() => setExplainLevel(lvl.key)}
                             className={`text-left px-3 py-2 text-xs rounded-xl border transition-all ${
                               explainLevel === lvl.key
-                                ? "bg-[#8b5cf6]/10 text-[#8b5cf6] border-[#8b5cf6] font-semibold"
-                                : "bg-white border-gray-200 text-gray-500 hover:bg-gray-50 hover:text-[#0f172a]"
+                                ? "bg-[#1D4ED8]/10 text-[#1D4ED8] border-[#1D4ED8] font-semibold"
+                                : "bg-white border-gray-200 text-gray-500 hover:bg-gray-50 hover:text-[#0F172A]"
                             }`}
                           >
                             {lvl.label}
@@ -394,8 +394,8 @@ Format your output using gorgeous markdown with bullet points, numbered lists, a
                             onClick={() => setOutputFormat(fmt.key)}
                             className={`text-left px-3 py-2 text-xs rounded-xl border transition-all ${
                               outputFormat === fmt.key
-                                ? "bg-[#8b5cf6]/10 text-[#8b5cf6] border-[#8b5cf6] font-semibold"
-                                : "bg-white border-gray-200 text-gray-500 hover:bg-gray-50 hover:text-[#0f172a]"
+                                ? "bg-[#1D4ED8]/10 text-[#1D4ED8] border-[#1D4ED8] font-semibold"
+                                : "bg-white border-gray-200 text-gray-500 hover:bg-gray-50 hover:text-[#0F172A]"
                             }`}
                           >
                             {fmt.label}
@@ -408,7 +408,7 @@ Format your output using gorgeous markdown with bullet points, numbered lists, a
                   <Button
                     onClick={handleGenerateConcept}
                     disabled={isGeneratingConcept || !concept.trim()}
-                    className="w-full bg-[#8b5cf6] text-white hover:bg-[#7c3aed] h-11 gap-2 font-semibold rounded-xl"
+                    className="w-full bg-[#1D4ED8] text-white hover:bg-[#2563EB] h-11 gap-2 font-semibold rounded-xl"
                   >
                     {isGeneratingConcept ? (
                       <>
@@ -425,7 +425,7 @@ Format your output using gorgeous markdown with bullet points, numbered lists, a
                 </div>
 
                 {/* Right panel: Preview / Info */}
-                <div className="bg-[#f3f4f6] border border-gray-200 rounded-2xl p-5 flex flex-col items-center justify-center min-h-[260px]">
+                <div className="bg-[#F3F4F6] border border-gray-200 rounded-2xl p-5 flex flex-col items-center justify-center min-h-[260px]">
                   <Lightbulb className="h-10 w-10 text-gray-300 mb-3" />
                   <p className="text-sm text-gray-400 text-center">Your custom explanation or roadmap will display in the chat above.</p>
                 </div>
@@ -447,7 +447,7 @@ Format your output using gorgeous markdown with bullet points, numbered lists, a
               </div>
             )}
             <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium text-[#0f172a] truncate">{attachedFile.name}</p>
+              <p className="text-sm font-medium text-[#0F172A] truncate">{attachedFile.name}</p>
               <p className="text-xs text-gray-400">{(attachedFile.size / 1024).toFixed(1)} KB · {attachedFile.type.split("/")[1]?.toUpperCase()}</p>
             </div>
             <button onClick={clearAttachment} className="p-1.5 rounded-full hover:bg-red-50 text-gray-400 hover:text-red-500 transition-colors">
@@ -479,19 +479,19 @@ Format your output using gorgeous markdown with bullet points, numbered lists, a
                 handleSubmit();
               }
             }}
-            className="flex-1 bg-transparent text-sm text-[#0f172a] placeholder:text-gray-400 outline-none py-2"
+            className="flex-1 bg-transparent text-sm text-[#0F172A] placeholder:text-gray-400 outline-none py-2"
           />
 
           <div className="flex items-center gap-1">
             <button
-              className="p-2 rounded-xl text-gray-400 hover:text-[#8b5cf6] hover:bg-[#8b5cf6]/5 transition-all"
+              className="p-2 rounded-xl text-gray-400 hover:text-[#1D4ED8] hover:bg-[#1D4ED8]/5 transition-all"
               title="Voice input"
             >
               <Mic className="h-5 w-5" />
             </button>
             <button
               onClick={() => fileInputRef.current?.click()}
-              className="p-2 rounded-xl text-gray-400 hover:text-[#8b5cf6] hover:bg-[#8b5cf6]/5 transition-all"
+              className="p-2 rounded-xl text-gray-400 hover:text-[#1D4ED8] hover:bg-[#1D4ED8]/5 transition-all"
               title="Attach file"
             >
               <Paperclip className="h-5 w-5" />
@@ -499,7 +499,7 @@ Format your output using gorgeous markdown with bullet points, numbered lists, a
             <button
               onClick={handleSubmit}
               disabled={!question.trim() && !attachedFile}
-              className="h-10 w-10 rounded-xl bg-[#8b5cf6] text-white flex items-center justify-center hover:bg-[#7c3aed] disabled:opacity-40 disabled:cursor-not-allowed transition-all shadow-md hover:shadow-lg"
+              className="h-10 w-10 rounded-xl bg-[#1D4ED8] text-white flex items-center justify-center hover:bg-[#2563EB] disabled:opacity-40 disabled:cursor-not-allowed transition-all shadow-md hover:shadow-lg"
             >
               <Send className="h-4 w-4" />
             </button>

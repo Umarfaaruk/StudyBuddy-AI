@@ -272,7 +272,7 @@ const TimerPage = () => {
           </CardContent>
         </Card>
 
-        <Card className="bg-gradient-to-br from-purple-500/10 to-pink-500/10 border-purple-500/20">
+        <Card className="bg-gradient-to-br from-blue-500/10 to-cyan-500/10 border-blue-500/20">
           <CardHeader className="pb-3">
             <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
               <Flame className="h-4 w-4" />
@@ -459,7 +459,7 @@ const TimerPage = () => {
                       }}
                     />
                     <Legend />
-                    <Bar dataKey="minutes" fill="#8b5cf6" radius={[8, 8, 0, 0]} name="Total Minutes" />
+                    <Bar dataKey="minutes" fill="#1D4ED8" radius={[8, 8, 0, 0]} name="Total Minutes" />
                     <Bar dataKey="avgPerDay" fill="#06b6d4" radius={[8, 8, 0, 0]} name="Avg/Day" />
                   </BarChart>
                 </ResponsiveContainer>
@@ -480,7 +480,7 @@ const TimerPage = () => {
                         <div className="flex items-center gap-4">
                           <span className="text-xs text-muted-foreground">{week.sessions} sessions</span>
                           <span className="text-xs text-muted-foreground">~{week.avgPerDay}m/day</span>
-                          <Badge variant="outline" className="text-purple-500 border-purple-500/30">
+                          <Badge variant="outline" className="text-blue-500 border-blue-500/30">
                             {formatMinutes(week.minutes)}
                           </Badge>
                         </div>

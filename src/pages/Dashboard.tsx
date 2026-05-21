@@ -103,7 +103,7 @@ const Dashboard = () => {
       {/* ── Hero Row: Banner + Leaderboard ───────────────────── */}
       <div className="grid lg:grid-cols-5 gap-5">
         {/* Purple Gradient Banner */}
-        <div className="lg:col-span-3 relative overflow-hidden rounded-2xl bg-gradient-to-br from-[#8b5cf6] to-[#7c3aed] p-7 md:p-9 text-white min-h-[220px] flex flex-col justify-between">
+        <div className="lg:col-span-3 relative overflow-hidden rounded-2xl bg-gradient-to-br from-[#1D4ED8] to-[#2563EB] p-7 md:p-9 text-white min-h-[220px] flex flex-col justify-between">
           {/* Decorative circles */}
           <div className="absolute -top-10 -right-10 w-40 h-40 bg-white/10 rounded-full blur-sm" />
           <div className="absolute bottom-4 right-16 w-24 h-24 bg-white/5 rounded-full" />
@@ -136,10 +136,10 @@ const Dashboard = () => {
         <div className="lg:col-span-2 bg-white rounded-2xl shadow-sm p-6 flex flex-col">
           <div className="flex items-center justify-between mb-5">
             <h3 className="text-base font-bold text-gray-900 flex items-center gap-2">
-              <Trophy className="h-5 w-5 text-[#8b5cf6]" />
+              <Trophy className="h-5 w-5 text-[#1D4ED8]" />
               Leaderboard
             </h3>
-            <Link to="/leaderboard" className="text-xs font-semibold text-[#8b5cf6] hover:underline">
+            <Link to="/leaderboard" className="text-xs font-semibold text-[#1D4ED8] hover:underline">
               See more
             </Link>
           </div>
@@ -151,17 +151,17 @@ const Dashboard = () => {
                   {u.avatar}
                 </div>
                 <span className="flex-1 text-sm font-medium text-gray-800">{u.name}</span>
-                <span className="text-xs font-bold text-[#8b5cf6] bg-[#8b5cf6]/10 px-2.5 py-1 rounded-lg">{u.xp}</span>
+                <span className="text-xs font-bold text-[#1D4ED8] bg-[#1D4ED8]/10 px-2.5 py-1 rounded-lg">{u.xp}</span>
               </div>
             ))}
             {/* Current user */}
-            <div className="flex items-center gap-3 px-3 py-2.5 rounded-xl bg-[#8b5cf6]/5 border border-[#8b5cf6]/20">
-              <span className="text-xs font-bold text-[#8b5cf6] w-5">You</span>
-              <div className="h-9 w-9 rounded-full bg-[#8b5cf6] flex items-center justify-center text-white text-sm font-bold shadow-sm">
+            <div className="flex items-center gap-3 px-3 py-2.5 rounded-xl bg-[#1D4ED8]/5 border border-[#1D4ED8]/20">
+              <span className="text-xs font-bold text-[#1D4ED8] w-5">You</span>
+              <div className="h-9 w-9 rounded-full bg-[#1D4ED8] flex items-center justify-center text-white text-sm font-bold shadow-sm">
                 {(displayName[0] ?? "Y").toUpperCase()}
               </div>
               <span className="flex-1 text-sm font-medium text-gray-800">{displayName}</span>
-              <span className="text-xs font-bold text-[#8b5cf6] bg-[#8b5cf6]/10 px-2.5 py-1 rounded-lg">{totalXp.toLocaleString()} XP</span>
+              <span className="text-xs font-bold text-[#1D4ED8] bg-[#1D4ED8]/10 px-2.5 py-1 rounded-lg">{totalXp.toLocaleString()} XP</span>
             </div>
           </div>
         </div>
@@ -174,7 +174,7 @@ const Dashboard = () => {
           {/* New Doc card */}
           <Link
             to="/materials"
-            className="block relative overflow-hidden rounded-2xl bg-[#f87171] p-5 text-white group hover:shadow-lg transition-all duration-300 min-h-[130px]"
+            className="block relative overflow-hidden rounded-2xl bg-[#F97316] p-5 text-white group hover:shadow-lg transition-all duration-300 min-h-[130px]"
           >
             <div className="absolute -bottom-4 -right-4 opacity-20 group-hover:opacity-30 transition-opacity">
               <Upload className="h-20 w-20" />
@@ -191,12 +191,12 @@ const Dashboard = () => {
           {/* Focus Timer card */}
           <Link
             to="/timer"
-            className="block relative overflow-hidden rounded-2xl bg-[#1e1b2e] p-5 text-white group hover:shadow-lg transition-all duration-300 min-h-[130px]"
+            className="block relative overflow-hidden rounded-2xl bg-[#0F172A] p-5 text-white group hover:shadow-lg transition-all duration-300 min-h-[130px]"
           >
             <div className="relative z-10">
               <div className="flex items-center justify-between mb-3">
                 <h3 className="text-base font-bold">Focus Timer</h3>
-                <div className="h-9 w-9 rounded-full bg-[#8b5cf6] flex items-center justify-center group-hover:scale-110 transition-transform">
+                <div className="h-9 w-9 rounded-full bg-[#1D4ED8] flex items-center justify-center group-hover:scale-110 transition-transform">
                   <svg className="h-4 w-4 text-white ml-0.5" fill="currentColor" viewBox="0 0 24 24">
                     <path d="M8 5v14l11-7z" />
                   </svg>
@@ -220,7 +220,7 @@ const Dashboard = () => {
         <div className="lg:col-span-5 bg-white rounded-2xl shadow-sm p-6">
           <div className="flex items-center justify-between mb-5">
             <h3 className="text-base font-bold text-gray-900 flex items-center gap-2">
-              <BarChart3 className="h-5 w-5 text-[#8b5cf6]" />
+              <BarChart3 className="h-5 w-5 text-[#1D4ED8]" />
               Retention Trajectory
             </h3>
             <span className="text-xs text-gray-400 font-medium">This week</span>
@@ -234,7 +234,7 @@ const Dashboard = () => {
                     className="w-full max-w-[32px] rounded-t-lg transition-all duration-500 ease-out"
                     style={{
                       height: `${d.value}%`,
-                      background: idx === 3 ? "linear-gradient(to top, #8b5cf6, #a78bfa)" : "#e5e7eb",
+                      background: idx === 3 ? "linear-gradient(to top, #1D4ED8, #93C5FD)" : "#e5e7eb",
                     }}
                   />
                 </div>
@@ -245,13 +245,13 @@ const Dashboard = () => {
         </div>
 
         {/* Right: Chat / Conversations preview */}
-        <div className="lg:col-span-4 bg-[#1e1b2e] rounded-2xl p-5 text-white flex flex-col">
+        <div className="lg:col-span-4 bg-[#0F172A] rounded-2xl p-5 text-white flex flex-col">
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-sm font-bold flex items-center gap-2">
-              <Bot className="h-4 w-4 text-[#8b5cf6]" />
+              <Bot className="h-4 w-4 text-[#1D4ED8]" />
               AI Tutor Chat
             </h3>
-            <Link to="/materials/tutor" className="text-xs text-[#8b5cf6] hover:underline font-medium">
+            <Link to="/materials/tutor" className="text-xs text-[#1D4ED8] hover:underline font-medium">
               Open →
             </Link>
           </div>
@@ -259,7 +259,7 @@ const Dashboard = () => {
             <div className="bg-white/10 rounded-xl px-4 py-3 text-xs text-white/80 leading-relaxed">
               💡 Hey {displayName}! Ready to learn something new today? Upload a document or ask me anything.
             </div>
-            <div className="bg-[#8b5cf6]/20 rounded-xl px-4 py-3 text-xs text-white/90 leading-relaxed ml-6">
+            <div className="bg-[#1D4ED8]/20 rounded-xl px-4 py-3 text-xs text-white/90 leading-relaxed ml-6">
               What topics should I focus on this week?
             </div>
             <div className="bg-white/10 rounded-xl px-4 py-3 text-xs text-white/80 leading-relaxed">
@@ -286,7 +286,7 @@ const Dashboard = () => {
               <div
                 className={`h-10 w-10 rounded-xl flex items-center justify-center text-xs font-bold transition-all duration-300 ${
                   d.active
-                    ? "bg-gradient-to-br from-[#8b5cf6] to-[#7c3aed] text-white shadow-md shadow-purple-200"
+                    ? "bg-gradient-to-br from-[#1D4ED8] to-[#2563EB] text-white shadow-md shadow-blue-200"
                     : "bg-gray-100 text-gray-400"
                 }`}
               >
@@ -301,10 +301,10 @@ const Dashboard = () => {
       <div className="bg-white rounded-2xl shadow-sm p-6">
         <div className="flex items-center justify-between mb-5">
           <h3 className="text-base font-bold text-gray-900 flex items-center gap-2">
-            <BookOpen className="h-5 w-5 text-[#8b5cf6]" />
+            <BookOpen className="h-5 w-5 text-[#1D4ED8]" />
             Continue Learning
           </h3>
-          <Link to="/lessons" className="text-xs font-semibold text-[#8b5cf6] hover:underline">
+          <Link to="/lessons" className="text-xs font-semibold text-[#1D4ED8] hover:underline">
             View all →
           </Link>
         </div>
@@ -329,20 +329,20 @@ const Dashboard = () => {
                 to={`/lessons/${t.id}`}
                 className="flex items-center gap-4 rounded-xl hover:bg-gray-50 p-4 transition-all duration-200 group border border-gray-100"
               >
-                <div className="h-11 w-11 rounded-xl bg-gradient-to-br from-[#8b5cf6] to-[#7c3aed] flex items-center justify-center flex-shrink-0 text-white text-sm font-bold shadow-sm">
+                <div className="h-11 w-11 rounded-xl bg-gradient-to-br from-[#1D4ED8] to-[#2563EB] flex items-center justify-center flex-shrink-0 text-white text-sm font-bold shadow-sm">
                   {String(idx + 1).padStart(2, "0")}
                 </div>
                 <div className="flex-1 min-w-0">
-                  <div className="text-sm font-semibold text-gray-900 truncate group-hover:text-[#8b5cf6] transition-colors">{t.title}</div>
+                  <div className="text-sm font-semibold text-gray-900 truncate group-hover:text-[#1D4ED8] transition-colors">{t.title}</div>
                   <div className="text-xs text-gray-400 mt-0.5">
                     {t.subject} · {t.pct}% complete
                   </div>
                   <div className="h-1.5 bg-gray-100 rounded-full mt-2 overflow-hidden max-w-xs">
-                    <div className="h-full bg-gradient-to-r from-[#8b5cf6] to-[#a78bfa] rounded-full transition-all duration-500" style={{ width: `${t.pct}%` }} />
+                    <div className="h-full bg-gradient-to-r from-[#1D4ED8] to-[#93C5FD] rounded-full transition-all duration-500" style={{ width: `${t.pct}%` }} />
                   </div>
                 </div>
-                <div className="h-9 w-9 rounded-full bg-[#8b5cf6]/10 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0">
-                  <svg className="h-4 w-4 text-[#8b5cf6] ml-0.5" fill="currentColor" viewBox="0 0 24 24">
+                <div className="h-9 w-9 rounded-full bg-[#1D4ED8]/10 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0">
+                  <svg className="h-4 w-4 text-[#1D4ED8] ml-0.5" fill="currentColor" viewBox="0 0 24 24">
                     <path d="M8 5v14l11-7z" />
                   </svg>
                 </div>
@@ -353,7 +353,7 @@ const Dashboard = () => {
           <div className="text-center py-8">
             <div className="text-4xl mb-3">📖</div>
             <div className="text-sm text-gray-500">Start a lesson to track your progress</div>
-            <Link to="/materials" className="inline-block mt-3 text-sm font-semibold text-[#8b5cf6] hover:underline">
+            <Link to="/materials" className="inline-block mt-3 text-sm font-semibold text-[#1D4ED8] hover:underline">
               Browse materials →
             </Link>
           </div>
@@ -364,10 +364,10 @@ const Dashboard = () => {
       <div className="bg-white rounded-2xl shadow-sm p-6">
         <div className="flex items-center justify-between mb-5">
           <h3 className="text-base font-bold text-gray-900 flex items-center gap-2">
-            <Trophy className="h-5 w-5 text-[#8b5cf6]" />
+            <Trophy className="h-5 w-5 text-[#1D4ED8]" />
             Your Badges
           </h3>
-          <Link to="/achievements" className="text-xs font-semibold text-[#8b5cf6] hover:underline">
+          <Link to="/achievements" className="text-xs font-semibold text-[#1D4ED8] hover:underline">
             See all →
           </Link>
         </div>
@@ -377,10 +377,10 @@ const Dashboard = () => {
               key={b.label}
               className="flex flex-col items-center gap-2 min-w-[72px] group"
             >
-              <div className="h-14 w-14 rounded-2xl bg-gray-50 group-hover:bg-[#8b5cf6]/10 flex items-center justify-center text-2xl transition-all duration-200 group-hover:scale-110 shadow-sm border border-gray-100">
+              <div className="h-14 w-14 rounded-2xl bg-gray-50 group-hover:bg-[#1D4ED8]/10 flex items-center justify-center text-2xl transition-all duration-200 group-hover:scale-110 shadow-sm border border-gray-100">
                 {b.emoji}
               </div>
-              <span className="text-[10px] font-medium text-gray-400 group-hover:text-[#8b5cf6] transition-colors">{b.label}</span>
+              <span className="text-[10px] font-medium text-gray-400 group-hover:text-[#1D4ED8] transition-colors">{b.label}</span>
             </div>
           ))}
         </div>
@@ -413,8 +413,8 @@ const Dashboard = () => {
           </div>
         </div>
       ) : (
-        <div className="flex items-center gap-4 bg-[#8b5cf6]/5 border border-[#8b5cf6]/10 rounded-2xl px-6 py-5">
-          <AlertTriangle className="h-5 w-5 text-[#8b5cf6] flex-shrink-0" />
+        <div className="flex items-center gap-4 bg-[#1D4ED8]/5 border border-[#1D4ED8]/10 rounded-2xl px-6 py-5">
+          <AlertTriangle className="h-5 w-5 text-[#1D4ED8] flex-shrink-0" />
           <div className="flex-1">
             <div className="text-sm font-bold text-gray-900">
               Complete quizzes to identify weak topics
@@ -423,7 +423,7 @@ const Dashboard = () => {
               Take a quiz to get personalized recommendations on where to focus.
             </div>
           </div>
-          <Link to="/quiz" className="text-xs font-semibold text-[#8b5cf6] hover:underline whitespace-nowrap">
+          <Link to="/quiz" className="text-xs font-semibold text-[#1D4ED8] hover:underline whitespace-nowrap">
             Take quiz →
           </Link>
         </div>
@@ -442,10 +442,10 @@ const Dashboard = () => {
           <Link
             key={a.label}
             to={a.to}
-            className="group bg-white rounded-2xl p-4 hover:shadow-md transition-all duration-200 text-center border border-gray-100 hover:border-[#8b5cf6]/30"
+            className="group bg-white rounded-2xl p-4 hover:shadow-md transition-all duration-200 text-center border border-gray-100 hover:border-[#1D4ED8]/30"
           >
-            <a.icon className="h-5 w-5 text-[#8b5cf6] mx-auto mb-2 group-hover:scale-110 transition-transform" />
-            <div className="text-xs font-semibold text-gray-600 group-hover:text-[#8b5cf6] transition-colors">{a.label}</div>
+            <a.icon className="h-5 w-5 text-[#1D4ED8] mx-auto mb-2 group-hover:scale-110 transition-transform" />
+            <div className="text-xs font-semibold text-gray-600 group-hover:text-[#1D4ED8] transition-colors">{a.label}</div>
           </Link>
         ))}
       </div>
@@ -461,7 +461,7 @@ const Dashboard = () => {
           />
           <Link
             to="/materials/tutor"
-            className="h-9 w-9 rounded-xl bg-gradient-to-br from-[#8b5cf6] to-[#7c3aed] flex items-center justify-center hover:shadow-md hover:shadow-purple-200 transition-all flex-shrink-0"
+            className="h-9 w-9 rounded-xl bg-gradient-to-br from-[#1D4ED8] to-[#2563EB] flex items-center justify-center hover:shadow-md hover:shadow-blue-200 transition-all flex-shrink-0"
           >
             <svg className="h-4 w-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M6 12L3.269 3.126A59.768 59.768 0 0121.485 12 59.77 59.77 0 013.27 20.876L5.999 12zm0 0h7.5" />

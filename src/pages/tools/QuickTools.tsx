@@ -120,7 +120,7 @@ const VideoNotebookWorkspace = () => {
     }
   };
 
-  const generateToolOutput = async (tool: typeof activeNotebookTool) => {
+  const generateToolOutput = useCallback(async (tool: typeof activeNotebookTool) => {
     if (!workspaceVideoData) return;
     if (notebookOutputs[tool]) return; // Already generated
 
@@ -184,13 +184,13 @@ ${workspaceVideoData.transcript.substring(0, 15000)}`;
     } finally {
       setGeneratingTool(null);
     }
-  };
+  }, [notebookOutputs, workspaceVideoData]);
 
   useEffect(() => {
     if (workspaceVideoData && activeNotebookTool !== "chat" && !notebookOutputs[activeNotebookTool]) {
       generateToolOutput(activeNotebookTool);
     }
-  }, [activeNotebookTool, workspaceVideoData]);
+  }, [activeNotebookTool, generateToolOutput, notebookOutputs, workspaceVideoData]);
 
   const handleSendChatMessage = async () => {
     if (!notebookChatInput.trim() || !workspaceVideoData || isNotebookChatSending) return;
@@ -499,8 +499,8 @@ const QuickTools = () => {
     <div className="p-6 md:p-8 max-w-6xl mx-auto space-y-8 font-sans">
       {/* Header */}
       <div className="flex items-center gap-3">
-        <div className="h-10 w-10 rounded-lg bg-[#8b5cf6]/10 flex items-center justify-center">
-          <Wrench className="h-5 w-5 text-[#8b5cf6]" />
+        <div className="h-10 w-10 rounded-lg bg-[#1D4ED8]/10 flex items-center justify-center">
+          <Wrench className="h-5 w-5 text-[#1D4ED8]" />
         </div>
         <div>
           <h1 className="text-2xl font-bold text-gray-900 tracking-tight">Quick Tools</h1>
@@ -513,7 +513,7 @@ const QuickTools = () => {
         <button
           onClick={() => setActiveTab("youtube")}
           className={`px-4 py-2 rounded-xl text-sm font-semibold transition-all whitespace-nowrap ${
-            activeTab === "youtube" ? "bg-[#131526] text-white shadow-md" : "text-gray-500 hover:text-gray-900 hover:bg-gray-100"
+            activeTab === "youtube" ? "bg-[#0F172A] text-white shadow-md" : "text-gray-500 hover:text-gray-900 hover:bg-gray-100"
           }`}
         >
           📺 YouTube Summarizer
@@ -521,7 +521,7 @@ const QuickTools = () => {
         <button
           onClick={() => setActiveTab("doubt")}
           className={`px-4 py-2 rounded-xl text-sm font-semibold transition-all whitespace-nowrap ${
-            activeTab === "doubt" ? "bg-[#131526] text-white shadow-md" : "text-gray-500 hover:text-gray-900 hover:bg-gray-100"
+            activeTab === "doubt" ? "bg-[#0F172A] text-white shadow-md" : "text-gray-500 hover:text-gray-900 hover:bg-gray-100"
           }`}
         >
           ❓ Ask Doubt

@@ -93,7 +93,7 @@ const ProgressDashboard = () => {
           <Button
             variant="outline"
             size="sm"
-            className={`gap-2 rounded-xl border-gray-200 ${isParentMode ? 'border-[#8b5cf6] text-[#8b5cf6] bg-[#8b5cf6]/10' : 'text-gray-500'}`}
+            className={`gap-2 rounded-xl border-gray-200 ${isParentMode ? 'border-[#1D4ED8] text-[#1D4ED8] bg-[#1D4ED8]/10' : 'text-gray-500'}`}
             onClick={() => setIsParentMode(!isParentMode)}
           >
             <Users className="h-4 w-4" />
@@ -118,16 +118,16 @@ const ProgressDashboard = () => {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
           {/* RETENTION card */}
           <div className="bg-white rounded-2xl p-6 shadow-[0_1px_3px_rgba(0,0,0,0.04)] border border-gray-100 relative overflow-hidden group hover:shadow-md transition-shadow">
-            <div className="absolute top-0 right-0 w-24 h-24 bg-[#8b5cf6]/5 rounded-full -translate-y-8 translate-x-8" />
+            <div className="absolute top-0 right-0 w-24 h-24 bg-[#1D4ED8]/5 rounded-full -translate-y-8 translate-x-8" />
             <p className="text-[11px] font-bold uppercase tracking-widest text-gray-400 mb-1">Retention</p>
             <div className="flex items-end gap-2">
               <span className="text-4xl font-extrabold text-gray-900">{retentionPct}%</span>
-              <span className="text-xs text-[#8b5cf6] font-semibold pb-1.5">avg score</span>
+              <span className="text-xs text-[#1D4ED8] font-semibold pb-1.5">avg score</span>
             </div>
             <div className="h-1.5 bg-gray-100 rounded-full mt-4 overflow-hidden">
               <div
                 className="h-full rounded-full transition-all duration-700"
-                style={{ width: `${retentionPct}%`, background: 'linear-gradient(90deg, #8b5cf6, #7c3aed)' }}
+                style={{ width: `${retentionPct}%`, background: 'linear-gradient(90deg, #1D4ED8, #2563EB)' }}
               />
             </div>
           </div>
@@ -177,7 +177,7 @@ const ProgressDashboard = () => {
               <p className="text-xs text-gray-400 mt-0.5">Weekly study hours breakdown</p>
             </div>
             <div className="flex items-center gap-2">
-              <span className="h-2.5 w-2.5 rounded-full" style={{ background: 'linear-gradient(135deg, #8b5cf6, #7c3aed)' }} />
+              <span className="h-2.5 w-2.5 rounded-full" style={{ background: 'linear-gradient(135deg, #1D4ED8, #2563EB)' }} />
               <span className="text-[11px] text-gray-400 font-medium">This Week</span>
             </div>
           </div>
@@ -194,8 +194,8 @@ const ProgressDashboard = () => {
                       className="absolute inset-0 rounded-xl transition-all duration-500 group-hover:scale-105"
                       style={{
                         background: d.hours > 0
-                          ? `linear-gradient(180deg, #8b5cf6 0%, #7c3aed 100%)`
-                          : '#f3f4f6',
+                          ? `linear-gradient(180deg, #1D4ED8 0%, #2563EB 100%)`
+                          : '#F3F4F6',
                         opacity: d.hours > 0 ? 0.85 + (idx * 0.02) : 1,
                       }}
                     />
@@ -211,7 +211,7 @@ const ProgressDashboard = () => {
         <div className="lg:col-span-2 flex flex-col gap-6">
 
           {/* Academy Completion — dark card with SVG ring */}
-          <div className="bg-[#1e1b2e] text-white rounded-2xl p-6 flex items-center gap-6">
+          <div className="bg-[#0F172A] text-white rounded-2xl p-6 flex items-center gap-6">
             <div className="relative flex-shrink-0">
               <svg width="100" height="100" viewBox="0 0 100 100">
                 <circle cx="50" cy="50" r="42" fill="none" stroke="rgba(255,255,255,0.08)" strokeWidth="8" />
@@ -228,8 +228,8 @@ const ProgressDashboard = () => {
                 />
                 <defs>
                   <linearGradient id="progressGradient" x1="0%" y1="0%" x2="100%" y2="100%">
-                    <stop offset="0%" stopColor="#8b5cf6" />
-                    <stop offset="100%" stopColor="#7c3aed" />
+                    <stop offset="0%" stopColor="#1D4ED8" />
+                    <stop offset="100%" stopColor="#2563EB" />
                   </linearGradient>
                 </defs>
                 <text x="50" y="47" textAnchor="middle" className="fill-white text-xl font-extrabold" style={{ fontSize: '22px', fontWeight: 800 }}>
@@ -248,7 +248,7 @@ const ProgressDashboard = () => {
           </div>
 
           {/* Total XP — dark card */}
-          <div className="bg-[#1e1b2e] text-white rounded-2xl p-6 flex items-center justify-between">
+          <div className="bg-[#0F172A] text-white rounded-2xl p-6 flex items-center justify-between">
             <div>
               <p className="text-[11px] font-bold uppercase tracking-widest text-gray-400 mb-1">Total XP</p>
               <p className="text-3xl font-extrabold tracking-tight">{totalXP.toLocaleString()}</p>
@@ -289,8 +289,8 @@ const ProgressDashboard = () => {
         {/* AI Smart Insights card */}
         <div className="bg-white rounded-2xl p-6 shadow-[0_1px_3px_rgba(0,0,0,0.04)] border border-gray-100 flex flex-col">
           <div className="flex items-center gap-2 mb-4">
-            <div className="h-8 w-8 rounded-xl bg-[#8b5cf6]/10 flex items-center justify-center">
-              <Lightbulb className="h-4 w-4 text-[#8b5cf6]" />
+            <div className="h-8 w-8 rounded-xl bg-[#1D4ED8]/10 flex items-center justify-center">
+              <Lightbulb className="h-4 w-4 text-[#1D4ED8]" />
             </div>
             <h3 className="font-bold text-gray-900">AI Smart Insights</h3>
           </div>
@@ -298,7 +298,7 @@ const ProgressDashboard = () => {
             {todayMinutes > 0 || sessionCount > 0 ? (
               <>
                 <div className="bg-gray-50 rounded-xl px-4 py-3">
-                  <p className="text-[10px] font-bold uppercase tracking-wider text-[#8b5cf6] mb-1">Productivity</p>
+                  <p className="text-[10px] font-bold uppercase tracking-wider text-[#1D4ED8] mb-1">Productivity</p>
                   <p className="text-xs text-gray-600 leading-relaxed">
                     {todayMinutes >= 30
                       ? "Great focus today! You've studied for over 30 minutes. Keep up the momentum!"
@@ -308,7 +308,7 @@ const ProgressDashboard = () => {
                   </p>
                 </div>
                 <div className="bg-gray-50 rounded-xl px-4 py-3">
-                  <p className="text-[10px] font-bold uppercase tracking-wider text-[#8b5cf6] mb-1">Consistency</p>
+                  <p className="text-[10px] font-bold uppercase tracking-wider text-[#1D4ED8] mb-1">Consistency</p>
                   <p className="text-xs text-gray-600 leading-relaxed">
                     {currentStreak >= 7
                       ? `🔥 Amazing ${currentStreak}-day streak! You're building a powerful learning habit.`
@@ -319,7 +319,7 @@ const ProgressDashboard = () => {
                 </div>
                 {weekChange !== 0 && (
                   <div className="bg-gray-50 rounded-xl px-4 py-3">
-                    <p className="text-[10px] font-bold uppercase tracking-wider text-[#8b5cf6] mb-1">Trend</p>
+                    <p className="text-[10px] font-bold uppercase tracking-wider text-[#1D4ED8] mb-1">Trend</p>
                     <p className="text-xs text-gray-600 leading-relaxed">
                       {weekChange > 0
                         ? `📈 You studied ${weekChange}% more this week compared to last week. Excellent progress!`
@@ -332,7 +332,7 @@ const ProgressDashboard = () => {
               <p className="text-xs text-gray-400">Complete study sessions and quizzes to receive personalized insights.</p>
             )}
           </div>
-          <Button asChild className="w-full mt-4 bg-[#8b5cf6] hover:bg-[#7c3aed] text-white rounded-xl text-sm font-semibold h-10">
+          <Button asChild className="w-full mt-4 bg-[#1D4ED8] hover:bg-[#2563EB] text-white rounded-xl text-sm font-semibold h-10">
             <Link to="/timer">Start Study Session</Link>
           </Button>
         </div>
@@ -340,7 +340,7 @@ const ProgressDashboard = () => {
         {/* Next Unlock — purple gradient card */}
         <div
           className="rounded-2xl p-6 text-white relative overflow-hidden flex flex-col justify-between"
-          style={{ background: 'linear-gradient(135deg, #8b5cf6 0%, #7c3aed 50%, #6d28d9 100%)' }}
+          style={{ background: 'linear-gradient(135deg, #1D4ED8 0%, #2563EB 50%, #1E40AF 100%)' }}
         >
           <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full -translate-y-12 translate-x-12" />
           <div className="absolute bottom-0 left-0 w-20 h-20 bg-white/5 rounded-full translate-y-8 -translate-x-8" />
@@ -444,8 +444,8 @@ const ProgressDashboard = () => {
                   }}
                   className={`rounded-xl border px-4 py-3 text-left w-full transition-all ${
                     expandedDate === entry.date
-                      ? 'border-[#8b5cf6]/40 bg-[#8b5cf6]/5 shadow-sm'
-                      : 'border-gray-100 bg-gray-50 hover:border-[#8b5cf6]/20 hover:bg-gray-100/50'
+                      ? 'border-[#1D4ED8]/40 bg-[#1D4ED8]/5 shadow-sm'
+                      : 'border-gray-100 bg-gray-50 hover:border-[#1D4ED8]/20 hover:bg-gray-100/50'
                   }`}
                 >
                   <div className="flex items-center justify-between">
@@ -467,13 +467,13 @@ const ProgressDashboard = () => {
                   <div className="h-1.5 bg-gray-200 rounded-full mt-2.5 overflow-hidden">
                     <div
                       className="h-full rounded-full transition-all"
-                      style={{ width: `${Math.min(100, (entry.minutes / 60) * 100)}%`, background: 'linear-gradient(90deg, #8b5cf6, #7c3aed)' }}
+                      style={{ width: `${Math.min(100, (entry.minutes / 60) * 100)}%`, background: 'linear-gradient(90deg, #1D4ED8, #2563EB)' }}
                     />
                   </div>
                 </button>
 
                 {expandedDate === entry.date && (
-                  <div className="mt-2 rounded-xl border border-[#8b5cf6]/20 bg-white p-4 space-y-3 animate-in fade-in slide-in-from-top-2 duration-200 shadow-sm">
+                  <div className="mt-2 rounded-xl border border-[#1D4ED8]/20 bg-white p-4 space-y-3 animate-in fade-in slide-in-from-top-2 duration-200 shadow-sm">
                     {loadingDetails ? (
                       <div className="text-xs text-gray-400 text-center py-4">Loading concepts…</div>
                     ) : dayDetails ? (
@@ -481,7 +481,7 @@ const ProgressDashboard = () => {
                         {dayDetails.lessons.length > 0 && (
                           <div className="space-y-1.5">
                             <div className="flex items-center gap-1.5 text-xs font-semibold text-gray-900">
-                              <BookOpen className="h-3.5 w-3.5 text-[#8b5cf6]" /> Lessons Completed
+                              <BookOpen className="h-3.5 w-3.5 text-[#1D4ED8]" /> Lessons Completed
                             </div>
                             {dayDetails.lessons.map((lessonId: string, i: number) => (
                               <div key={i} className="text-xs text-gray-500 pl-5">• Lesson: {lessonId}</div>
@@ -491,7 +491,7 @@ const ProgressDashboard = () => {
                         {dayDetails.quizzes.length > 0 && (
                           <div className="space-y-1.5">
                             <div className="flex items-center gap-1.5 text-xs font-semibold text-gray-900">
-                              <Gamepad2 className="h-3.5 w-3.5 text-[#8b5cf6]" /> Quizzes Taken
+                              <Gamepad2 className="h-3.5 w-3.5 text-[#1D4ED8]" /> Quizzes Taken
                             </div>
                             {dayDetails.quizzes.map((q: any, i: number) => (
                               <div key={i} className="text-xs text-gray-500 pl-5">
@@ -503,7 +503,7 @@ const ProgressDashboard = () => {
                         {dayDetails.doubts.length > 0 && (
                           <div className="space-y-1.5">
                             <div className="flex items-center gap-1.5 text-xs font-semibold text-gray-900">
-                              <MessageCircleQuestion className="h-3.5 w-3.5 text-[#8b5cf6]" /> Doubts Asked
+                              <MessageCircleQuestion className="h-3.5 w-3.5 text-[#1D4ED8]" /> Doubts Asked
                             </div>
                             {dayDetails.doubts.map((d: string, i: number) => (
                               <div key={i} className="text-xs text-gray-500 pl-5 truncate">• {d}</div>
@@ -532,21 +532,21 @@ const ProgressDashboard = () => {
         <div className="lg:col-span-2 bg-white rounded-2xl p-6 shadow-[0_1px_3px_rgba(0,0,0,0.04)] border border-gray-100 space-y-4">
           <div className="flex items-center justify-between">
             <h3 className="font-bold text-gray-900 text-lg">Subject Mastery</h3>
-            <Link to="/lessons" className="text-xs text-[#8b5cf6] hover:underline font-medium">View All →</Link>
+            <Link to="/lessons" className="text-xs text-[#1D4ED8] hover:underline font-medium">View All →</Link>
           </div>
           {(weakTopics ?? []).length > 0 ? (
             weakTopics.map((t: any) => (
               <div key={t.topic} className="space-y-2">
                 <div className="flex justify-between text-sm">
                   <span className="text-gray-700 font-medium">{t.topic}</span>
-                  <span className="text-[#8b5cf6] font-bold">{t.avgScore}%</span>
+                  <span className="text-[#1D4ED8] font-bold">{t.avgScore}%</span>
                 </div>
                 <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
                   <div
                     className="h-full rounded-full transition-all duration-500"
                     style={{
                       width: `${t.avgScore}%`,
-                      background: t.avgScore >= 80 ? 'linear-gradient(90deg, #8b5cf6, #7c3aed)' : t.avgScore >= 50 ? 'linear-gradient(90deg, #f59e0b, #d97706)' : 'linear-gradient(90deg, #ef4444, #dc2626)'
+                      background: t.avgScore >= 80 ? 'linear-gradient(90deg, #1D4ED8, #2563EB)' : t.avgScore >= 50 ? 'linear-gradient(90deg, #f59e0b, #d97706)' : 'linear-gradient(90deg, #ef4444, #dc2626)'
                     }}
                   />
                 </div>
@@ -574,7 +574,7 @@ const ProgressDashboard = () => {
               </div>
             ))}
           </div>
-          <Link to="/timer" className="text-xs text-[#8b5cf6] hover:underline font-medium block mt-4">Start New Session →</Link>
+          <Link to="/timer" className="text-xs text-[#1D4ED8] hover:underline font-medium block mt-4">Start New Session →</Link>
         </div>
       </div>
 
@@ -586,7 +586,7 @@ const ProgressDashboard = () => {
               <AlertTriangle className="h-4 w-4 text-amber-500" />
               <span className="font-bold text-sm text-gray-900">Needs Attention</span>
             </div>
-            {isParentMode && <span className="text-xs text-[#8b5cf6] font-semibold">Monitor & Guide</span>}
+            {isParentMode && <span className="text-xs text-[#1D4ED8] font-semibold">Monitor & Guide</span>}
           </div>
           <div className="grid sm:grid-cols-2 gap-3">
             {weakTopics?.map((t: any) => (
@@ -601,8 +601,8 @@ const ProgressDashboard = () => {
       {/* ───── Parent Guidance ───── */}
       <div className="bg-white rounded-2xl p-6 shadow-[0_1px_3px_rgba(0,0,0,0.04)] border border-gray-100 space-y-4">
         <div className="flex items-center gap-2 mb-4">
-          <div className="h-8 w-8 rounded-xl bg-[#8b5cf6]/10 flex items-center justify-center">
-            <Users className="h-4 w-4 text-[#8b5cf6]" />
+          <div className="h-8 w-8 rounded-xl bg-[#1D4ED8]/10 flex items-center justify-center">
+            <Users className="h-4 w-4 text-[#1D4ED8]" />
           </div>
           <h3 className="font-bold text-gray-900">Parental Guidance & Feedback</h3>
         </div>
@@ -615,7 +615,7 @@ const ProgressDashboard = () => {
               onChange={(e) => setGuidanceText(e.target.value)}
               className="flex-1 rounded-xl border-gray-200"
             />
-            <Button onClick={handleAddGuidance} className="bg-[#8b5cf6] text-white hover:bg-[#7c3aed] gap-2 rounded-xl">
+            <Button onClick={handleAddGuidance} className="bg-[#1D4ED8] text-white hover:bg-[#2563EB] gap-2 rounded-xl">
               <Send className="h-4 w-4" /> Post Note
             </Button>
           </div>

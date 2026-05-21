@@ -272,7 +272,7 @@ ${materialContent}`;
   return (
     <div className="p-6 md:p-8 max-w-4xl mx-auto space-y-8">
       {/* Banner */}
-      <div className="relative overflow-hidden bg-gradient-to-br from-[#8b5cf6] to-[#7c3aed] rounded-3xl p-8 md:p-10 shadow-lg text-white">
+      <div className="relative overflow-hidden bg-gradient-to-br from-[#1D4ED8] to-[#2563EB] rounded-3xl p-8 md:p-10 shadow-lg text-white">
         <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
           <div>
             <div className="inline-block px-3 py-1 bg-white/20 rounded-full text-[10px] font-bold tracking-widest uppercase mb-4 backdrop-blur-sm">
@@ -283,7 +283,7 @@ ${materialContent}`;
           </div>
           <button
             onClick={() => setShowPlanner(!showPlanner)}
-            className="flex items-center gap-2 bg-[#1e1b2e] hover:bg-[#1e1b2e]/90 text-white px-5 py-2.5 rounded-xl text-sm font-medium transition-all shadow-sm shrink-0"
+            className="flex items-center gap-2 bg-[#0F172A] hover:bg-[#0F172A]/90 text-white px-5 py-2.5 rounded-xl text-sm font-medium transition-all shadow-sm shrink-0"
           >
             <CalendarDays className="h-4 w-4" />
             {showPlanner ? "Hide Planner" : "Study Planner"}
@@ -297,7 +297,7 @@ ${materialContent}`;
       {/* Inline Study Planner Panel */}
       {showPlanner && (
         <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 overflow-hidden animate-in slide-in-from-top-2 duration-300">
-          <Suspense fallback={<div className="p-8 flex justify-center"><Loader2 className="animate-spin h-6 w-6 text-[#8b5cf6]" /></div>}>
+          <Suspense fallback={<div className="p-8 flex justify-center"><Loader2 className="animate-spin h-6 w-6 text-[#1D4ED8]" /></div>}>
             <StudyPlanner />
           </Suspense>
         </div>
@@ -311,7 +311,7 @@ ${materialContent}`;
             placeholder="Search topics…"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="pl-12 h-12 bg-white rounded-xl border-gray-200 focus-visible:ring-[#8b5cf6] shadow-sm text-sm"
+            className="pl-12 h-12 bg-white rounded-xl border-gray-200 focus-visible:ring-[#1D4ED8] shadow-sm text-sm"
           />
         </div>
         <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-hide items-center">
@@ -321,7 +321,7 @@ ${materialContent}`;
               onClick={() => setFilter(s)}
               className={`px-4 py-2.5 rounded-xl text-sm font-medium border whitespace-nowrap transition-all shadow-sm ${
                 filter === s
-                  ? "bg-[#1e1b2e] text-white border-[#1e1b2e]"
+                  ? "bg-[#0F172A] text-white border-[#0F172A]"
                   : "bg-white border-gray-100 text-gray-500 hover:border-gray-300 hover:text-gray-900"
               }`}
             >
@@ -382,7 +382,7 @@ ${materialContent}`;
                 )}
 
                 <div
-                  className="flex flex-col w-full bg-white border border-gray-100 rounded-2xl p-6 shadow-sm hover:border-[#8b5cf6]/30 hover:shadow-md transition-all relative overflow-hidden"
+                  className="flex flex-col w-full bg-white border border-gray-100 rounded-2xl p-6 shadow-sm hover:border-[#1D4ED8]/30 hover:shadow-md transition-all relative overflow-hidden"
                 >
                   {/* Delete button (visible on hover) */}
                   <button
@@ -404,13 +404,13 @@ ${materialContent}`;
                   >
                     <div className="flex items-start gap-4 mb-4">
                       {/* Icon */}
-                      <div className="h-12 w-12 rounded-xl bg-[#f5f3ff] flex items-center justify-center flex-shrink-0 text-[#8b5cf6]">
+                      <div className="h-12 w-12 rounded-xl bg-[#DBEAFE] flex items-center justify-center flex-shrink-0 text-[#1D4ED8]">
                         {iconMap[t.subjectIcon] ?? <BookOpen className="h-6 w-6" />}
                       </div>
 
                       {/* Info */}
                       <div className="flex-1 min-w-0 pr-8">
-                        <div className="text-[10px] font-bold tracking-widest uppercase text-[#8b5cf6] mb-1">
+                        <div className="text-[10px] font-bold tracking-widest uppercase text-[#1D4ED8] mb-1">
                           {t.subjectName}
                         </div>
                         <h3 className="text-base font-semibold text-gray-900 leading-tight mb-1 line-clamp-2">{t.title}</h3>
@@ -424,13 +424,13 @@ ${materialContent}`;
                     <div className="mt-auto pt-2">
                       <div className="flex items-center justify-between mb-2">
                         <span className="text-xs font-medium text-gray-500">Progress</span>
-                        <span className={`text-xs font-bold ${t.pct === 100 ? "text-emerald-500" : "text-[#8b5cf6]"}`}>
+                        <span className={`text-xs font-bold ${t.pct === 100 ? "text-emerald-500" : "text-[#1D4ED8]"}`}>
                           {t.pct}%
                         </span>
                       </div>
                       <div className="h-2 bg-gray-100 rounded-full overflow-hidden w-full">
                         <div
-                          className={`h-full rounded-full transition-all duration-500 ${t.pct === 100 ? "bg-emerald-500" : "bg-gradient-to-r from-[#8b5cf6] to-[#7c3aed]"}`}
+                          className={`h-full rounded-full transition-all duration-500 ${t.pct === 100 ? "bg-emerald-500" : "bg-gradient-to-r from-[#1D4ED8] to-[#2563EB]"}`}
                           style={{ width: `${t.pct}%` }}
                         />
                       </div>
@@ -443,8 +443,8 @@ ${materialContent}`;
 
       {!isLoading && filtered.length === 0 && filter !== "Your Courses" && (
         <div className="bg-white rounded-2xl p-12 border border-gray-100 text-center shadow-sm">
-          <div className="h-16 w-16 bg-[#f5f3ff] rounded-full flex items-center justify-center mx-auto mb-4">
-            <BookOpen className="h-8 w-8 text-[#8b5cf6] opacity-50" />
+          <div className="h-16 w-16 bg-[#DBEAFE] rounded-full flex items-center justify-center mx-auto mb-4">
+            <BookOpen className="h-8 w-8 text-[#1D4ED8] opacity-50" />
           </div>
           <h3 className="text-lg font-semibold text-gray-900 mb-1">No topics found</h3>
           <p className="text-sm text-gray-500">Try adjusting your search or filter criteria.</p>
@@ -463,7 +463,7 @@ ${materialContent}`;
                 Turn your uploaded PDFs and text into structured, step-by-step lessons.
               </p>
             </div>
-            <Link to="/materials" className="hidden sm:flex items-center gap-2 text-sm font-medium text-[#8b5cf6] hover:text-[#7c3aed] bg-[#f5f3ff] px-4 py-2 rounded-xl transition-colors">
+            <Link to="/materials" className="hidden sm:flex items-center gap-2 text-sm font-medium text-[#1D4ED8] hover:text-[#2563EB] bg-[#DBEAFE] px-4 py-2 rounded-xl transition-colors">
               <Plus className="h-4 w-4" />
               New Material
             </Link>
@@ -487,18 +487,18 @@ ${materialContent}`;
                   <Button 
                     onClick={() => handleGenerateCourse(m)}
                     disabled={generatingFor === m.id}
-                    className="w-full bg-[#1e1b2e] text-white hover:bg-[#1e1b2e]/90 text-sm font-medium gap-2 rounded-xl h-10"
+                    className="w-full bg-[#0F172A] text-white hover:bg-[#0F172A]/90 text-sm font-medium gap-2 rounded-xl h-10"
                   >
                     {generatingFor === m.id ? (
                       <><Loader2 className="h-4 w-4 animate-spin" /> Generating...</>
                     ) : (
-                      <><Sparkles className="h-4 w-4 text-[#8b5cf6]" /> Generate Course</>
+                      <><Sparkles className="h-4 w-4 text-[#1D4ED8]" /> Generate Course</>
                     )}
                   </Button>
                 </div>
               );
             })}
-            <Link to="/materials" className="sm:hidden bg-white border-2 border-dashed border-gray-200 rounded-2xl p-5 flex flex-col items-center justify-center text-gray-400 hover:text-[#8b5cf6] hover:border-[#8b5cf6]/50 hover:bg-[#f5f3ff] transition-all gap-2 min-h-[160px]">
+            <Link to="/materials" className="sm:hidden bg-white border-2 border-dashed border-gray-200 rounded-2xl p-5 flex flex-col items-center justify-center text-gray-400 hover:text-[#1D4ED8] hover:border-[#1D4ED8]/50 hover:bg-[#DBEAFE] transition-all gap-2 min-h-[160px]">
               <Plus className="h-8 w-8" />
               <span className="text-sm font-semibold">Upload Material</span>
             </Link>

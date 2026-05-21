@@ -291,7 +291,7 @@ const Friends = () => {
                   <div className="text-sm font-medium text-foreground">{profile?.full_name || "Unknown"}</div>
                   <div className="text-xs text-muted-foreground">Pending</div>
                 </div>
-                <button onClick={() => removeFriend(f.id)} className="text-muted-foreground hover:text-destructive text-xs">
+                <button onClick={() => removeFriend.mutate(f.id)} disabled={removeFriend.isPending} className="text-muted-foreground hover:text-destructive text-xs disabled:opacity-50">
                   Cancel
                 </button>
               </div>

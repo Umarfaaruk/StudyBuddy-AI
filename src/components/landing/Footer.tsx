@@ -1,7 +1,7 @@
 import { Link } from "react-router-dom";
 import { BackgroundPaths } from "@/components/ui/background-paths";
 
-import eduonxLogo from "@/assets/eduonx-logo.png";
+import eduonxLogoOnDark from "@/assets/eduonx-logo-on-dark.png";
 
 const footerLinks = {
   Platform: ["AI Tutor", "Quiz Engine", "Progress Tracker", "Study Timer"],
@@ -21,7 +21,7 @@ const Footer = () => (
         {/* Brand */}
         <div className="col-span-2 md:col-span-1">
           <Link to="/" className="flex items-center mb-4 w-max shrink-0 max-w-full">
-            <img src={eduonxLogo} alt="EduOnx Logo" className="h-[60px] md:h-[80px] w-auto max-w-[200px] md:max-w-[300px] object-contain" />
+            <img src={eduonxLogoOnDark} alt="EduOnx Logo" className="block h-[60px] md:h-[80px] w-auto max-w-[200px] md:max-w-[300px] object-contain" />
           </Link>
           <p className="text-xs text-soft leading-relaxed">
             AI-powered learning platform for smarter studying.
