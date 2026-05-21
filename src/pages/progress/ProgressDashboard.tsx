@@ -65,193 +65,322 @@ const ProgressDashboard = () => {
 
   const maxHours = Math.max(...(chartData?.map((d: any) => d.hours) ?? [1]), 0.5);
 
-  return (
-    <div className="p-6 md:p-8 max-w-6xl mx-auto space-y-6">
-      {/* Breadcrumb */}
-      <div className="flex items-center gap-2 text-xs text-muted-foreground">
-        <Link to="/dashboard" className="hover:text-foreground">Dashboard</Link>
-        <span>›</span>
-        <span className="text-foreground font-medium">Progress & Analytics</span>
-      </div>
+  // Derived values for the new dashboard
+  const retentionPct = avgScore ?? 0;
+  const completionPct = Math.min(100, Math.round((sessionCount / Math.max(sessionCount, 30)) * 100));
+  const totalXP = sessionCount * 50 + (avgScore ?? 0) * 10 + currentStreak * 25;
+  const weekBarData = (chartData ?? Array.from({ length: 7 }, (_, i) => ({ day: ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"][i], hours: 0 })));
 
-      {/* Header */}
+  return (
+    <div className="p-6 md:p-8 max-w-6xl mx-auto space-y-8">
+
+      {/* ───── Page Header ───── */}
       <div className="flex items-start justify-between">
         <div>
-          <h1 className="text-2xl md:text-3xl font-bold text-foreground tracking-tight">Your Learning Journey</h1>
-          <p className="text-muted-foreground text-sm mt-1">Detailed breakdown of your study habits and academic performance.</p>
+          <div className="flex items-center gap-2 text-xs text-gray-400 mb-3">
+            <Link to="/dashboard" className="hover:text-gray-700 transition-colors">Dashboard</Link>
+            <span>›</span>
+            <span className="text-gray-700 font-medium">Insights</span>
+          </div>
+          <h1 className="text-3xl md:text-4xl font-extrabold text-gray-900 tracking-tight">
+            Insights Dashboard
+          </h1>
+          <p className="text-gray-400 text-sm mt-1.5">
+            Performance analytics, retention metrics &amp; AI-powered recommendations.
+          </p>
         </div>
         <div className="hidden md:flex items-center gap-3">
-          <Button 
-            variant="outline" 
-            size="sm" 
-            className={`gap-2 ${isParentMode ? 'border-accent text-accent bg-accent/10' : 'text-muted-foreground'}`}
+          <Button
+            variant="outline"
+            size="sm"
+            className={`gap-2 rounded-xl border-gray-200 ${isParentMode ? 'border-[#8b5cf6] text-[#8b5cf6] bg-[#8b5cf6]/10' : 'text-gray-500'}`}
             onClick={() => setIsParentMode(!isParentMode)}
           >
             <Users className="h-4 w-4" />
             {isParentMode ? "Exit Parent Mode" : "Parent View"}
           </Button>
-          <span className="text-xs text-muted-foreground bg-muted px-3 py-1.5 rounded-full">Last 30 Days</span>
+          <span className="text-[11px] text-gray-400 bg-gray-100 px-3 py-1.5 rounded-full font-medium">Last 30 Days</span>
         </div>
       </div>
 
-      {/* Stats row */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        {isLoading
-          ? Array.from({ length: 4 }).map((_, i) => (
-              <div key={i} className="bg-card border border-border rounded-xl p-4">
-                <Skeleton className="h-4 w-4 mb-2" />
-                <Skeleton className="h-8 w-16 mb-1" />
-                <Skeleton className="h-3 w-20" />
-              </div>
-            ))
-          : [
-              {
-                icon: Clock,
-                label: "This Month",
-                value: `${totalHours}h`,
-                badge: null,
-                badgeColor: "text-accent bg-accent/10",
-              },
-              {
-                icon: weekChange >= 0 ? TrendingUp : TrendingDown,
-                label: "This Week",
-                value: `${weekHours}h`,
-                badge: weekChange !== 0 ? `${weekChange > 0 ? "+" : ""}${weekChange}% vs LW` : null,
-                badgeColor: weekChange >= 0 ? "text-accent bg-accent/10" : "text-destructive bg-destructive/10",
-              },
-              {
-                icon: Calendar,
-                label: "Today",
-                value: `${todayMinutes}m`,
-                badge: "Auto tracked",
-                badgeColor: "text-accent bg-accent/10",
-              },
-              {
-                icon: Flame,
-                label: "Day Streak",
-                value: `${currentStreak}`.padStart(2, "0"),
-                badge: longestStreak > 0 ? `Record ${longestStreak}` : null,
-                badgeColor: "text-accent bg-accent/10",
-              },
-            ].map((s) => (
-              <div key={s.label} className="bg-card border border-border rounded-xl p-4">
-                <div className="flex items-center justify-between mb-2">
-                  <s.icon className="h-4 w-4 text-accent" />
-                  {s.badge && (
-                    <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${s.badgeColor}`}>
-                      {s.badge}
-                    </span>
-                  )}
-                </div>
-                <div className="text-xs text-muted-foreground">{s.label}</div>
-                <div className="text-2xl font-bold text-foreground mt-0.5">{s.value}</div>
-              </div>
-            ))}
-      </div>
+      {/* ───── Top Stats Row — 3 highlight cards ───── */}
+      {isLoading ? (
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+          {Array.from({ length: 3 }).map((_, i) => (
+            <div key={i} className="bg-white rounded-2xl p-6 shadow-sm">
+              <Skeleton className="h-3 w-20 mb-4" />
+              <Skeleton className="h-10 w-24 mb-2" />
+              <Skeleton className="h-3 w-16" />
+            </div>
+          ))}
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+          {/* RETENTION card */}
+          <div className="bg-white rounded-2xl p-6 shadow-[0_1px_3px_rgba(0,0,0,0.04)] border border-gray-100 relative overflow-hidden group hover:shadow-md transition-shadow">
+            <div className="absolute top-0 right-0 w-24 h-24 bg-[#8b5cf6]/5 rounded-full -translate-y-8 translate-x-8" />
+            <p className="text-[11px] font-bold uppercase tracking-widest text-gray-400 mb-1">Retention</p>
+            <div className="flex items-end gap-2">
+              <span className="text-4xl font-extrabold text-gray-900">{retentionPct}%</span>
+              <span className="text-xs text-[#8b5cf6] font-semibold pb-1.5">avg score</span>
+            </div>
+            <div className="h-1.5 bg-gray-100 rounded-full mt-4 overflow-hidden">
+              <div
+                className="h-full rounded-full transition-all duration-700"
+                style={{ width: `${retentionPct}%`, background: 'linear-gradient(90deg, #8b5cf6, #7c3aed)' }}
+              />
+            </div>
+          </div>
 
-      {/* Productivity metrics row */}
-      <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-        <div className="bg-card border border-border rounded-xl p-4">
-          <div className="flex items-center gap-2 mb-2">
-            <BarChart3 className="h-4 w-4 text-accent" />
-            <span className="text-xs text-muted-foreground">Total Sessions</span>
+          {/* GROWTH card */}
+          <div className="bg-white rounded-2xl p-6 shadow-[0_1px_3px_rgba(0,0,0,0.04)] border border-gray-100 relative overflow-hidden group hover:shadow-md transition-shadow">
+            <div className="absolute top-0 right-0 w-24 h-24 bg-emerald-500/5 rounded-full -translate-y-8 translate-x-8" />
+            <p className="text-[11px] font-bold uppercase tracking-widest text-gray-400 mb-1">Growth</p>
+            <div className="flex items-end gap-2">
+              <span className="text-4xl font-extrabold text-gray-900">
+                {weekChange >= 0 ? "+" : ""}{weekChange !== 0 ? `${weekChange}` : "0"}%
+              </span>
+              {weekChange >= 0 ? (
+                <TrendingUp className="h-5 w-5 text-emerald-500 pb-0.5" />
+              ) : (
+                <TrendingDown className="h-5 w-5 text-red-400 pb-0.5" />
+              )}
+            </div>
+            <p className="text-xs text-gray-400 mt-3">vs. previous week</p>
           </div>
-          <div className="text-2xl font-bold text-foreground">{sessionCount}</div>
-        </div>
-        <div className="bg-card border border-border rounded-xl p-4">
-          <div className="flex items-center gap-2 mb-2">
-            <Target className="h-4 w-4 text-accent" />
-            <span className="text-xs text-muted-foreground">Avg Session</span>
-          </div>
-          <div className="text-2xl font-bold text-foreground">{avgSessionMinutes}m</div>
-        </div>
-        <div className="bg-card border border-border rounded-xl p-4 col-span-2 md:col-span-1">
-          <div className="flex items-center gap-2 mb-2">
-            <TrendingUp className="h-4 w-4 text-accent" />
-            <span className="text-xs text-muted-foreground">Avg Quiz Score</span>
-          </div>
-          <div className="text-2xl font-bold text-foreground">{avgScore ?? 0}%</div>
-        </div>
-      </div>
 
-      {/* Main grid: Chart + AI Insights */}
-      <div className="grid lg:grid-cols-3 gap-6">
-        {/* Weekly Study Hours chart */}
-        <div className="lg:col-span-2 bg-card border border-border rounded-xl p-6">
-          <div className="flex items-center justify-between mb-6">
+          {/* STUDY TIME card */}
+          <div className="bg-white rounded-2xl p-6 shadow-[0_1px_3px_rgba(0,0,0,0.04)] border border-gray-100 relative overflow-hidden group hover:shadow-md transition-shadow">
+            <div className="absolute top-0 right-0 w-24 h-24 bg-amber-400/5 rounded-full -translate-y-8 translate-x-8" />
+            <p className="text-[11px] font-bold uppercase tracking-widest text-gray-400 mb-1">Study Time</p>
+            <div className="flex items-end gap-2">
+              <span className="text-4xl font-extrabold text-gray-900">{totalHours}</span>
+              <span className="text-lg font-bold text-gray-400 pb-0.5">hrs</span>
+            </div>
+            <div className="flex items-center gap-3 mt-3">
+              <span className="text-[11px] text-gray-400">Today <span className="font-semibold text-gray-600">{todayMinutes}m</span></span>
+              <span className="text-gray-200">|</span>
+              <span className="text-[11px] text-gray-400">Week <span className="font-semibold text-gray-600">{weekHours}h</span></span>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ───── Two-Column Layout ───── */}
+      <div className="grid lg:grid-cols-5 gap-6">
+
+        {/* LEFT — Retention Trajectory (3/5 width) */}
+        <div className="lg:col-span-3 bg-white rounded-2xl p-6 shadow-[0_1px_3px_rgba(0,0,0,0.04)] border border-gray-100">
+          <div className="flex items-center justify-between mb-8">
             <div>
-              <h3 className="font-semibold text-foreground">Weekly Study Hours</h3>
-              <p className="text-xs text-muted-foreground mt-0.5">Time spent in focused study sessions</p>
+              <h3 className="font-bold text-gray-900 text-lg">Retention Trajectory</h3>
+              <p className="text-xs text-gray-400 mt-0.5">Weekly study hours breakdown</p>
             </div>
-            <div className="flex items-center gap-3 text-xs">
-              <span className="flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-sm bg-accent" />Current Week</span>
+            <div className="flex items-center gap-2">
+              <span className="h-2.5 w-2.5 rounded-full" style={{ background: 'linear-gradient(135deg, #8b5cf6, #7c3aed)' }} />
+              <span className="text-[11px] text-gray-400 font-medium">This Week</span>
             </div>
           </div>
-          <div className="flex items-end gap-3 h-44">
-            {(chartData ?? Array.from({ length: 7 }, (_, i) => ({ day: ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"][i], hours: 0 }))).map((d: any) => (
-              <div key={d.day} className="flex-1 flex flex-col items-center gap-2">
-                <div className="text-[10px] text-muted-foreground font-medium">{d.hours > 0 ? `${d.hours}h` : ""}</div>
-                <div className="w-full rounded-t-lg relative" style={{ height: `${Math.max((d.hours / maxHours) * 100, 4)}%` }}>
-                  <div className={`absolute inset-0 rounded-t-lg ${d.hours > 0 ? "bg-accent/80" : "bg-muted/40"}`} />
+          <div className="flex items-end gap-3 h-48">
+            {weekBarData.map((d: any, idx: number) => {
+              const pct = Math.max((d.hours / maxHours) * 100, 6);
+              return (
+                <div key={d.day} className="flex-1 flex flex-col items-center gap-2 group">
+                  <span className="text-[10px] font-semibold text-gray-500 opacity-0 group-hover:opacity-100 transition-opacity">
+                    {d.hours > 0 ? `${d.hours}h` : "–"}
+                  </span>
+                  <div className="w-full relative" style={{ height: `${pct}%` }}>
+                    <div
+                      className="absolute inset-0 rounded-xl transition-all duration-500 group-hover:scale-105"
+                      style={{
+                        background: d.hours > 0
+                          ? `linear-gradient(180deg, #8b5cf6 0%, #7c3aed 100%)`
+                          : '#f3f4f6',
+                        opacity: d.hours > 0 ? 0.85 + (idx * 0.02) : 1,
+                      }}
+                    />
+                  </div>
+                  <span className="text-[11px] text-gray-400 font-medium">{d.day}</span>
                 </div>
-                <span className="text-xs text-muted-foreground">{d.day}</span>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
 
-        {/* AI Smart Insights */}
-        <div className="bg-[hsl(var(--navy))] text-white rounded-xl p-5 space-y-4">
-          <div className="flex items-center gap-2">
-            <Lightbulb className="h-5 w-5 text-[hsl(var(--highlight))]" />
-            <h3 className="font-semibold">AI Smart Insights</h3>
+        {/* RIGHT column (2/5 width) — stacked cards */}
+        <div className="lg:col-span-2 flex flex-col gap-6">
+
+          {/* Academy Completion — dark card with SVG ring */}
+          <div className="bg-[#1e1b2e] text-white rounded-2xl p-6 flex items-center gap-6">
+            <div className="relative flex-shrink-0">
+              <svg width="100" height="100" viewBox="0 0 100 100">
+                <circle cx="50" cy="50" r="42" fill="none" stroke="rgba(255,255,255,0.08)" strokeWidth="8" />
+                <circle
+                  cx="50" cy="50" r="42"
+                  fill="none"
+                  stroke="url(#progressGradient)"
+                  strokeWidth="8"
+                  strokeLinecap="round"
+                  strokeDasharray={`${2 * Math.PI * 42}`}
+                  strokeDashoffset={`${2 * Math.PI * 42 * (1 - completionPct / 100)}`}
+                  transform="rotate(-90 50 50)"
+                  className="transition-all duration-700"
+                />
+                <defs>
+                  <linearGradient id="progressGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                    <stop offset="0%" stopColor="#8b5cf6" />
+                    <stop offset="100%" stopColor="#7c3aed" />
+                  </linearGradient>
+                </defs>
+                <text x="50" y="47" textAnchor="middle" className="fill-white text-xl font-extrabold" style={{ fontSize: '22px', fontWeight: 800 }}>
+                  {completionPct}%
+                </text>
+                <text x="50" y="62" textAnchor="middle" className="fill-gray-400" style={{ fontSize: '8px' }}>
+                  COMPLETE
+                </text>
+              </svg>
+            </div>
+            <div>
+              <p className="text-[11px] font-bold uppercase tracking-widest text-gray-400 mb-1">Academy Completion</p>
+              <p className="text-2xl font-extrabold">{sessionCount} <span className="text-sm font-medium text-gray-400">sessions</span></p>
+              <p className="text-xs text-gray-500 mt-1">Avg. {avgSessionMinutes}m per session</p>
+            </div>
           </div>
-          {todayMinutes > 0 || sessionCount > 0 ? (
-            <>
-              <div className="bg-white/10 rounded-lg px-3 py-2">
-                <div className="text-[10px] font-bold text-[hsl(var(--highlight))] uppercase tracking-wider mb-1">Productivity</div>
-                <p className="text-xs opacity-90">
-                  {todayMinutes >= 30
-                    ? "Great focus today! You've studied for over 30 minutes. Keep up the momentum!"
-                    : todayMinutes > 0
-                    ? `You've studied ${todayMinutes} minutes today. Try to reach 30 minutes for optimal learning.`
-                    : "Start a study session today to maintain your streak!"}
-                </p>
-              </div>
-              <div className="bg-white/10 rounded-lg px-3 py-2">
-                <div className="text-[10px] font-bold text-[hsl(var(--highlight))] uppercase tracking-wider mb-1">Consistency</div>
-                <p className="text-xs opacity-90">
-                  {currentStreak >= 7
-                    ? `🔥 Amazing ${currentStreak}-day streak! You're building a powerful learning habit.`
-                    : currentStreak >= 3
-                    ? `Good ${currentStreak}-day streak! Keep going to build long-term retention.`
-                    : "Consistency is key to learning. Try to study every day, even just 10 minutes."}
-                </p>
-              </div>
-              {weekChange !== 0 && (
-                <div className="bg-white/10 rounded-lg px-3 py-2">
-                  <div className="text-[10px] font-bold text-[hsl(var(--highlight))] uppercase tracking-wider mb-1">Trend</div>
-                  <p className="text-xs opacity-90">
-                    {weekChange > 0
-                      ? `📈 You studied ${weekChange}% more this week compared to last week. Excellent progress!`
-                      : `📉 Study time decreased by ${Math.abs(weekChange)}% this week. Consider setting a daily goal.`}
+
+          {/* Total XP — dark card */}
+          <div className="bg-[#1e1b2e] text-white rounded-2xl p-6 flex items-center justify-between">
+            <div>
+              <p className="text-[11px] font-bold uppercase tracking-widest text-gray-400 mb-1">Total XP</p>
+              <p className="text-3xl font-extrabold tracking-tight">{totalXP.toLocaleString()}</p>
+              <p className="text-xs text-gray-500 mt-1">{currentStreak}-day streak bonus active 🔥</p>
+            </div>
+            <div className="flex flex-col items-end gap-2">
+              <span className="bg-emerald-500/20 text-emerald-400 text-xs font-bold px-3 py-1 rounded-full">
+                +{(currentStreak * 25) + (todayMinutes > 0 ? 50 : 0)}
+              </span>
+              <span className="text-[10px] text-gray-500">today</span>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+      {/* ───── Bottom Row — 3 cards ───── */}
+      <div className="grid md:grid-cols-3 gap-6">
+
+        {/* Award Winning card */}
+        <div className="bg-white rounded-2xl p-6 shadow-[0_1px_3px_rgba(0,0,0,0.04)] border border-gray-100 text-center relative overflow-hidden">
+          <div className="absolute inset-0 bg-gradient-to-b from-amber-50/50 to-transparent pointer-events-none" />
+          <div className="relative">
+            <p className="text-3xl mb-2">🏆</p>
+            <p className="text-[11px] font-bold uppercase tracking-widest text-gray-400 mb-2">Award Winning</p>
+            <p className="text-6xl font-black text-gray-900 leading-none">
+              {String(Math.max(1, Math.floor(currentStreak / 7))).padStart(2, "0")}
+            </p>
+            <p className="text-xs text-gray-400 mt-2">Weekly milestones achieved</p>
+            <div className="flex items-center justify-center gap-1 mt-3">
+              {[...Array(Math.min(5, Math.max(1, Math.floor(currentStreak / 7))))].map((_, i) => (
+                <span key={i} className="text-amber-400 text-sm">★</span>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        {/* AI Smart Insights card */}
+        <div className="bg-white rounded-2xl p-6 shadow-[0_1px_3px_rgba(0,0,0,0.04)] border border-gray-100 flex flex-col">
+          <div className="flex items-center gap-2 mb-4">
+            <div className="h-8 w-8 rounded-xl bg-[#8b5cf6]/10 flex items-center justify-center">
+              <Lightbulb className="h-4 w-4 text-[#8b5cf6]" />
+            </div>
+            <h3 className="font-bold text-gray-900">AI Smart Insights</h3>
+          </div>
+          <div className="flex-1 space-y-3">
+            {todayMinutes > 0 || sessionCount > 0 ? (
+              <>
+                <div className="bg-gray-50 rounded-xl px-4 py-3">
+                  <p className="text-[10px] font-bold uppercase tracking-wider text-[#8b5cf6] mb-1">Productivity</p>
+                  <p className="text-xs text-gray-600 leading-relaxed">
+                    {todayMinutes >= 30
+                      ? "Great focus today! You've studied for over 30 minutes. Keep up the momentum!"
+                      : todayMinutes > 0
+                      ? `You've studied ${todayMinutes} minutes today. Try to reach 30 minutes for optimal learning.`
+                      : "Start a study session today to maintain your streak!"}
                   </p>
                 </div>
-              )}
-              <Button asChild className="w-full bg-accent hover:bg-accent/90 text-accent-foreground text-sm">
-                <Link to="/timer">Start Study Session</Link>
-              </Button>
-            </>
-          ) : (
-            <p className="text-xs opacity-80">Complete study sessions and quizzes to receive personalized insights about your learning patterns.</p>
-          )}
+                <div className="bg-gray-50 rounded-xl px-4 py-3">
+                  <p className="text-[10px] font-bold uppercase tracking-wider text-[#8b5cf6] mb-1">Consistency</p>
+                  <p className="text-xs text-gray-600 leading-relaxed">
+                    {currentStreak >= 7
+                      ? `🔥 Amazing ${currentStreak}-day streak! You're building a powerful learning habit.`
+                      : currentStreak >= 3
+                      ? `Good ${currentStreak}-day streak! Keep going to build long-term retention.`
+                      : "Consistency is key to learning. Try to study every day, even just 10 minutes."}
+                  </p>
+                </div>
+                {weekChange !== 0 && (
+                  <div className="bg-gray-50 rounded-xl px-4 py-3">
+                    <p className="text-[10px] font-bold uppercase tracking-wider text-[#8b5cf6] mb-1">Trend</p>
+                    <p className="text-xs text-gray-600 leading-relaxed">
+                      {weekChange > 0
+                        ? `📈 You studied ${weekChange}% more this week compared to last week. Excellent progress!`
+                        : `📉 Study time decreased by ${Math.abs(weekChange)}% this week. Consider setting a daily goal.`}
+                    </p>
+                  </div>
+                )}
+              </>
+            ) : (
+              <p className="text-xs text-gray-400">Complete study sessions and quizzes to receive personalized insights.</p>
+            )}
+          </div>
+          <Button asChild className="w-full mt-4 bg-[#8b5cf6] hover:bg-[#7c3aed] text-white rounded-xl text-sm font-semibold h-10">
+            <Link to="/timer">Start Study Session</Link>
+          </Button>
+        </div>
+
+        {/* Next Unlock — purple gradient card */}
+        <div
+          className="rounded-2xl p-6 text-white relative overflow-hidden flex flex-col justify-between"
+          style={{ background: 'linear-gradient(135deg, #8b5cf6 0%, #7c3aed 50%, #6d28d9 100%)' }}
+        >
+          <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full -translate-y-12 translate-x-12" />
+          <div className="absolute bottom-0 left-0 w-20 h-20 bg-white/5 rounded-full translate-y-8 -translate-x-8" />
+          <div className="relative">
+            <p className="text-[11px] font-bold uppercase tracking-widest text-white/70 mb-2">Next Unlock</p>
+            <p className="text-2xl font-extrabold leading-tight mb-1">
+              {currentStreak >= 7 ? "🏅 Consistency Pro" : currentStreak >= 3 ? "🎯 Focus Master" : "⭐ First Streak"}
+            </p>
+            <p className="text-xs text-white/60 leading-relaxed">
+              {currentStreak >= 7
+                ? "Maintain a 14-day streak to unlock this badge"
+                : currentStreak >= 3
+                ? "Reach a 7-day streak to unlock this badge"
+                : "Study 3 consecutive days to earn your first badge"}
+            </p>
+          </div>
+          <div className="relative mt-5">
+            <div className="h-2 bg-white/20 rounded-full overflow-hidden">
+              <div
+                className="h-full bg-white rounded-full transition-all duration-700"
+                style={{ width: `${Math.min(100, currentStreak >= 7 ? (currentStreak / 14) * 100 : currentStreak >= 3 ? (currentStreak / 7) * 100 : (currentStreak / 3) * 100)}%` }}
+              />
+            </div>
+            <div className="flex items-center justify-between mt-2">
+              <span className="text-[10px] text-white/50 font-medium">{currentStreak} days</span>
+              <span className="text-[10px] text-white/50 font-medium">
+                {currentStreak >= 7 ? "14 days" : currentStreak >= 3 ? "7 days" : "3 days"}
+              </span>
+            </div>
+          </div>
         </div>
       </div>
 
-      {/* Day-wise records */}
-      <div className="bg-card border border-border rounded-xl p-6">
-        <h3 className="font-semibold text-foreground mb-1">Day-wise Study Records (Last 30 Days)</h3>
-        <p className="text-xs text-muted-foreground mb-4">Click on a date to view all concepts you learned that day.</p>
+      {/* ───── Day-wise Records (expandable) ───── */}
+      <div className="bg-white rounded-2xl p-6 shadow-[0_1px_3px_rgba(0,0,0,0.04)] border border-gray-100">
+        <div className="flex items-center justify-between mb-1">
+          <h3 className="font-bold text-gray-900 text-lg">Day-wise Study Records</h3>
+          <span className="text-[11px] text-gray-400 bg-gray-50 px-3 py-1 rounded-full font-medium">Last 30 Days</span>
+        </div>
+        <p className="text-xs text-gray-400 mb-5">Click on a date to view concepts learned that day.</p>
         {(dayWiseRecords ?? []).length > 0 ? (
           <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
             {dayWiseRecords.map((entry: { date: string; minutes: number; sessions?: number }) => (
@@ -266,7 +395,6 @@ const ProgressDashboard = () => {
                     setExpandedDate(entry.date);
                     setLoadingDetails(true);
                     try {
-                      // Fetch lessons completed on this date
                       const lessonsSnap = await getDocs(
                         query(collection(db, "lesson_progress"), where("user_id", "==", user?.uid))
                       );
@@ -280,8 +408,6 @@ const ProgressDashboard = () => {
                           }
                         }
                       });
-
-                      // Fetch quiz attempts on this date
                       const quizSnap = await getDocs(
                         query(collection(db, "quiz_attempts"), where("user_id", "==", user?.uid))
                       );
@@ -297,8 +423,6 @@ const ProgressDashboard = () => {
                           });
                         }
                       });
-
-                      // Fetch doubt sessions on this date
                       const doubtsSnap = await getDocs(
                         query(collection(db, "doubt_sessions"), where("user_id", "==", user?.uid))
                       );
@@ -310,7 +434,6 @@ const ProgressDashboard = () => {
                           dayDoubts.push(data.question_preview || "Question");
                         }
                       });
-
                       setDayDetails({ lessons: dayLessons, quizzes: dayQuizzes, doubts: dayDoubts });
                     } catch (err) {
                       console.error("[Progress] Failed to load day details:", err);
@@ -319,85 +442,76 @@ const ProgressDashboard = () => {
                       setLoadingDetails(false);
                     }
                   }}
-                  className={`rounded-lg border px-4 py-3 text-left w-full transition-all ${
+                  className={`rounded-xl border px-4 py-3 text-left w-full transition-all ${
                     expandedDate === entry.date
-                      ? 'border-primary/40 bg-primary/5 shadow-sm'
-                      : 'border-border bg-muted/30 hover:border-primary/20 hover:bg-muted/50'
+                      ? 'border-[#8b5cf6]/40 bg-[#8b5cf6]/5 shadow-sm'
+                      : 'border-gray-100 bg-gray-50 hover:border-[#8b5cf6]/20 hover:bg-gray-100/50'
                   }`}
                 >
                   <div className="flex items-center justify-between">
-                    <div className="text-sm font-medium text-foreground">{entry.date}</div>
+                    <div className="text-sm font-semibold text-gray-900">{entry.date}</div>
                     <div className="flex items-center gap-2">
                       {entry.sessions && (
-                        <span className="text-[10px] text-muted-foreground bg-muted px-2 py-0.5 rounded-full">
+                        <span className="text-[10px] text-gray-400 bg-white px-2 py-0.5 rounded-full border border-gray-100">
                           {entry.sessions} session{entry.sessions !== 1 ? "s" : ""}
                         </span>
                       )}
                       {expandedDate === entry.date ? (
-                        <ChevronUp className="h-3.5 w-3.5 text-muted-foreground" />
+                        <ChevronUp className="h-3.5 w-3.5 text-gray-400" />
                       ) : (
-                        <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />
+                        <ChevronDown className="h-3.5 w-3.5 text-gray-400" />
                       )}
                     </div>
                   </div>
-                  <div className="text-xs text-muted-foreground mt-1">{entry.minutes} minutes studied</div>
-                  {/* Mini progress bar */}
-                  <div className="h-1 bg-muted rounded-full mt-2 overflow-hidden">
+                  <div className="text-xs text-gray-400 mt-1">{entry.minutes} minutes studied</div>
+                  <div className="h-1.5 bg-gray-200 rounded-full mt-2.5 overflow-hidden">
                     <div
-                      className="h-full bg-accent rounded-full transition-all"
-                      style={{ width: `${Math.min(100, (entry.minutes / 60) * 100)}%` }}
+                      className="h-full rounded-full transition-all"
+                      style={{ width: `${Math.min(100, (entry.minutes / 60) * 100)}%`, background: 'linear-gradient(90deg, #8b5cf6, #7c3aed)' }}
                     />
                   </div>
                 </button>
 
-                {/* Expanded day details */}
                 {expandedDate === entry.date && (
-                  <div className="mt-2 rounded-lg border border-primary/20 bg-card p-4 space-y-3 animate-in fade-in slide-in-from-top-2 duration-200">
+                  <div className="mt-2 rounded-xl border border-[#8b5cf6]/20 bg-white p-4 space-y-3 animate-in fade-in slide-in-from-top-2 duration-200 shadow-sm">
                     {loadingDetails ? (
-                      <div className="text-xs text-muted-foreground text-center py-4">Loading concepts…</div>
+                      <div className="text-xs text-gray-400 text-center py-4">Loading concepts…</div>
                     ) : dayDetails ? (
                       <>
-                        {/* Lessons */}
                         {dayDetails.lessons.length > 0 && (
                           <div className="space-y-1.5">
-                            <div className="flex items-center gap-1.5 text-xs font-semibold text-foreground">
-                              <BookOpen className="h-3.5 w-3.5 text-primary" /> Lessons Completed
+                            <div className="flex items-center gap-1.5 text-xs font-semibold text-gray-900">
+                              <BookOpen className="h-3.5 w-3.5 text-[#8b5cf6]" /> Lessons Completed
                             </div>
                             {dayDetails.lessons.map((lessonId: string, i: number) => (
-                              <div key={i} className="text-xs text-muted-foreground pl-5">• Lesson: {lessonId}</div>
+                              <div key={i} className="text-xs text-gray-500 pl-5">• Lesson: {lessonId}</div>
                             ))}
                           </div>
                         )}
-
-                        {/* Quizzes */}
                         {dayDetails.quizzes.length > 0 && (
                           <div className="space-y-1.5">
-                            <div className="flex items-center gap-1.5 text-xs font-semibold text-foreground">
-                              <Gamepad2 className="h-3.5 w-3.5 text-accent" /> Quizzes Taken
+                            <div className="flex items-center gap-1.5 text-xs font-semibold text-gray-900">
+                              <Gamepad2 className="h-3.5 w-3.5 text-[#8b5cf6]" /> Quizzes Taken
                             </div>
                             {dayDetails.quizzes.map((q: any, i: number) => (
-                              <div key={i} className="text-xs text-muted-foreground pl-5">
+                              <div key={i} className="text-xs text-gray-500 pl-5">
                                 • {q.topic} — Score: {q.score}/{q.total} ({q.total > 0 ? Math.round((q.score / q.total) * 100) : 0}%)
                               </div>
                             ))}
                           </div>
                         )}
-
-                        {/* Doubts */}
                         {dayDetails.doubts.length > 0 && (
                           <div className="space-y-1.5">
-                            <div className="flex items-center gap-1.5 text-xs font-semibold text-foreground">
-                              <MessageCircleQuestion className="h-3.5 w-3.5 text-cta" /> Doubts Asked
+                            <div className="flex items-center gap-1.5 text-xs font-semibold text-gray-900">
+                              <MessageCircleQuestion className="h-3.5 w-3.5 text-[#8b5cf6]" /> Doubts Asked
                             </div>
                             {dayDetails.doubts.map((d: string, i: number) => (
-                              <div key={i} className="text-xs text-muted-foreground pl-5 truncate">• {d}</div>
+                              <div key={i} className="text-xs text-gray-500 pl-5 truncate">• {d}</div>
                             ))}
                           </div>
                         )}
-
-                        {/* No data */}
                         {dayDetails.lessons.length === 0 && dayDetails.quizzes.length === 0 && dayDetails.doubts.length === 0 && (
-                          <div className="text-xs text-muted-foreground text-center py-2">
+                          <div className="text-xs text-gray-400 text-center py-2">
                             Study sessions recorded, but no specific lesson/quiz activity tracked for this date.
                           </div>
                         )}
@@ -409,105 +523,99 @@ const ProgressDashboard = () => {
             ))}
           </div>
         ) : (
-          <p className="text-sm text-muted-foreground">No study records yet. Start the timer from dashboard.</p>
+          <p className="text-sm text-gray-400">No study records yet. Start the timer from dashboard.</p>
         )}
       </div>
 
-      {/* Bottom grid: Subject Mastery + Recent Sessions */}
+      {/* ───── Subject Mastery ───── */}
       <div className="grid lg:grid-cols-3 gap-6">
-        {/* Subject Mastery */}
-        <div className="lg:col-span-2 bg-card border border-border rounded-xl p-6 space-y-4">
+        <div className="lg:col-span-2 bg-white rounded-2xl p-6 shadow-[0_1px_3px_rgba(0,0,0,0.04)] border border-gray-100 space-y-4">
           <div className="flex items-center justify-between">
-            <h3 className="font-semibold text-foreground">Subject Mastery</h3>
-            <Link to="/lessons" className="text-xs text-accent hover:underline">View All</Link>
+            <h3 className="font-bold text-gray-900 text-lg">Subject Mastery</h3>
+            <Link to="/lessons" className="text-xs text-[#8b5cf6] hover:underline font-medium">View All →</Link>
           </div>
           {(weakTopics ?? []).length > 0 ? (
             weakTopics.map((t: any) => (
-              <div key={t.topic} className="space-y-1.5">
+              <div key={t.topic} className="space-y-2">
                 <div className="flex justify-between text-sm">
-                  <span className="text-foreground font-medium">{t.topic}</span>
-                  <span className="text-accent font-semibold">{t.avgScore}%</span>
+                  <span className="text-gray-700 font-medium">{t.topic}</span>
+                  <span className="text-[#8b5cf6] font-bold">{t.avgScore}%</span>
                 </div>
-                <div className="h-2 bg-muted rounded-full overflow-hidden">
+                <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
                   <div
-                    className={`h-full rounded-full transition-all ${
-                      t.avgScore >= 80 ? "bg-accent" : t.avgScore >= 50 ? "bg-[hsl(var(--highlight))]" : "bg-destructive/60"
-                    }`}
-                    style={{ width: `${t.avgScore}%` }}
+                    className="h-full rounded-full transition-all duration-500"
+                    style={{
+                      width: `${t.avgScore}%`,
+                      background: t.avgScore >= 80 ? 'linear-gradient(90deg, #8b5cf6, #7c3aed)' : t.avgScore >= 50 ? 'linear-gradient(90deg, #f59e0b, #d97706)' : 'linear-gradient(90deg, #ef4444, #dc2626)'
+                    }}
                   />
                 </div>
               </div>
             ))
           ) : (
-            <p className="text-sm text-muted-foreground py-4 text-center">Take quizzes to see your mastery levels.</p>
+            <p className="text-sm text-gray-400 py-4 text-center">Take quizzes to see your mastery levels.</p>
           )}
         </div>
 
-        {/* Study Insights */}
-        <div className="bg-card border border-border rounded-xl p-5 space-y-4">
-          <h3 className="font-semibold text-foreground">Study Summary</h3>
+        {/* Study Summary side card */}
+        <div className="bg-white rounded-2xl p-6 shadow-[0_1px_3px_rgba(0,0,0,0.04)] border border-gray-100 space-y-4">
+          <h3 className="font-bold text-gray-900">Study Summary</h3>
           <div className="space-y-3">
-            <div className="flex items-center justify-between text-sm">
-              <span className="text-muted-foreground">Total Study Time</span>
-              <span className="font-semibold text-foreground">{totalHours}h</span>
-            </div>
-            <div className="flex items-center justify-between text-sm">
-              <span className="text-muted-foreground">This Week</span>
-              <span className="font-semibold text-foreground">{weekHours}h</span>
-            </div>
-            <div className="flex items-center justify-between text-sm">
-              <span className="text-muted-foreground">Sessions</span>
-              <span className="font-semibold text-foreground">{sessionCount}</span>
-            </div>
-            <div className="flex items-center justify-between text-sm">
-              <span className="text-muted-foreground">Avg Session</span>
-              <span className="font-semibold text-foreground">{avgSessionMinutes}m</span>
-            </div>
-            <div className="flex items-center justify-between text-sm">
-              <span className="text-muted-foreground">Current Streak</span>
-              <span className="font-semibold text-foreground">{currentStreak} days 🔥</span>
-            </div>
+            {[
+              { label: "Total Study Time", value: `${totalHours}h` },
+              { label: "This Week", value: `${weekHours}h` },
+              { label: "Sessions", value: `${sessionCount}` },
+              { label: "Avg Session", value: `${avgSessionMinutes}m` },
+              { label: "Current Streak", value: `${currentStreak} days 🔥` },
+            ].map(item => (
+              <div key={item.label} className="flex items-center justify-between text-sm">
+                <span className="text-gray-400">{item.label}</span>
+                <span className="font-semibold text-gray-900">{item.value}</span>
+              </div>
+            ))}
           </div>
-          <Link to="/timer" className="text-xs text-accent hover:underline block mt-4">Start New Session →</Link>
+          <Link to="/timer" className="text-xs text-[#8b5cf6] hover:underline font-medium block mt-4">Start New Session →</Link>
         </div>
       </div>
 
-      {/* Weak topics alert */}
+      {/* ───── Weak Topics Alert ───── */}
       {(weakTopics?.length ?? 0) > 0 && (
-        <div className="bg-secondary/50 border border-accent/10 rounded-xl p-5 space-y-3">
+        <div className="bg-amber-50/50 border border-amber-200/50 rounded-2xl p-5 space-y-3">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <AlertTriangle className="h-4 w-4 text-accent" />
-              <span className="font-semibold text-sm text-foreground">Needs Attention (Weak Areas)</span>
+              <AlertTriangle className="h-4 w-4 text-amber-500" />
+              <span className="font-bold text-sm text-gray-900">Needs Attention</span>
             </div>
-            {isParentMode && <span className="text-xs text-accent font-medium">Monitor & Guide</span>}
+            {isParentMode && <span className="text-xs text-[#8b5cf6] font-semibold">Monitor & Guide</span>}
           </div>
           <div className="grid sm:grid-cols-2 gap-3">
             {weakTopics?.map((t: any) => (
-              <div key={t.topic} className="bg-card border border-border rounded-lg px-4 py-3 text-sm text-muted-foreground">
-                <span className="font-medium text-foreground">{t.topic}</span> — Average Score: {t.avgScore}%
+              <div key={t.topic} className="bg-white border border-gray-100 rounded-xl px-4 py-3 text-sm text-gray-500">
+                <span className="font-semibold text-gray-900">{t.topic}</span> — Average Score: {t.avgScore}%
               </div>
             ))}
           </div>
         </div>
       )}
 
-      {/* Parent Guidance Section */}
-      <div className="bg-card border border-border rounded-xl p-6 mt-6 space-y-4">
+      {/* ───── Parent Guidance ───── */}
+      <div className="bg-white rounded-2xl p-6 shadow-[0_1px_3px_rgba(0,0,0,0.04)] border border-gray-100 space-y-4">
         <div className="flex items-center gap-2 mb-4">
-          <Users className="h-5 w-5 text-accent" />
-          <h3 className="font-semibold text-foreground">Parental Guidance & Feedback</h3>
+          <div className="h-8 w-8 rounded-xl bg-[#8b5cf6]/10 flex items-center justify-center">
+            <Users className="h-4 w-4 text-[#8b5cf6]" />
+          </div>
+          <h3 className="font-bold text-gray-900">Parental Guidance & Feedback</h3>
         </div>
 
         {isParentMode && (
           <div className="flex gap-2 mb-6">
-            <Input 
-              placeholder="Add a note of encouragement or study advice for your child..." 
+            <Input
+              placeholder="Add a note of encouragement or study advice for your child..."
               value={guidanceText}
               onChange={(e) => setGuidanceText(e.target.value)}
-              className="flex-1"
+              className="flex-1 rounded-xl border-gray-200"
             />
-            <Button onClick={handleAddGuidance} className="bg-accent text-accent-foreground hover:bg-accent/90 gap-2">
+            <Button onClick={handleAddGuidance} className="bg-[#8b5cf6] text-white hover:bg-[#7c3aed] gap-2 rounded-xl">
               <Send className="h-4 w-4" /> Post Note
             </Button>
           </div>
@@ -516,16 +624,16 @@ const ProgressDashboard = () => {
         {guidanceNotes && guidanceNotes.length > 0 ? (
           <div className="space-y-3">
             {guidanceNotes.map((note: any) => (
-              <div key={note.id} className="bg-muted/30 border border-border rounded-lg p-4 relative">
-                <div className="text-sm text-foreground whitespace-pre-wrap">{note.text}</div>
-                <div className="text-[10px] text-muted-foreground mt-2">
+              <div key={note.id} className="bg-gray-50 border border-gray-100 rounded-xl p-4 relative">
+                <div className="text-sm text-gray-700 whitespace-pre-wrap">{note.text}</div>
+                <div className="text-[10px] text-gray-400 mt-2">
                   {new Date(note.created_at).toLocaleString()}
                 </div>
               </div>
             ))}
           </div>
         ) : (
-           <p className="text-sm text-muted-foreground italic">
+           <p className="text-sm text-gray-400 italic">
              No guidance notes added yet. {isParentMode ? "Use the input above to provide guidance." : "Parents can leave feedback and study tips here."}
            </p>
         )}

@@ -110,14 +110,14 @@ const Feedback = () => {
         </p>
       </div>
 
-      <Card className="border-border/50 shadow-sm">
-        <CardHeader>
-          <CardTitle>Submit Feedback</CardTitle>
-          <CardDescription>
+      <div className=\"bg-white rounded-2xl shadow-sm border border-gray-100 p-6 border-border/50 shadow-sm\">
+        <div className=\"mb-4\" >
+          <h3 className=\"font-bold text-gray-900 text-lg\" >Submit Feedback</h3>
+          <p className=\"text-xs text-gray-400 mt-0.5\" >
             Your thoughts matter to us. Let us know how we can make things better.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
+          </p>
+        </div>
+        <div >
           <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
               
@@ -225,8 +225,8 @@ const Feedback = () => {
               </Button>
             </form>
           </Form>
-        </CardContent>
-      </Card>
+        </div>
+      </div>
     </div>
   );
 };

@@ -1,4 +1,4 @@
-import { Trophy, Zap, Flame, Users } from "lucide-react";
+import { Trophy, Zap, Flame, Users, Crown, Medal, Award, Star } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
@@ -10,6 +10,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 const Leaderboard = () => {
   const { user } = useAuth();
   const [tab, setTab] = useState<"global" | "friends">("global");
+  const [timeFilter, setTimeFilter] = useState<'today' | 'week' | 'all'>('today');
 
   const { data: myXp } = useQuery({
     queryKey: ["my-xp", user?.uid],
@@ -91,77 +92,201 @@ const Leaderboard = () => {
 
   const myRank = displayUsers.find((u) => u.isYou)?.rank ?? 0;
 
+  /* Podium helpers */
+  const top3 = displayUsers.slice(0, 3);
+  const rest = displayUsers.slice(3);
+  const podiumOrder = [top3[1], top3[0], top3[2]]; // 2nd, 1st, 3rd
+
+  const medalColors: Record<number, { bg: string; ring: string; text: string; gradient: string }> = {
+    1: { bg: "from-yellow-400/20 to-amber-100/40", ring: "ring-yellow-400", text: "text-yellow-500", gradient: "from-yellow-400 to-amber-500" },
+    2: { bg: "from-slate-300/20 to-gray-100/40", ring: "ring-slate-400", text: "text-slate-400", gradient: "from-slate-300 to-gray-400" },
+    3: { bg: "from-orange-400/20 to-amber-100/40", ring: "ring-orange-400", text: "text-orange-400", gradient: "from-orange-400 to-amber-600" },
+  };
+
+  const completionPercent = 75;
+  const circumference = 2 * Math.PI * 54;
+  const strokeDashoffset = circumference - (completionPercent / 100) * circumference;
+
   return (
-    <div className="p-6 md:p-8 max-w-6xl mx-auto space-y-6">
-      <div>
-        <h1 className="text-2xl md:text-3xl font-bold text-foreground tracking-tight">Social & Achievements</h1>
-        <p className="text-muted-foreground text-sm mt-1">Compete with friends, earn badges, and climb the global ranks.</p>
+    <div className="p-4 md:p-8 max-w-7xl mx-auto space-y-6">
+      {/* Header area with title, time filters, and scope toggle */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div>
+          <h1 className="text-2xl md:text-3xl font-extrabold text-gray-900 tracking-tight">Leaderboard</h1>
+          <p className="text-gray-500 text-sm mt-0.5">Compete, climb the ranks, and earn glory.</p>
+        </div>
+
+        {/* Center: Time filter pills */}
+        <div className="flex items-center gap-1.5 bg-gray-100 rounded-full p-1">
+          {([
+            { key: 'today' as const, label: 'Today' },
+            { key: 'week' as const, label: 'This week' },
+            { key: 'all' as const, label: 'All time' },
+          ]).map(f => (
+            <button
+              key={f.key}
+              onClick={() => setTimeFilter(f.key)}
+              className={`px-5 py-2 rounded-full text-sm font-semibold transition-all duration-200 ${
+                timeFilter === f.key
+                  ? "bg-[#8b5cf6] text-white shadow-lg shadow-purple-200"
+                  : "text-gray-500 hover:text-gray-700 hover:bg-gray-200/60"
+              }`}
+            >
+              {f.label}
+            </button>
+          ))}
+        </div>
+
+        {/* Right: Global / Friends toggle */}
+        <div className="flex items-center gap-1 bg-gray-100 rounded-full p-1">
+          <button
+            onClick={() => setTab("global")}
+            className={`px-5 py-2 rounded-full text-sm font-semibold transition-all duration-200 flex items-center gap-1.5 ${
+              tab === "global"
+                ? "bg-white text-gray-900 shadow-md"
+                : "text-gray-500 hover:text-gray-700"
+            }`}
+          >
+            <Trophy className="h-3.5 w-3.5" />
+            Global
+          </button>
+          <button
+            onClick={() => setTab("friends")}
+            className={`px-5 py-2 rounded-full text-sm font-semibold transition-all duration-200 flex items-center gap-1.5 ${
+              tab === "friends"
+                ? "bg-white text-gray-900 shadow-md"
+                : "text-gray-500 hover:text-gray-700"
+            }`}
+          >
+            <Users className="h-3.5 w-3.5" />
+            Friends
+          </button>
+        </div>
       </div>
 
-      <div className="grid lg:grid-cols-3 gap-6">
-        <div className="lg:col-span-2 space-y-6">
-          {/* Leaderboard */}
-          <div className="bg-card border border-border rounded-xl p-6 space-y-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <h3 className="font-bold text-foreground">Weekly Leaderboard</h3>
-                <p className="text-xs text-muted-foreground">Top learners by XP</p>
-              </div>
-              <div className="flex items-center gap-1 bg-muted rounded-full p-0.5">
-                <button
-                  onClick={() => setTab("global")}
-                  className={`px-4 py-1.5 rounded-full text-xs font-medium transition-colors ${
-                    tab === "global" ? "bg-card text-foreground shadow-sm" : "text-muted-foreground"
-                  }`}
-                >
-                  Global
-                </button>
-                <button
-                  onClick={() => setTab("friends")}
-                  className={`px-4 py-1.5 rounded-full text-xs font-medium transition-colors ${
-                    tab === "friends" ? "bg-accent text-accent-foreground shadow-sm" : "text-muted-foreground"
-                  }`}
-                >
-                  Friends
-                </button>
+      <div className="grid lg:grid-cols-[1fr_300px] gap-6">
+        {/* Main leaderboard area */}
+        <div className="space-y-6">
+
+          {/* ───── Podium Section ───── */}
+          {top3.length >= 3 && (
+            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 pt-10 pb-8">
+              <div className="flex items-end justify-center gap-4 md:gap-6">
+                {podiumOrder.map((u, i) => {
+                  if (!u) return null;
+                  const isFirst = u.rank === 1;
+                  const colors = medalColors[u.rank] || medalColors[3];
+                  return (
+                    <div
+                      key={`podium-${u.rank}`}
+                      className={`flex flex-col items-center transition-all duration-500 ${
+                        isFirst ? "scale-110 -translate-y-4 z-10" : "scale-100"
+                      }`}
+                      style={{ minWidth: isFirst ? 160 : 130 }}
+                    >
+                      {/* Crown for #1 */}
+                      {isFirst && (
+                        <div className="mb-2 animate-bounce" style={{ animationDuration: "2s" }}>
+                          <Crown className="h-8 w-8 text-yellow-400 drop-shadow-lg fill-yellow-400" />
+                        </div>
+                      )}
+
+                      {/* Avatar */}
+                      <div className={`relative mb-3`}>
+                        <div className={`${isFirst ? "h-20 w-20" : "h-16 w-16"} rounded-full bg-gradient-to-br ${colors.bg} ring-4 ${colors.ring} flex items-center justify-center text-lg font-extrabold text-gray-800 shadow-xl`}>
+                          {u.avatar}
+                        </div>
+                        {/* Rank badge */}
+                        <div className={`absolute -bottom-1 -right-1 h-7 w-7 rounded-full bg-gradient-to-br ${colors.gradient} flex items-center justify-center text-white text-xs font-black shadow-lg ring-2 ring-white`}>
+                          {u.rank}
+                        </div>
+                      </div>
+
+                      {/* Name */}
+                      <span className={`font-bold text-gray-900 ${isFirst ? "text-base" : "text-sm"} text-center truncate max-w-[120px]`}>
+                        {u.isYou ? "You" : u.name}
+                      </span>
+
+                      {/* XP */}
+                      <div className="flex items-center gap-1 mt-1">
+                        <Zap className={`h-3.5 w-3.5 ${colors.text}`} />
+                        <span className={`text-sm font-bold ${colors.text}`}>{u.xp.toLocaleString()} XP</span>
+                      </div>
+
+                      {/* Podium bar */}
+                      <div className={`mt-3 w-full rounded-t-xl bg-gradient-to-b ${colors.bg} border border-gray-200/50 flex items-end justify-center`}
+                        style={{ height: isFirst ? 80 : u.rank === 2 ? 56 : 40 }}
+                      >
+                        <span className={`text-2xl mb-2`}>
+                          {u.rank === 1 ? "🥇" : u.rank === 2 ? "🥈" : "🥉"}
+                        </span>
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
             </div>
+          )}
 
-            <div className="grid grid-cols-[60px_1fr_1fr_100px] gap-4 text-xs font-semibold text-muted-foreground uppercase tracking-wider px-2 pb-2 border-b border-border">
-              <span>Rank</span>
-              <span>Student</span>
-              <span>Streak</span>
-              <span className="text-right">XP Points</span>
+          {/* ───── Ranked List (4+) ───── */}
+          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+            {/* Header */}
+            <div className="grid grid-cols-[50px_1fr_120px] md:grid-cols-[50px_1fr_140px] gap-4 px-5 py-3 bg-gray-50/80 border-b border-gray-100">
+              <span className="text-[11px] font-bold text-gray-400 uppercase tracking-wider">Rank</span>
+              <span className="text-[11px] font-bold text-gray-400 uppercase tracking-wider">Student</span>
+              <span className="text-[11px] font-bold text-gray-400 uppercase tracking-wider text-right">XP Points</span>
             </div>
 
-            <div className="space-y-1">
+            <div className="divide-y divide-gray-50">
               {displayUsers.length === 0 ? (
-                <p className="text-sm text-muted-foreground text-center py-6">No data yet. Start studying to appear on the leaderboard!</p>
+                <div className="text-sm text-gray-400 text-center py-12">
+                  <Trophy className="h-10 w-10 text-gray-200 mx-auto mb-3" />
+                  <p className="font-medium">No data yet</p>
+                  <p className="text-xs mt-1">Start studying to appear on the leaderboard!</p>
+                </div>
               ) : (
-                displayUsers.map((u) => (
+                (rest.length > 0 ? rest : displayUsers).map((u) => (
                   <div
-                    key={`${u.name}-${u.rank}`}
-                    className={`grid grid-cols-[60px_1fr_1fr_100px] gap-4 items-center px-2 py-3 rounded-lg ${
-                      u.isYou ? "bg-accent/5 border border-accent/20" : "hover:bg-muted/50"
+                    key={`row-${u.name}-${u.rank}`}
+                    className={`grid grid-cols-[50px_1fr_120px] md:grid-cols-[50px_1fr_140px] gap-4 items-center px-5 py-3.5 transition-all duration-200 group ${
+                      u.isYou
+                        ? "bg-[#8b5cf6]/5 border-l-4 border-l-[#8b5cf6]"
+                        : "hover:bg-gray-50/80 border-l-4 border-l-transparent"
                     }`}
                   >
-                    <span className="flex items-center gap-2">
-                      {u.rank <= 3 && <span className="text-base">{u.rank === 1 ? "🥇" : u.rank === 2 ? "🥈" : "🥉"}</span>}
-                      <span className="text-sm font-bold text-muted-foreground">{u.rank}</span>
-                    </span>
+                    {/* Rank */}
+                    <div className="flex items-center">
+                      <span className={`text-sm font-extrabold ${u.rank <= 3 ? "text-[#8b5cf6]" : "text-gray-400"}`}>
+                        #{u.rank}
+                      </span>
+                    </div>
+
+                    {/* Student */}
                     <div className="flex items-center gap-3">
-                      <div className={`h-8 w-8 rounded-full flex items-center justify-center text-xs font-bold ${
-                        u.isYou ? "bg-accent text-accent-foreground" : "bg-secondary text-[hsl(var(--navy))]"
+                      <div className={`h-9 w-9 rounded-full flex items-center justify-center text-xs font-bold shrink-0 transition-transform duration-200 group-hover:scale-110 ${
+                        u.isYou
+                          ? "bg-gradient-to-br from-[#8b5cf6] to-[#7c3aed] text-white shadow-md shadow-purple-200"
+                          : "bg-gray-100 text-gray-600"
                       }`}>
                         {u.avatar}
                       </div>
-                      <div>
-                        <span className="text-sm font-medium text-foreground">{u.isYou ? "You" : u.name}</span>
-                        {u.isYou && <span className="text-[10px] text-muted-foreground ml-1">(You)</span>}
+                      <div className="min-w-0">
+                        <span className="text-sm font-semibold text-gray-900 truncate block">
+                          {u.isYou ? "You" : u.name}
+                        </span>
+                        {u.isYou && (
+                          <span className="text-[10px] text-[#8b5cf6] font-medium">Your position</span>
+                        )}
                       </div>
                     </div>
-                    <span className="text-xs text-muted-foreground">{u.xp.toLocaleString()} XP</span>
-                    <span className="text-sm font-bold text-accent text-right">{u.xp.toLocaleString()} XP</span>
+
+                    {/* XP */}
+                    <div className="text-right">
+                      <span className={`text-sm font-bold ${u.isYou ? "text-[#8b5cf6]" : "text-gray-700"}`}>
+                        {u.xp.toLocaleString()}
+                      </span>
+                      <span className="text-xs text-gray-400 ml-1">XP</span>
+                    </div>
                   </div>
                 ))
               )}
@@ -169,45 +294,115 @@ const Leaderboard = () => {
           </div>
         </div>
 
-        {/* Right sidebar */}
-        <div className="space-y-6">
-          <div className="bg-[hsl(var(--navy))] text-white rounded-xl p-5 space-y-3">
-            <div className="flex items-center justify-between">
-              <Zap className="h-5 w-5 text-[hsl(var(--highlight))]" />
-              <span className="text-[10px] font-bold text-[hsl(var(--highlight))] uppercase tracking-wider bg-white/10 px-2 py-0.5 rounded-full">{xp.toLocaleString()} XP</span>
+        {/* ───── Right Sidebar ───── */}
+        <div className="space-y-5">
+
+          {/* Academy Completion */}
+          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 flex flex-col items-center">
+            <h4 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-4 self-start">Academy Completion</h4>
+            <div className="relative w-32 h-32">
+              <svg className="w-full h-full -rotate-90" viewBox="0 0 120 120">
+                {/* Background circle */}
+                <circle cx="60" cy="60" r="54" fill="none" stroke="#f3f4f6" strokeWidth="8" />
+                {/* Progress arc */}
+                <circle
+                  cx="60" cy="60" r="54"
+                  fill="none"
+                  stroke="url(#progressGradient)"
+                  strokeWidth="8"
+                  strokeLinecap="round"
+                  strokeDasharray={circumference}
+                  strokeDashoffset={strokeDashoffset}
+                  className="transition-all duration-1000 ease-out"
+                />
+                <defs>
+                  <linearGradient id="progressGradient" x1="0%" y1="0%" x2="100%" y2="0%">
+                    <stop offset="0%" stopColor="#8b5cf6" />
+                    <stop offset="100%" stopColor="#7c3aed" />
+                  </linearGradient>
+                </defs>
+              </svg>
+              <div className="absolute inset-0 flex flex-col items-center justify-center">
+                <span className="text-3xl font-black text-gray-900">{completionPercent}%</span>
+                <span className="text-[10px] font-medium text-gray-400 mt-0.5">Complete</span>
+              </div>
             </div>
-            <h3 className="text-lg font-bold">XP Progress</h3>
-            <p className="text-xs opacity-80">You're {(nextMilestone - xp).toLocaleString()} XP away from {nextMilestone.toLocaleString()} XP!</p>
-            <div className="h-2 bg-white/20 rounded-full overflow-hidden">
-              <div className="h-full bg-accent rounded-full" style={{ width: `${(xp / nextMilestone) * 100}%` }} />
+            <p className="text-xs text-gray-500 mt-4 text-center leading-relaxed">
+              You've completed {completionPercent}% of your academy goals. Keep pushing!
+            </p>
+          </div>
+
+          {/* Apex Architect Award */}
+          <div className="bg-gradient-to-br from-[#8b5cf6] to-[#6d28d9] rounded-2xl shadow-lg shadow-purple-200/50 p-6 text-white relative overflow-hidden">
+            {/* Decorative background circles */}
+            <div className="absolute -top-6 -right-6 w-24 h-24 rounded-full bg-white/10" />
+            <div className="absolute -bottom-8 -left-8 w-32 h-32 rounded-full bg-white/5" />
+
+            <div className="relative z-10">
+              <div className="flex items-center gap-2 mb-3">
+                <div className="h-10 w-10 rounded-xl bg-white/20 backdrop-blur flex items-center justify-center">
+                  <Award className="h-5 w-5 text-yellow-300" />
+                </div>
+                <div>
+                  <h4 className="font-bold text-sm">Apex Architect</h4>
+                  <p className="text-[10px] text-purple-200">Top Achievement</p>
+                </div>
+              </div>
+
+              {/* Laurel decoration */}
+              <div className="flex items-center justify-center my-4">
+                <div className="flex items-center gap-3">
+                  <span className="text-2xl">🏆</span>
+                  <div className="text-center">
+                    <p className="text-xs font-semibold text-purple-100">Rank #{myRank}</p>
+                    <p className="text-lg font-black">{xp.toLocaleString()} XP</p>
+                  </div>
+                  <span className="text-2xl">🏆</span>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2 mt-3 pt-3 border-t border-white/20">
+                <Flame className="h-4 w-4 text-orange-300" />
+                <span className="text-xs font-semibold text-purple-100">
+                  {streak?.current_streak ?? 0} day streak
+                </span>
+                <Star className="h-3 w-3 text-yellow-300 ml-auto" />
+                <Star className="h-3 w-3 text-yellow-300" />
+                <Star className="h-3 w-3 text-yellow-300" />
+              </div>
             </div>
           </div>
 
-          <div className="bg-card border border-border rounded-xl p-5 space-y-2">
-            <div className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Active Streak</div>
-            <div className="flex items-center gap-3">
-              <Flame className="h-6 w-6 text-destructive" />
-              <span className="text-2xl font-bold text-foreground">{streak?.current_streak ?? 0} Days</span>
-            </div>
-          </div>
-
-          <div className="bg-card border border-border rounded-xl p-5 space-y-3">
-            <div className="flex items-center gap-2">
-              <Trophy className="h-4 w-4 text-muted-foreground" />
-              <h3 className="font-semibold text-foreground text-sm">Your Stats</h3>
-            </div>
-            <div className="space-y-2">
-              <div className="flex items-center justify-between text-sm">
-                <span className="text-muted-foreground">Total XP</span>
-                <span className="font-bold text-foreground">{xp.toLocaleString()}</span>
+          {/* Your Stats card */}
+          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5 space-y-3">
+            <div className="flex items-center gap-2 mb-1">
+              <div className="h-7 w-7 rounded-lg bg-[#8b5cf6]/10 flex items-center justify-center">
+                <Zap className="h-3.5 w-3.5 text-[#8b5cf6]" />
               </div>
-              <div className="flex items-center justify-between text-sm">
-                <span className="text-muted-foreground">Rank</span>
-                <span className="font-bold text-foreground">#{myRank}</span>
+              <h4 className="font-bold text-gray-900 text-sm">Your Stats</h4>
+            </div>
+            <div className="space-y-2.5">
+              <div className="flex items-center justify-between">
+                <span className="text-xs text-gray-500">Total XP</span>
+                <span className="text-sm font-bold text-gray-900">{xp.toLocaleString()}</span>
               </div>
-              <div className="flex items-center justify-between text-sm">
-                <span className="text-muted-foreground">Next Milestone</span>
-                <span className="font-bold text-foreground">{nextMilestone.toLocaleString()} XP</span>
+              <div className="h-px bg-gray-100" />
+              <div className="flex items-center justify-between">
+                <span className="text-xs text-gray-500">Current Rank</span>
+                <span className="text-sm font-bold text-[#8b5cf6]">#{myRank}</span>
+              </div>
+              <div className="h-px bg-gray-100" />
+              <div className="flex items-center justify-between">
+                <span className="text-xs text-gray-500">Next Milestone</span>
+                <span className="text-sm font-bold text-gray-900">{nextMilestone.toLocaleString()} XP</span>
+              </div>
+              <div className="h-px bg-gray-100" />
+              <div className="flex items-center justify-between">
+                <span className="text-xs text-gray-500">Streak</span>
+                <div className="flex items-center gap-1">
+                  <Flame className="h-3.5 w-3.5 text-orange-400" />
+                  <span className="text-sm font-bold text-gray-900">{streak?.current_streak ?? 0} days</span>
+                </div>
               </div>
             </div>
           </div>
@@ -218,3 +413,4 @@ const Leaderboard = () => {
 };
 
 export default Leaderboard;
+

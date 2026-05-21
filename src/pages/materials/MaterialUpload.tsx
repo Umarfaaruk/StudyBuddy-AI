@@ -2,7 +2,7 @@ import { useState, useRef } from "react";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Upload, FileText, X, ArrowRight, Loader2, Search, FolderOpen, Sparkles, HardDrive, LayoutGrid, List, Plus, Library, BookOpenCheck, ExternalLink, Trash2, Clock, Filter, FileImage, FileType, AlertTriangle, Eye, StickyNote } from "lucide-react";
+import { Upload, FileText, X, ArrowRight, Loader2, Search, FolderOpen, Sparkles, HardDrive, LayoutGrid, List, Plus, Library, BookOpenCheck, ExternalLink, Trash2, Clock, Filter, FileImage, FileType, AlertTriangle, Eye, StickyNote, Database } from "lucide-react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { db } from "@/lib/firebase";
 import { useAuth } from "@/contexts/AuthContext";
@@ -470,350 +470,466 @@ const MaterialUpload = () => {
   };
 
   return (
-    <div className="p-6 md:p-8 max-w-5xl mx-auto space-y-6">
-      <div className="flex items-start justify-between">
-        <div>
-          <h1 className="text-2xl md:text-3xl font-bold tracking-tight">Resource Library</h1>
-          <p className="text-muted-foreground text-sm mt-1">Upload materials and start learning with AI.</p>
-        </div>
-        <div className="flex items-center gap-2">
-          <div className="relative hidden md:block">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input placeholder="Search..." value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9 h-9 w-56" />
+    <div className="p-4 md:p-6 max-w-6xl mx-auto space-y-6">
+      {/* Hidden file input */}
+      <input ref={fileInputRef} type="file" accept=".pdf,.docx,.txt,.md,image/png,image/jpeg,image/webp" multiple className="hidden" onChange={(e) => handleUpload(e.target.files)} aria-label="Upload study materials" />
+
+      {/* ── TOP SECTION: Hero Banner + Stat Cards ──────────────── */}
+      <div className="grid grid-cols-1 lg:grid-cols-5 gap-4">
+        {/* Purple Gradient Banner */}
+        <div className="lg:col-span-3 bg-gradient-to-br from-[#8b5cf6] to-[#7c3aed] rounded-2xl p-6 md:p-8 relative overflow-hidden min-h-[200px] flex flex-col justify-between">
+          {/* Decorative elements */}
+          <div className="absolute top-4 left-4 w-14 h-14 rounded-full border-2 border-dashed border-white/30 flex items-center justify-center">
+            <BookOpenCheck className="h-6 w-6 text-white/80" />
           </div>
-          <Button onClick={() => fileInputRef.current?.click()} className="bg-accent gap-2" disabled={uploading}>
-            <Upload className="h-4 w-4" /> Upload
-          </Button>
+          <div className="absolute -bottom-6 -right-6 w-32 h-32 rounded-full bg-white/5" />
+          <div className="absolute top-1/2 right-12 w-20 h-20 rounded-full bg-white/5" />
+
+          <div className="mt-16 md:mt-12 space-y-2">
+            <h1 className="text-2xl md:text-3xl font-bold text-white tracking-tight">Resource Library</h1>
+            <p className="text-white/60 text-sm max-w-md leading-relaxed">
+              Upload materials and start learning with your personalized AI assistant
+            </p>
+          </div>
+
+          <div className="mt-6">
+            <button
+              onClick={() => fileInputRef.current?.click()}
+              disabled={uploading}
+              className="inline-flex items-center gap-2 bg-white text-[#7c3aed] font-semibold text-sm px-5 py-2.5 rounded-full hover:bg-white/90 transition-all shadow-lg shadow-purple-900/20 disabled:opacity-60"
+            >
+              <Upload className="h-4 w-4" />
+              Upload Files
+            </button>
+          </div>
+        </div>
+
+        {/* Right column: 4 stat cards in 2x2 grid */}
+        <div className="lg:col-span-2 grid grid-cols-2 gap-4">
+          {/* Total Files */}
+          <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100">
+            <div className="flex items-center justify-between mb-3">
+              <div className="h-10 w-10 rounded-xl bg-[#8b5cf6]/10 flex items-center justify-center">
+                <FileText className="h-5 w-5 text-[#8b5cf6]" />
+              </div>
+            </div>
+            <div className="text-2xl font-bold text-gray-900">{materials?.length ?? 0}</div>
+            <div className="text-xs text-gray-500 mt-0.5">Total Files</div>
+          </div>
+
+          {/* Collections */}
+          <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100">
+            <div className="flex items-center justify-between mb-3">
+              <div className="h-10 w-10 rounded-xl bg-amber-50 flex items-center justify-center">
+                <FolderOpen className="h-5 w-5 text-amber-500" />
+              </div>
+            </div>
+            <div className="text-2xl font-bold text-gray-900">{savedNotes?.length ?? 0}</div>
+            <div className="text-xs text-gray-500 mt-0.5">Collections</div>
+          </div>
+
+          {/* Storage */}
+          <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100">
+            <div className="flex items-center justify-between mb-3">
+              <div className="h-10 w-10 rounded-xl bg-rose-50 flex items-center justify-center">
+                <Database className="h-5 w-5 text-rose-500" />
+              </div>
+            </div>
+            <div className="text-2xl font-bold text-gray-900">{formatSize(materials?.reduce((s, m) => s + (m.file_size ?? 0), 0) ?? 0)}</div>
+            <div className="text-xs text-gray-500 mt-0.5">Storage</div>
+            <div className="mt-2 h-1.5 rounded-full bg-gray-100 overflow-hidden">
+              <div className="h-full rounded-full bg-gradient-to-r from-rose-400 to-rose-500" style={{ width: `${Math.min(((materials?.reduce((s, m) => s + (m.file_size ?? 0), 0) ?? 0) / (50 * 1024 * 1024)) * 100, 100).toFixed(0)}%` }} />
+            </div>
+          </div>
+
+          {/* AI Indexed */}
+          <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100">
+            <div className="flex items-center justify-between mb-3">
+              <div className="h-10 w-10 rounded-xl bg-[#8b5cf6]/10 flex items-center justify-center">
+                <Sparkles className="h-5 w-5 text-[#8b5cf6]" />
+              </div>
+            </div>
+            <div className="text-2xl font-bold text-gray-900">{materials?.filter(m => m.processing_status === "completed" || m.processing_status === "ready").length ?? 0}</div>
+            <div className="text-xs text-gray-500 mt-0.5">AI Indexed</div>
+          </div>
         </div>
       </div>
 
-      <input ref={fileInputRef} type="file" accept=".pdf,.docx,.txt,.md,image/png,image/jpeg,image/webp" multiple className="hidden" onChange={(e) => handleUpload(e.target.files)} aria-label="Upload study materials" />
-
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        {[
-          { icon: FileText, label: "Total Files", value: materials?.length ?? 0 },
-          { icon: Sparkles, label: "AI Ready", value: materials?.filter(m => m.processing_status === "completed" || m.processing_status === "ready").length ?? 0 },
-          { icon: StickyNote, label: "Saved Notes", value: savedNotes?.length ?? 0 },
-          { icon: HardDrive, label: "Storage", value: formatSize(materials?.reduce((s, m) => s + (m.file_size ?? 0), 0) ?? 0) },
-        ].map((s) => (
-          <div key={s.label} className="bg-card border border-border rounded-xl p-4">
-            <s.icon className="h-5 w-5 text-accent mb-2" />
-            <div className="text-xs text-muted-foreground">{s.label}</div>
-            <div className="text-xl font-bold mt-0.5">{s.value}</div>
+      {/* ── SEARCH + VIEW CONTROLS ─────────────────────────────── */}
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+        <div className="flex items-center gap-3">
+          <h2 className="text-xs font-bold text-gray-500 uppercase tracking-wider">Recent Materials</h2>
+          <div className="flex items-center gap-1 bg-gray-100 rounded-lg p-0.5">
+            <button onClick={() => setViewMode("grid")} className={`p-1.5 rounded-md transition-all ${viewMode === "grid" ? "bg-white shadow-sm text-gray-900" : "text-gray-400 hover:text-gray-600"}`}>
+              <LayoutGrid className="h-3.5 w-3.5" />
+            </button>
+            <button onClick={() => setViewMode("list")} className={`p-1.5 rounded-md transition-all ${viewMode === "list" ? "bg-white shadow-sm text-gray-900" : "text-gray-400 hover:text-gray-600"}`}>
+              <List className="h-3.5 w-3.5" />
+            </button>
           </div>
+        </div>
+        <div className="flex items-center gap-2 w-full sm:w-auto">
+          <div className="relative flex-1 sm:flex-initial">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-gray-400" />
+            <input
+              placeholder="Search files..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="pl-9 pr-4 h-9 w-full sm:w-52 rounded-xl border border-gray-200 bg-white text-sm text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-[#8b5cf6]/20 focus:border-[#8b5cf6]/40 transition-all"
+            />
+          </div>
+        </div>
+      </div>
+
+      {/* ── FILE TYPE TABS ─────────────────────────────────────── */}
+      <div className="flex gap-2 overflow-x-auto pb-1">
+        {[
+          { key: "all" as const, label: "All Files", count: filteredMaterials.length },
+          { key: "pdf" as const, label: "PDFs", count: filteredMaterials.filter(m => m.content_type?.includes("pdf") || m.file_name?.endsWith(".pdf")).length },
+          { key: "image" as const, label: "Images", count: filteredMaterials.filter(m => m.content_type?.startsWith("image/")).length },
+          { key: "text" as const, label: "Text", count: filteredMaterials.filter(m => m.content_type === "text/plain" || m.file_name?.endsWith(".txt") || m.file_name?.endsWith(".md")).length },
+          { key: "notes" as const, label: "Saved Notes", count: savedNotes?.length ?? 0 },
+        ].map((tab) => (
+          <button
+            key={tab.key}
+            onClick={() => setActiveFileTab(tab.key)}
+            className={`px-4 py-2 rounded-xl text-xs font-semibold whitespace-nowrap transition-all ${
+              activeFileTab === tab.key
+                ? "bg-[#8b5cf6] text-white shadow-md shadow-[#8b5cf6]/20"
+                : "bg-white text-gray-500 border border-gray-200 hover:text-gray-700 hover:border-[#8b5cf6]/30"
+            }`}
+          >
+            {tab.label}{tab.count > 0 && <span className="ml-1.5 opacity-80">({tab.count})</span>}
+          </button>
         ))}
       </div>
 
-      <div className="space-y-5">
-        {/* ── Section Header: My Files ────────────────────────── */}
-        <div className="flex items-center justify-between">
-          <h3 className="text-lg font-bold flex items-center gap-2 text-foreground">
-            <FolderOpen className="h-5 w-5 text-primary" /> My Files
-          </h3>
-          <div className="flex items-center gap-1">
-            <Button variant="ghost" size="icon" onClick={() => setViewMode("grid")} className={viewMode === "grid" ? "bg-muted" : ""}><LayoutGrid className="h-4 w-4" /></Button>
-            <Button variant="ghost" size="icon" onClick={() => setViewMode("list")} className={viewMode === "list" ? "bg-muted" : ""}><List className="h-4 w-4" /></Button>
-          </div>
-        </div>
-
-        {/* ── File Type Tabs ────────────────────────── */}
-        <div className="flex gap-2 overflow-x-auto pb-1">
-          {[
-            { key: "all" as const, label: "All Files", count: filteredMaterials.length },
-            { key: "pdf" as const, label: "PDFs", count: filteredMaterials.filter(m => m.content_type?.includes("pdf") || m.file_name?.endsWith(".pdf")).length },
-            { key: "image" as const, label: "Images", count: filteredMaterials.filter(m => m.content_type?.startsWith("image/")).length },
-            { key: "text" as const, label: "Text", count: filteredMaterials.filter(m => m.content_type === "text/plain" || m.file_name?.endsWith(".txt") || m.file_name?.endsWith(".md")).length },
-            { key: "notes" as const, label: "Saved Notes", count: savedNotes?.length ?? 0 },
-          ].map((tab) => (
-            <button
-              key={tab.key}
-              onClick={() => setActiveFileTab(tab.key)}
-              className={`px-3 py-1.5 rounded-lg text-xs font-medium border whitespace-nowrap transition-all ${activeFileTab === tab.key
-                ? "bg-primary text-primary-foreground border-primary shadow-sm"
-                : "bg-card border-border text-muted-foreground hover:text-foreground hover:border-primary/30"
-                }`}
-            >
-              {tab.label} {tab.count > 0 && <span className="ml-1 opacity-70">({tab.count})</span>}
-            </button>
+      {/* ── MATERIALS GRID / LIST ──────────────────────────────── */}
+      {isLoading ? (
+        <div className="grid sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <div key={i} className="bg-white rounded-2xl overflow-hidden shadow-sm border border-gray-100">
+              <div className="h-44 bg-gray-100 animate-pulse" />
+              <div className="p-4 space-y-2">
+                <div className="h-4 w-3/4 bg-gray-100 animate-pulse rounded-lg" />
+                <div className="h-3 w-1/2 bg-gray-100 animate-pulse rounded-lg" />
+              </div>
+            </div>
           ))}
         </div>
-
-        {/* ── File List / Grid ────────────────────────── */}
-        {isLoading ? (
-          <div className="grid sm:grid-cols-2 md:grid-cols-3 gap-3">
+      ) : activeFileTab === "notes" ? (
+        isNotesLoading ? (
+          <div className="grid sm:grid-cols-2 md:grid-cols-3 gap-4">
             {Array.from({ length: 3 }).map((_, i) => (
-              <div key={i} className="bg-card border border-border rounded-xl p-4 space-y-3">
-                <div className="flex items-center gap-3">
-                  <div className="h-10 w-10 rounded-lg bg-muted animate-pulse" />
-                  <div className="flex-1 space-y-2">
-                    <div className="h-4 w-32 bg-muted animate-pulse rounded" />
-                    <div className="h-3 w-20 bg-muted animate-pulse rounded" />
-                  </div>
-                </div>
+              <div key={i} className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100 space-y-3">
+                <div className="h-4 w-32 bg-gray-100 animate-pulse rounded-lg" />
+                <div className="h-16 bg-gray-100 animate-pulse rounded-lg" />
               </div>
             ))}
           </div>
-        ) : activeFileTab === "notes" ? (
-          isNotesLoading ? (
-            <div className="grid sm:grid-cols-2 md:grid-cols-3 gap-3">
-              {Array.from({ length: 3 }).map((_, i) => (
-                <div key={i} className="bg-card border border-border rounded-xl p-4 space-y-3">
-                  <div className="h-4 w-32 bg-muted animate-pulse rounded" />
-                  <div className="h-10 bg-muted animate-pulse rounded" />
-                </div>
-              ))}
-            </div>
-          ) : !savedNotes || savedNotes.length === 0 ? (
-            <div className="text-center py-12 border-2 border-dashed border-border rounded-xl">
-              <StickyNote className="h-10 w-10 text-muted-foreground/30 mx-auto mb-3" />
-              <p className="text-sm font-medium text-muted-foreground">No saved notes found</p>
-              <p className="text-xs text-muted-foreground/70 mt-1">Jot down quick notes while studying lessons to see them here.</p>
-            </div>
-          ) : viewMode === "grid" ? (
-            <div className="grid sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-              {savedNotes.map((n) => (
-                <div key={n.id} className="bg-card border border-border rounded-xl p-4 space-y-3 relative group hover:border-primary/30 hover:shadow-sm transition-all flex flex-col justify-between min-h-[160px]">
-                  {confirmDeleteId === n.id && (
-                    <div className="absolute inset-0 z-20 bg-card/95 backdrop-blur-sm border border-destructive/30 rounded-xl flex flex-col items-center justify-center gap-3 p-4 animate-in fade-in-0 zoom-in-95 duration-200">
-                      <AlertTriangle className="h-5 w-5 text-destructive" />
-                      <p className="text-xs font-medium text-center">Delete note?</p>
-                      <div className="flex gap-2">
-                        <Button size="sm" variant="outline" onClick={() => setConfirmDeleteId(null)} className="text-xs h-7">Cancel</Button>
-                        <Button size="sm" onClick={() => { handleDeleteNote(n.id); setConfirmDeleteId(null); }} className="text-xs h-7 bg-destructive text-destructive-foreground hover:bg-destructive/90 gap-1">
-                          <Trash2 className="h-3 w-3" /> Delete
-                        </Button>
-                      </div>
-                    </div>
-                  )}
-
-                  <button
-                    onClick={() => setConfirmDeleteId(n.id)}
-                    className="absolute top-2 right-2 p-1.5 rounded-lg text-muted-foreground/60 hover:text-destructive hover:bg-destructive/10 transition-all z-10 animate-in fade-in"
-                    title="Delete note"
-                  >
-                    <Trash2 className="h-3.5 w-3.5" />
-                  </button>
-
-                  <div className="space-y-2 flex-1">
-                    <div className="flex items-center gap-1.5 text-xs text-muted-foreground font-semibold">
-                      <StickyNote className="h-3.5 w-3.5 text-accent" />
-                      <span>Saved Note</span>
-                    </div>
-                    <p className="text-xs text-foreground whitespace-pre-wrap line-clamp-4 leading-relaxed">{n.text}</p>
-                  </div>
-
-                  <div className="space-y-1 pt-2 border-t border-border/40 mt-auto">
-                    <div className="text-[10px] text-muted-foreground truncate" title={`${n.topic_title || 'Topic'} · ${n.lesson_title || 'Lesson'}`}>
-                      {n.topic_id ? (
-                        <Link to={`/lessons/${n.topic_id}`} className="text-primary hover:underline font-semibold">
-                          {n.topic_title || 'Go to Lesson'}
-                        </Link>
-                      ) : (
-                        <span>{n.topic_title || 'General'}</span>
-                      )}
-                      <span className="opacity-60"> · {n.lesson_title || 'Lesson'}</span>
-                    </div>
-                    <div className="text-[9px] text-muted-foreground flex items-center gap-1">
-                      <Clock className="h-2.5 w-2.5" /> {new Date(n.created_at).toLocaleDateString()}
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <div className="space-y-2">
-              <div className="hidden md:grid grid-cols-[1fr_200px_100px_40px] gap-3 px-4 py-2 text-[10px] font-bold text-muted-foreground uppercase tracking-wider">
-                <span>Note Content</span>
-                <span>From Course/Lesson</span>
-                <span>Date</span>
-                <span></span>
-              </div>
-              {savedNotes.map((n) => (
-                <div key={n.id} className="flex items-center gap-4 bg-card border border-border rounded-xl p-4 hover:border-primary/30 hover:shadow-sm transition-all group relative">
-                  {confirmDeleteId === n.id && (
-                    <div className="absolute inset-0 z-20 bg-card/95 backdrop-blur-sm border border-destructive/30 rounded-xl flex items-center justify-center gap-3 p-4 animate-in fade-in-0 zoom-in-95 duration-200">
-                      <AlertTriangle className="h-5 w-5 text-destructive flex-shrink-0" />
-                      <p className="text-xs font-medium">Delete note?</p>
-                      <div className="flex gap-2">
-                        <Button size="sm" variant="outline" onClick={() => setConfirmDeleteId(null)} className="text-xs h-7">Cancel</Button>
-                        <Button size="sm" onClick={() => { handleDeleteNote(n.id); setConfirmDeleteId(null); }} className="text-xs h-7 bg-destructive text-destructive-foreground hover:bg-destructive/90 gap-1">
-                          <Trash2 className="h-3 w-3" /> Delete
-                        </Button>
-                      </div>
-                    </div>
-                  )}
-
-                  <StickyNote className="h-5 w-5 text-accent flex-shrink-0" />
-                  <div className="flex-1 min-w-0 pr-4">
-                    <p className="text-sm text-foreground whitespace-pre-wrap leading-relaxed">{n.text}</p>
-                  </div>
-                  <div className="w-[200px] text-xs text-muted-foreground truncate">
-                    {n.topic_id ? (
-                      <Link to={`/lessons/${n.topic_id}`} className="text-primary hover:underline font-semibold block truncate">
-                        {n.topic_title || 'Go to Course'}
-                      </Link>
-                    ) : (
-                      <span className="block truncate font-semibold">{n.topic_title || 'General'}</span>
-                    )}
-                    <span className="text-[10px] opacity-75 truncate block">{n.lesson_title || 'Lesson'}</span>
-                  </div>
-                  <div className="w-[100px] text-xs text-muted-foreground">
-                    {new Date(n.created_at).toLocaleDateString()}
-                  </div>
-                  <button
-                    onClick={() => setConfirmDeleteId(n.id)}
-                    className="p-1.5 rounded-lg text-muted-foreground/60 hover:text-destructive hover:bg-destructive/10 transition-all z-10"
-                    title="Delete note"
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </button>
-                </div>
-              ))}
-            </div>
-          )
-        ) : tabFilteredMaterials.length === 0 ? (
-          <div className="text-center py-12 border-2 border-dashed border-border rounded-xl">
-            <FolderOpen className="h-10 w-10 text-muted-foreground/30 mx-auto mb-3" />
-            <p className="text-sm font-medium text-muted-foreground">
-              {filteredMaterials.length === 0 ? "No files uploaded yet" : `No ${activeFileTab} files found`}
-            </p>
-            <p className="text-xs text-muted-foreground/70 mt-1">Upload your study materials to get started</p>
-            <Button onClick={() => fileInputRef.current?.click()} variant="outline" size="sm" className="mt-4 gap-2">
-              <Upload className="h-3.5 w-3.5" /> Upload File
-            </Button>
+        ) : !savedNotes || savedNotes.length === 0 ? (
+          <div className="text-center py-16 border-2 border-dashed border-gray-200 rounded-2xl bg-white/50">
+            <StickyNote className="h-12 w-12 text-gray-300 mx-auto mb-4" />
+            <p className="text-sm font-semibold text-gray-500">No saved notes found</p>
+            <p className="text-xs text-gray-400 mt-1">Jot down quick notes while studying lessons to see them here.</p>
           </div>
         ) : viewMode === "grid" ? (
           <div className="grid sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-            {tabFilteredMaterials.map((f) => (
-              <div key={f.id} className="bg-card border border-border rounded-xl p-4 space-y-3 relative group hover:border-primary/30 hover:shadow-sm transition-all">
-                {/* Delete confirmation overlay */}
-                {confirmDeleteId === f.id && (
-                  <div className="absolute inset-0 z-20 bg-card/95 backdrop-blur-sm border border-destructive/30 rounded-xl flex flex-col items-center justify-center gap-3 p-4 animate-in fade-in-0 zoom-in-95 duration-200">
-                    <AlertTriangle className="h-6 w-6 text-destructive" />
-                    <p className="text-xs font-medium text-foreground text-center">Delete "{f.file_name}"?</p>
+            {savedNotes.map((n) => (
+              <div key={n.id} className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100 relative group hover:shadow-md hover:border-[#8b5cf6]/20 transition-all flex flex-col justify-between min-h-[180px]">
+                {confirmDeleteId === n.id && (
+                  <div className="absolute inset-0 z-20 bg-white/95 backdrop-blur-sm border border-red-200 rounded-2xl flex flex-col items-center justify-center gap-3 p-4 animate-in fade-in-0 zoom-in-95 duration-200">
+                    <AlertTriangle className="h-5 w-5 text-red-500" />
+                    <p className="text-xs font-medium text-gray-700 text-center">Delete note?</p>
                     <div className="flex gap-2">
-                      <Button size="sm" variant="outline" onClick={() => setConfirmDeleteId(null)} className="text-xs h-7">Cancel</Button>
-                      <Button size="sm" onClick={() => { handleDelete(f.id); setConfirmDeleteId(null); }} className="text-xs h-7 bg-destructive text-destructive-foreground hover:bg-destructive/90 gap-1">
+                      <Button size="sm" variant="outline" onClick={() => setConfirmDeleteId(null)} className="text-xs h-7 rounded-lg">Cancel</Button>
+                      <Button size="sm" onClick={() => { handleDeleteNote(n.id); setConfirmDeleteId(null); }} className="text-xs h-7 bg-red-500 text-white hover:bg-red-600 gap-1 rounded-lg">
                         <Trash2 className="h-3 w-3" /> Delete
                       </Button>
                     </div>
                   </div>
                 )}
-
-                {/* Delete button */}
                 <button
-                  onClick={() => setConfirmDeleteId(f.id)}
-                  className="absolute top-2 right-2 p-1.5 rounded-lg text-muted-foreground/60 hover:text-destructive hover:bg-destructive/10 transition-all z-10"
-                  title="Delete file"
-                  aria-label={`Delete ${f.file_name}`}
+                  onClick={() => setConfirmDeleteId(n.id)}
+                  className="absolute top-3 right-3 p-1.5 rounded-lg text-gray-300 opacity-0 group-hover:opacity-100 hover:text-red-500 hover:bg-red-50 transition-all z-10"
+                  title="Delete note"
                 >
                   <Trash2 className="h-3.5 w-3.5" />
                 </button>
-
-                {/* File icon / preview */}
-                <div className="flex justify-center py-2">{fileIcon(f)}</div>
-
-                {/* File name */}
-                <div className="text-sm font-medium truncate" title={f.file_name}>{f.file_name}</div>
-
-                {/* File meta row */}
-                <div className="flex items-center gap-2 flex-wrap">
-                  <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${getFileTypeColor(f)}`}>
-                    {getFileTypeLabel(f)}
-                  </span>
-                  <span className="text-[10px] text-muted-foreground">{formatSize(f.file_size)}</span>
+                <div className="space-y-2 flex-1">
+                  <div className="flex items-center gap-1.5 text-xs text-gray-400 font-semibold">
+                    <StickyNote className="h-3.5 w-3.5 text-[#8b5cf6]" />
+                    <span>Saved Note</span>
+                  </div>
+                  <p className="text-xs text-gray-700 whitespace-pre-wrap line-clamp-4 leading-relaxed">{n.text}</p>
                 </div>
-
-                {/* Upload date */}
-                <div className="text-[10px] text-muted-foreground flex items-center gap-1">
-                  <Clock className="h-3 w-3" /> {formatDate(f.uploaded_at)}
-                </div>
-
-                {/* Status + Learn button */}
-                <div className="flex items-center justify-between gap-2">
-                  {statusBadge(f.processing_status)}
-                  {(f.processing_status === "ready" || f.processing_status === "completed") && (
-                    <Link to={`/materials/learn/${f.id}`}>
-                      <Button size="sm" className="h-7 text-[11px] bg-[hsl(var(--navy))] gap-1">
-                        Learn <ArrowRight className="h-3 w-3" />
-                      </Button>
-                    </Link>
-                  )}
+                <div className="space-y-1 pt-3 border-t border-gray-100 mt-auto">
+                  <div className="text-[10px] text-gray-400 truncate" title={`${n.topic_title || 'Topic'} · ${n.lesson_title || 'Lesson'}`}>
+                    {n.topic_id ? (
+                      <Link to={`/lessons/${n.topic_id}`} className="text-[#8b5cf6] hover:underline font-semibold">
+                        {n.topic_title || 'Go to Lesson'}
+                      </Link>
+                    ) : (
+                      <span>{n.topic_title || 'General'}</span>
+                    )}
+                    <span className="opacity-60"> · {n.lesson_title || 'Lesson'}</span>
+                  </div>
+                  <div className="text-[9px] text-gray-400 flex items-center gap-1">
+                    <Clock className="h-2.5 w-2.5" /> {new Date(n.created_at).toLocaleDateString()}
+                  </div>
                 </div>
               </div>
             ))}
-            {/* Add file card */}
-            <div onClick={() => fileInputRef.current?.click()} className="border-2 border-dashed rounded-xl p-4 flex flex-col items-center justify-center gap-2 cursor-pointer hover:border-accent/50 hover:bg-accent/5 transition-all min-h-[220px]">
-              <div className="h-12 w-12 rounded-full bg-primary/10 flex items-center justify-center">
-                <Plus className="h-6 w-6 text-primary" />
-              </div>
-              <span className="text-xs font-medium text-muted-foreground">Upload File</span>
-              <span className="text-[10px] text-muted-foreground/60">PDF, TXT, Images</span>
-            </div>
           </div>
         ) : (
-          /* ── List View ── */
           <div className="space-y-2">
-            {/* List header */}
-            <div className="hidden md:grid grid-cols-[1fr_100px_100px_80px_80px_40px] gap-3 px-4 py-2 text-[10px] font-bold text-muted-foreground uppercase tracking-wider">
-              <span>File Name</span>
-              <span>Type</span>
-              <span>Size</span>
+            <div className="hidden md:grid grid-cols-[1fr_200px_100px_40px] gap-3 px-4 py-2 text-[10px] font-bold text-gray-400 uppercase tracking-wider">
+              <span>Note Content</span>
+              <span>From Course/Lesson</span>
               <span>Date</span>
-              <span>Status</span>
               <span></span>
             </div>
-            {tabFilteredMaterials.map((f) => (
-              <div key={f.id} className="flex items-center gap-4 bg-card border border-border rounded-xl p-4 hover:border-primary/30 hover:shadow-sm transition-all group relative">
-                {/* Delete confirmation overlay for list view */}
-                {confirmDeleteId === f.id && (
-                  <div className="absolute inset-0 z-20 bg-card/95 backdrop-blur-sm border border-destructive/30 rounded-xl flex items-center justify-center gap-3 p-4 animate-in fade-in-0 zoom-in-95 duration-200">
-                    <AlertTriangle className="h-5 w-5 text-destructive flex-shrink-0" />
-                    <p className="text-xs font-medium text-foreground">Delete "{f.file_name}"?</p>
+            {savedNotes.map((n) => (
+              <div key={n.id} className="flex items-center gap-4 bg-white border border-gray-100 rounded-2xl p-4 hover:shadow-md hover:border-[#8b5cf6]/20 transition-all group relative">
+                {confirmDeleteId === n.id && (
+                  <div className="absolute inset-0 z-20 bg-white/95 backdrop-blur-sm border border-red-200 rounded-2xl flex items-center justify-center gap-3 p-4 animate-in fade-in-0 zoom-in-95 duration-200">
+                    <AlertTriangle className="h-5 w-5 text-red-500 flex-shrink-0" />
+                    <p className="text-xs font-medium text-gray-700">Delete note?</p>
                     <div className="flex gap-2">
-                      <Button size="sm" variant="outline" onClick={() => setConfirmDeleteId(null)} className="text-xs h-7">Cancel</Button>
-                      <Button size="sm" onClick={() => { handleDelete(f.id); setConfirmDeleteId(null); }} className="text-xs h-7 bg-destructive text-destructive-foreground hover:bg-destructive/90 gap-1">
+                      <Button size="sm" variant="outline" onClick={() => setConfirmDeleteId(null)} className="text-xs h-7 rounded-lg">Cancel</Button>
+                      <Button size="sm" onClick={() => { handleDeleteNote(n.id); setConfirmDeleteId(null); }} className="text-xs h-7 bg-red-500 text-white hover:bg-red-600 gap-1 rounded-lg">
                         <Trash2 className="h-3 w-3" /> Delete
                       </Button>
                     </div>
                   </div>
                 )}
-
-                {fileIcon(f)}
-                <div className="flex-1 min-w-0">
-                  <div className="text-sm font-medium truncate">{f.file_name}</div>
-                  <div className="text-[10px] text-muted-foreground flex items-center gap-2 mt-0.5">
-                    <span className={`font-bold px-1.5 py-0.5 rounded ${getFileTypeColor(f)}`}>{getFileTypeLabel(f)}</span>
-                    <span>{formatSize(f.file_size)}</span>
-                    <span className="flex items-center gap-0.5"><Clock className="h-2.5 w-2.5" /> {formatDate(f.uploaded_at)}</span>
-                  </div>
+                <StickyNote className="h-5 w-5 text-[#8b5cf6] flex-shrink-0" />
+                <div className="flex-1 min-w-0 pr-4">
+                  <p className="text-sm text-gray-700 whitespace-pre-wrap leading-relaxed">{n.text}</p>
                 </div>
-                {statusBadge(f.processing_status)}
-                {(f.processing_status === "ready" || f.processing_status === "completed") && (
-                  <Link to={`/materials/learn/${f.id}`}>
-                    <Button size="sm" variant="outline" className="text-xs gap-1 h-8">Learn <ArrowRight className="h-3 w-3" /></Button>
-                  </Link>
-                )}
+                <div className="w-[200px] text-xs text-gray-500 truncate">
+                  {n.topic_id ? (
+                    <Link to={`/lessons/${n.topic_id}`} className="text-[#8b5cf6] hover:underline font-semibold block truncate">
+                      {n.topic_title || 'Go to Course'}
+                    </Link>
+                  ) : (
+                    <span className="block truncate font-semibold">{n.topic_title || 'General'}</span>
+                  )}
+                  <span className="text-[10px] opacity-75 truncate block">{n.lesson_title || 'Lesson'}</span>
+                </div>
+                <div className="w-[100px] text-xs text-gray-400">
+                  {new Date(n.created_at).toLocaleDateString()}
+                </div>
                 <button
-                  onClick={() => setConfirmDeleteId(f.id)}
-                  className="p-1.5 rounded-lg text-muted-foreground/60 hover:text-destructive hover:bg-destructive/10 transition-all"
-                  title="Delete file"
+                  onClick={() => setConfirmDeleteId(n.id)}
+                  className="p-1.5 rounded-lg text-gray-300 hover:text-red-500 hover:bg-red-50 transition-all z-10"
+                  title="Delete note"
                 >
                   <Trash2 className="h-4 w-4" />
                 </button>
               </div>
             ))}
           </div>
-        )}
-      </div>
+        )
+      ) : tabFilteredMaterials.length === 0 ? (
+        <div className="text-center py-16 border-2 border-dashed border-gray-200 rounded-2xl bg-white/50">
+          <FolderOpen className="h-12 w-12 text-gray-300 mx-auto mb-4" />
+          <p className="text-sm font-semibold text-gray-500">
+            {filteredMaterials.length === 0 ? "No files uploaded yet" : `No ${activeFileTab} files found`}
+          </p>
+          <p className="text-xs text-gray-400 mt-1">Upload your study materials to get started</p>
+          <button
+            onClick={() => fileInputRef.current?.click()}
+            className="mt-5 inline-flex items-center gap-2 bg-[#8b5cf6] text-white font-semibold text-sm px-5 py-2.5 rounded-full hover:bg-[#7c3aed] transition-all shadow-md shadow-[#8b5cf6]/20"
+          >
+            <Upload className="h-4 w-4" /> Upload File
+          </button>
+        </div>
+      ) : viewMode === "grid" ? (
+        <div className="grid sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+          {/* Add New Material Card */}
+          <div
+            onClick={() => fileInputRef.current?.click()}
+            className="bg-white border-2 border-dashed border-gray-200 rounded-2xl flex flex-col items-center justify-center gap-3 cursor-pointer hover:border-[#8b5cf6]/40 hover:bg-[#8b5cf6]/[0.02] transition-all min-h-[310px] group"
+          >
+            <div className="h-14 w-14 rounded-2xl bg-gray-100 flex items-center justify-center group-hover:bg-[#8b5cf6]/10 transition-colors">
+              <Plus className="h-7 w-7 text-gray-400 group-hover:text-[#8b5cf6] transition-colors" />
+            </div>
+            <span className="text-sm font-semibold text-gray-400 group-hover:text-[#8b5cf6] transition-colors">Add New Material</span>
+            <span className="text-[11px] text-gray-400">PDF, TXT, Images</span>
+          </div>
+
+          {/* Material Cards */}
+          {tabFilteredMaterials.map((f) => (
+            <div key={f.id} className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden relative group hover:shadow-lg hover:border-[#8b5cf6]/20 transition-all">
+              {/* Delete confirmation overlay */}
+              {confirmDeleteId === f.id && (
+                <div className="absolute inset-0 z-20 bg-white/95 backdrop-blur-sm border border-red-200 rounded-2xl flex flex-col items-center justify-center gap-3 p-4 animate-in fade-in-0 zoom-in-95 duration-200">
+                  <AlertTriangle className="h-6 w-6 text-red-500" />
+                  <p className="text-xs font-medium text-gray-700 text-center">Delete "{f.file_name}"?</p>
+                  <div className="flex gap-2">
+                    <Button size="sm" variant="outline" onClick={() => setConfirmDeleteId(null)} className="text-xs h-7 rounded-lg">Cancel</Button>
+                    <Button size="sm" onClick={() => { handleDelete(f.id); setConfirmDeleteId(null); }} className="text-xs h-7 bg-red-500 text-white hover:bg-red-600 gap-1 rounded-lg">
+                      <Trash2 className="h-3 w-3" /> Delete
+                    </Button>
+                  </div>
+                </div>
+              )}
+
+              {/* Delete button (hover reveal) */}
+              <button
+                onClick={() => setConfirmDeleteId(f.id)}
+                className="absolute top-3 right-3 p-1.5 rounded-lg bg-black/40 text-white/70 opacity-0 group-hover:opacity-100 hover:bg-red-500 hover:text-white transition-all z-10"
+                title="Delete file"
+                aria-label={`Delete ${f.file_name}`}
+              >
+                <Trash2 className="h-3.5 w-3.5" />
+              </button>
+
+              {/* Dark Thumbnail Area */}
+              <div className="h-44 bg-[#1e1b2e] relative overflow-hidden">
+                {/* Gradient decorative overlay */}
+                <div className="absolute inset-0 bg-gradient-to-br from-[#8b5cf6]/20 via-transparent to-[#7c3aed]/10" />
+                <div className="absolute bottom-0 left-0 right-0 h-1/2 bg-gradient-to-t from-[#1e1b2e] to-transparent" />
+
+                {/* Image preview or file icon */}
+                {f.content_type?.startsWith("image/") && f.file_data ? (
+                  <img src={f.file_data} alt={f.file_name} className="h-full w-full object-cover opacity-60" />
+                ) : (
+                  <div className="absolute inset-0 flex items-center justify-center">
+                    <FileText className="h-12 w-12 text-white/10" />
+                  </div>
+                )}
+
+                {/* File type badge */}
+                <div className="absolute top-3 left-3">
+                  <span className="bg-[#8b5cf6]/90 text-white text-[10px] font-bold px-2.5 py-1 rounded-lg uppercase tracking-wide">
+                    {getFileTypeLabel(f)} Document
+                  </span>
+                </div>
+              </div>
+
+              {/* Card content below thumbnail */}
+              <div className="p-4 space-y-2">
+                {/* Title */}
+                <h3 className="text-sm font-semibold text-gray-900 truncate" title={f.file_name}>
+                  {f.file_name}
+                </h3>
+
+                {/* Meta info */}
+                <div className="flex items-center gap-1.5 text-[11px] text-gray-400">
+                  <Clock className="h-3 w-3" />
+                  <span>{formatDate(f.uploaded_at)}</span>
+                  <span className="text-gray-300">•</span>
+                  <span>{formatSize(f.file_size)}</span>
+                </div>
+
+                {/* AI status + Learn button */}
+                <div className="flex items-center justify-between pt-1">
+                  {(f.processing_status === "ready" || f.processing_status === "completed") ? (
+                    <div className="flex items-center gap-1 text-[11px] text-[#8b5cf6] font-medium">
+                      <Sparkles className="h-3 w-3" />
+                      <span>AI Summary Available</span>
+                    </div>
+                  ) : (
+                    <span className="text-[10px] font-semibold text-amber-500 bg-amber-50 px-2 py-0.5 rounded-full uppercase">{f.processing_status}</span>
+                  )}
+                  {(f.processing_status === "ready" || f.processing_status === "completed") && (
+                    <Link to={`/materials/learn/${f.id}`}>
+                      <button className="text-[11px] font-semibold text-[#8b5cf6] hover:text-[#7c3aed] flex items-center gap-1 transition-colors">
+                        Learn <ArrowRight className="h-3 w-3" />
+                      </button>
+                    </Link>
+                  )}
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      ) : (
+        /* ── List View ── */
+        <div className="space-y-2">
+          {/* List header */}
+          <div className="hidden md:grid grid-cols-[1fr_100px_100px_80px_120px_80px] gap-3 px-5 py-2.5 text-[10px] font-bold text-gray-400 uppercase tracking-wider">
+            <span>File Name</span>
+            <span>Type</span>
+            <span>Size</span>
+            <span>Date</span>
+            <span>Status</span>
+            <span></span>
+          </div>
+          {tabFilteredMaterials.map((f) => (
+            <div key={f.id} className="flex items-center gap-4 bg-white border border-gray-100 rounded-2xl p-4 hover:shadow-md hover:border-[#8b5cf6]/20 transition-all group relative">
+              {/* Delete confirmation overlay for list view */}
+              {confirmDeleteId === f.id && (
+                <div className="absolute inset-0 z-20 bg-white/95 backdrop-blur-sm border border-red-200 rounded-2xl flex items-center justify-center gap-3 p-4 animate-in fade-in-0 zoom-in-95 duration-200">
+                  <AlertTriangle className="h-5 w-5 text-red-500 flex-shrink-0" />
+                  <p className="text-xs font-medium text-gray-700">Delete "{f.file_name}"?</p>
+                  <div className="flex gap-2">
+                    <Button size="sm" variant="outline" onClick={() => setConfirmDeleteId(null)} className="text-xs h-7 rounded-lg">Cancel</Button>
+                    <Button size="sm" onClick={() => { handleDelete(f.id); setConfirmDeleteId(null); }} className="text-xs h-7 bg-red-500 text-white hover:bg-red-600 gap-1 rounded-lg">
+                      <Trash2 className="h-3 w-3" /> Delete
+                    </Button>
+                  </div>
+                </div>
+              )}
+
+              {/* File icon */}
+              <div className="h-10 w-10 rounded-xl bg-[#1e1b2e] flex items-center justify-center flex-shrink-0">
+                {f.content_type?.startsWith("image/") && f.file_data ? (
+                  <img src={f.file_data} alt={f.file_name} className="h-full w-full object-cover rounded-xl" />
+                ) : (
+                  <FileText className="h-5 w-5 text-white/40" />
+                )}
+              </div>
+
+              <div className="flex-1 min-w-0">
+                <div className="text-sm font-semibold text-gray-900 truncate">{f.file_name}</div>
+                <div className="text-[10px] text-gray-400 flex items-center gap-2 mt-0.5">
+                  <span className="font-bold text-[#8b5cf6] bg-[#8b5cf6]/10 px-1.5 py-0.5 rounded">{getFileTypeLabel(f)}</span>
+                  <span>{formatSize(f.file_size)}</span>
+                  <span className="flex items-center gap-0.5"><Clock className="h-2.5 w-2.5" /> {formatDate(f.uploaded_at)}</span>
+                </div>
+              </div>
+
+              {(f.processing_status === "ready" || f.processing_status === "completed") ? (
+                <div className="flex items-center gap-1 text-[11px] text-[#8b5cf6] font-medium">
+                  <Sparkles className="h-3 w-3" /> AI Ready
+                </div>
+              ) : (
+                <span className="text-[10px] font-semibold text-amber-500 bg-amber-50 px-2 py-0.5 rounded-full uppercase">{f.processing_status}</span>
+              )}
+
+              {(f.processing_status === "ready" || f.processing_status === "completed") && (
+                <Link to={`/materials/learn/${f.id}`}>
+                  <button className="text-xs font-semibold text-[#8b5cf6] hover:text-[#7c3aed] flex items-center gap-1 px-3 py-1.5 rounded-xl border border-[#8b5cf6]/20 hover:bg-[#8b5cf6]/5 transition-all">
+                    Learn <ArrowRight className="h-3 w-3" />
+                  </button>
+                </Link>
+              )}
+
+              <button
+                onClick={() => setConfirmDeleteId(f.id)}
+                className="p-1.5 rounded-lg text-gray-300 hover:text-red-500 hover:bg-red-50 transition-all"
+                title="Delete file"
+              >
+                <Trash2 className="h-4 w-4" />
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
 
       {/* ── NDLI Digital Library Search ────────────────────────── */}
       <NDLISearch />
 
+      {/* Upload progress indicator */}
       {uploading && (
-        <div className="fixed bottom-6 right-6 bg-card border p-4 shadow-lg flex items-center gap-3 z-50 rounded-xl">
-          <Loader2 className="h-4 w-4 animate-spin text-accent" />
-          <span className="text-sm">{uploadProgress || "Processing file..."}</span>
+        <div className="fixed bottom-6 right-6 bg-white border border-gray-200 p-4 shadow-xl shadow-gray-200/50 flex items-center gap-3 z-50 rounded-2xl">
+          <div className="h-8 w-8 rounded-xl bg-[#8b5cf6]/10 flex items-center justify-center">
+            <Loader2 className="h-4 w-4 animate-spin text-[#8b5cf6]" />
+          </div>
+          <span className="text-sm font-medium text-gray-700">{uploadProgress || "Processing file..."}</span>
         </div>
       )}
     </div>

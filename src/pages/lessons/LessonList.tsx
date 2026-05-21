@@ -270,63 +270,59 @@ ${materialContent}`;
 
 
   return (
-    <div className="p-6 md:p-8 max-w-4xl mx-auto space-y-6">
-
-      {/* Header */}
-      <div className="flex items-start justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-foreground tracking-tight">Lessons</h1>
-          <p className="text-muted-foreground text-sm mt-1">Browse topics and continue learning</p>
-        </div>
-        <button
-          onClick={() => setShowPlanner(!showPlanner)}
-          className="flex items-center gap-3 group"
-          aria-label="Toggle Study Planner"
-        >
-          <span className="text-sm font-medium text-muted-foreground group-hover:text-foreground transition-colors hidden sm:inline">
-            <CalendarDays className="h-4 w-4 inline mr-1.5 -mt-0.5" />
-            Study Planner
-          </span>
-          <CalendarDays className="h-5 w-5 text-muted-foreground sm:hidden" />
-          <div className={`h-6 w-11 rounded-full transition-colors flex-shrink-0 ${
-            showPlanner ? "bg-primary" : "bg-muted"
-          }`}>
-            <div className={`h-5 w-5 rounded-full bg-card shadow transition-transform ${
-              showPlanner ? "translate-x-5" : "translate-x-0.5"
-            } mt-0.5`} />
+    <div className="p-6 md:p-8 max-w-4xl mx-auto space-y-8">
+      {/* Banner */}
+      <div className="relative overflow-hidden bg-gradient-to-br from-[#8b5cf6] to-[#7c3aed] rounded-3xl p-8 md:p-10 shadow-lg text-white">
+        <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
+          <div>
+            <div className="inline-block px-3 py-1 bg-white/20 rounded-full text-[10px] font-bold tracking-widest uppercase mb-4 backdrop-blur-sm">
+              Your Learning Journey
+            </div>
+            <h1 className="text-3xl md:text-4xl font-bold tracking-tight mb-2">Lessons</h1>
+            <p className="text-white/80 max-w-md text-sm md:text-base">Browse topics, continue learning, and generate custom courses from your materials.</p>
           </div>
-        </button>
+          <button
+            onClick={() => setShowPlanner(!showPlanner)}
+            className="flex items-center gap-2 bg-[#1e1b2e] hover:bg-[#1e1b2e]/90 text-white px-5 py-2.5 rounded-xl text-sm font-medium transition-all shadow-sm shrink-0"
+          >
+            <CalendarDays className="h-4 w-4" />
+            {showPlanner ? "Hide Planner" : "Study Planner"}
+          </button>
+        </div>
+        {/* Decorative elements */}
+        <div className="absolute top-0 right-0 -mr-20 -mt-20 w-64 h-64 bg-white opacity-10 rounded-full blur-3xl pointer-events-none"></div>
+        <div className="absolute bottom-0 right-20 -mb-20 w-40 h-40 bg-white opacity-10 rounded-full blur-2xl pointer-events-none"></div>
       </div>
 
       {/* Inline Study Planner Panel */}
       {showPlanner && (
-        <div className="border border-primary/20 rounded-xl overflow-hidden bg-primary/[0.02] animate-in slide-in-from-top-2 duration-300">
-          <Suspense fallback={<div className="p-8 flex justify-center"><Loader2 className="animate-spin h-6 w-6 text-primary" /></div>}>
+        <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 overflow-hidden animate-in slide-in-from-top-2 duration-300">
+          <Suspense fallback={<div className="p-8 flex justify-center"><Loader2 className="animate-spin h-6 w-6 text-[#8b5cf6]" /></div>}>
             <StudyPlanner />
           </Suspense>
         </div>
       )}
 
       {/* Search + Filter */}
-      <div className="flex flex-col sm:flex-row gap-3">
+      <div className="flex flex-col sm:flex-row gap-4">
         <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
           <Input
             placeholder="Search topics…"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="pl-10 h-10 focus-visible:ring-primary"
+            className="pl-12 h-12 bg-white rounded-xl border-gray-200 focus-visible:ring-[#8b5cf6] shadow-sm text-sm"
           />
         </div>
-        <div className="flex gap-2 overflow-x-auto pb-1">
+        <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-hide items-center">
           {subjectNames.map((s) => (
             <button
               key={s}
               onClick={() => setFilter(s)}
-              className={`px-3 py-2 rounded-lg text-xs font-medium border whitespace-nowrap transition-colors ${
+              className={`px-4 py-2.5 rounded-xl text-sm font-medium border whitespace-nowrap transition-all shadow-sm ${
                 filter === s
-                  ? "bg-primary text-primary-foreground border-primary"
-                  : "bg-card border-border text-foreground hover:border-primary/40"
+                  ? "bg-[#1e1b2e] text-white border-[#1e1b2e]"
+                  : "bg-white border-gray-100 text-gray-500 hover:border-gray-300 hover:text-gray-900"
               }`}
             >
               {s}
@@ -336,34 +332,36 @@ ${materialContent}`;
       </div>
 
       {/* Topic list */}
-      <div className="space-y-3">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {isLoading
           ? Array.from({ length: 4 }).map((_, i) => (
-              <div key={i} className="flex items-center gap-4 bg-card border border-border rounded-xl p-5">
-                <Skeleton className="h-10 w-10 rounded-lg" />
-                <div className="flex-1 space-y-2">
-                  <Skeleton className="h-4 w-48" />
-                  <Skeleton className="h-3 w-32" />
-                  <Skeleton className="h-1.5 w-full max-w-xs" />
+              <div key={i} className="flex flex-col gap-4 bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
+                <div className="flex items-center gap-4">
+                  <Skeleton className="h-12 w-12 rounded-xl" />
+                  <div className="flex-1 space-y-2">
+                    <Skeleton className="h-4 w-3/4" />
+                    <Skeleton className="h-3 w-1/2" />
+                  </div>
                 </div>
+                <Skeleton className="h-2 w-full mt-2 rounded-full" />
               </div>
             ))
           : filtered.map((t) => (
-              <div key={t.id} className="relative group">
+              <div key={t.id} className="relative group flex">
                 {/* ── Delete Confirmation Overlay ── */}
                 {confirmDeleteId === t.id && (
-                  <div className="absolute inset-0 z-20 bg-card/95 backdrop-blur-sm border border-destructive/30 rounded-xl flex items-center justify-center gap-3 p-4 animate-in fade-in-0 zoom-in-95 duration-200">
-                    <AlertTriangle className="h-5 w-5 text-destructive flex-shrink-0" />
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-foreground">Delete "{t.title}"?</p>
-                      <p className="text-xs text-muted-foreground">This will remove all lessons & progress permanently.</p>
+                  <div className="absolute inset-0 z-20 bg-white/95 backdrop-blur-md border border-red-100 rounded-2xl flex flex-col justify-center gap-3 p-6 animate-in fade-in-0 zoom-in-95 duration-200 shadow-lg">
+                    <div className="flex items-center gap-2 text-red-600 font-medium">
+                      <AlertTriangle className="h-5 w-5" />
+                      <p>Delete "{t.title}"?</p>
                     </div>
-                    <div className="flex gap-2 flex-shrink-0">
+                    <p className="text-xs text-gray-500">This will remove all lessons & progress permanently.</p>
+                    <div className="flex gap-2 mt-2">
                       <Button
                         size="sm"
                         variant="outline"
                         onClick={() => setConfirmDeleteId(null)}
-                        className="text-xs h-8"
+                        className="text-xs h-9 rounded-xl flex-1 border-gray-200"
                       >
                         Cancel
                       </Button>
@@ -371,19 +369,21 @@ ${materialContent}`;
                         size="sm"
                         onClick={() => handleDeleteCourse(t.id, t.title)}
                         disabled={deletingId === t.id}
-                        className="text-xs h-8 bg-destructive text-destructive-foreground hover:bg-destructive/90 gap-1.5"
+                        className="text-xs h-9 bg-red-500 text-white hover:bg-red-600 rounded-xl flex-1 gap-1.5 shadow-sm"
                       >
                         {deletingId === t.id ? (
-                          <><Loader2 className="h-3 w-3 animate-spin" /> Deleting…</>
+                          <><Loader2 className="h-3.5 w-3.5 animate-spin" /> Deleting…</>
                         ) : (
-                          <><Trash2 className="h-3 w-3" /> Delete</>
+                          <><Trash2 className="h-3.5 w-3.5" /> Delete</>
                         )}
                       </Button>
                     </div>
                   </div>
                 )}
 
-                <div className="flex items-center gap-4 bg-card border border-border rounded-xl p-5 hover:border-primary/40 hover:shadow-sm transition-all">
+                <div
+                  className="flex flex-col w-full bg-white border border-gray-100 rounded-2xl p-6 shadow-sm hover:border-[#8b5cf6]/30 hover:shadow-md transition-all relative overflow-hidden"
+                >
                   {/* Delete button (visible on hover) */}
                   <button
                     onClick={(e) => {
@@ -391,102 +391,120 @@ ${materialContent}`;
                       e.stopPropagation();
                       setConfirmDeleteId(t.id);
                     }}
-                    className="absolute top-2 right-2 p-1.5 rounded-lg text-muted-foreground/60 hover:text-destructive hover:bg-destructive/10 transition-all z-10"
+                    className="absolute top-4 right-4 p-2 rounded-xl text-gray-400 hover:text-red-500 hover:bg-red-50 opacity-0 group-hover:opacity-100 transition-all z-10 focus:opacity-100"
                     title="Remove course"
                     aria-label={`Remove course ${t.title}`}
                   >
-                    <Trash2 className="h-3.5 w-3.5" />
+                    <Trash2 className="h-4 w-4" />
                   </button>
 
                   <Link
                     to={`/lessons/${t.id}`}
-                    className="flex items-center gap-4 flex-1 min-w-0"
+                    className="flex flex-col h-full"
                   >
-                    {/* Icon */}
-                    <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center flex-shrink-0">
-                      {iconMap[t.subjectIcon] ?? <BookOpen className="h-5 w-5 text-primary" />}
+                    <div className="flex items-start gap-4 mb-4">
+                      {/* Icon */}
+                      <div className="h-12 w-12 rounded-xl bg-[#f5f3ff] flex items-center justify-center flex-shrink-0 text-[#8b5cf6]">
+                        {iconMap[t.subjectIcon] ?? <BookOpen className="h-6 w-6" />}
+                      </div>
+
+                      {/* Info */}
+                      <div className="flex-1 min-w-0 pr-8">
+                        <div className="text-[10px] font-bold tracking-widest uppercase text-[#8b5cf6] mb-1">
+                          {t.subjectName}
+                        </div>
+                        <h3 className="text-base font-semibold text-gray-900 leading-tight mb-1 line-clamp-2">{t.title}</h3>
+                        <div className="text-xs text-gray-500 font-medium">
+                          {t.completedLessons} of {t.totalLessons} lessons completed
+                        </div>
+                      </div>
                     </div>
 
-                    {/* Info */}
-                    <div className="flex-1 min-w-0">
-                      <div className="text-sm font-semibold text-foreground">{t.title}</div>
-                      <div className="text-xs text-muted-foreground mt-0.5">
-                        {t.subjectName} · {t.completedLessons}/{t.totalLessons} lessons
+                    {/* Progress bar */}
+                    <div className="mt-auto pt-2">
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="text-xs font-medium text-gray-500">Progress</span>
+                        <span className={`text-xs font-bold ${t.pct === 100 ? "text-emerald-500" : "text-[#8b5cf6]"}`}>
+                          {t.pct}%
+                        </span>
                       </div>
-                      {/* Progress bar — success green */}
-                      <div className="h-1.5 bg-muted rounded-full overflow-hidden mt-2 w-full max-w-xs">
+                      <div className="h-2 bg-gray-100 rounded-full overflow-hidden w-full">
                         <div
-                          className="h-full bg-success rounded-full transition-all duration-500"
+                          className={`h-full rounded-full transition-all duration-500 ${t.pct === 100 ? "bg-emerald-500" : "bg-gradient-to-r from-[#8b5cf6] to-[#7c3aed]"}`}
                           style={{ width: `${t.pct}%` }}
                         />
                       </div>
                     </div>
-
-                    {/* Completion % */}
-                    <span className={`text-xs font-bold ${t.pct === 100 ? "text-success" : "text-muted-foreground"}`}>
-                      {t.pct}%
-                    </span>
-
-                    <ChevronRight className="h-4 w-4 text-muted-foreground group-hover:text-foreground transition-colors" />
                   </Link>
                 </div>
               </div>
             ))}
-
-        {!isLoading && filtered.length === 0 && filter !== "Your Courses" && (
-          <div className="text-center py-12 text-muted-foreground">
-            <BookOpen className="h-8 w-8 mx-auto mb-3 opacity-40" />
-            <p className="text-sm">No topics found for "{search}"</p>
-          </div>
-        )}
-
-
-        {/* Uploaded Materials Generation Section */}
-        {materials && materials.length > 0 && (
-          <div className="mt-12 space-y-4">
-            <h2 className="text-xl font-bold text-foreground tracking-tight border-t border-border pt-6">
-              Create Course from Materials
-            </h2>
-            <p className="text-sm text-muted-foreground">
-              Turn your uploaded PDFs and text into structured, step-by-step lessons.
-            </p>
-            <div className="grid sm:grid-cols-2 gap-3">
-              {materials.map((m: any) => {
-                const alreadyGenerated = topics.some((t: any) => t.material_id === m.id);
-                if (alreadyGenerated) return null;
-                return (
-                  <div key={m.id} className="bg-card border border-border rounded-xl p-5 flex flex-col justify-between gap-4">
-                    <div className="flex items-start gap-3">
-                      <div className="h-10 w-10 rounded-lg bg-cta/10 flex items-center justify-center flex-shrink-0">
-                        <FileText className="h-5 w-5 text-cta" />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="text-sm font-semibold text-foreground truncate">{m.file_name}</div>
-                        <div className="text-xs text-muted-foreground mt-0.5">Uploaded Material</div>
-                      </div>
-                    </div>
-                    <Button 
-                      onClick={() => handleGenerateCourse(m)}
-                      disabled={generatingFor === m.id}
-                      className="w-full bg-cta text-cta-foreground hover:bg-cta/90 text-sm gap-2"
-                    >
-                      {generatingFor === m.id ? (
-                        <><Loader2 className="h-4 w-4 animate-spin" /> Generating Course...</>
-                      ) : (
-                        <><Sparkles className="h-4 w-4" /> Generate Course</>
-                      )}
-                    </Button>
-                  </div>
-                );
-              })}
-              <Link to="/materials" className="border-2 border-dashed border-border rounded-xl p-5 flex flex-col items-center justify-center text-muted-foreground hover:text-foreground hover:border-cta/50 transition-colors gap-2 min-h-[140px]">
-                <Plus className="h-6 w-6" />
-                <span className="text-sm font-medium">Upload New Material</span>
-              </Link>
-            </div>
-          </div>
-        )}
       </div>
+
+      {!isLoading && filtered.length === 0 && filter !== "Your Courses" && (
+        <div className="bg-white rounded-2xl p-12 border border-gray-100 text-center shadow-sm">
+          <div className="h-16 w-16 bg-[#f5f3ff] rounded-full flex items-center justify-center mx-auto mb-4">
+            <BookOpen className="h-8 w-8 text-[#8b5cf6] opacity-50" />
+          </div>
+          <h3 className="text-lg font-semibold text-gray-900 mb-1">No topics found</h3>
+          <p className="text-sm text-gray-500">Try adjusting your search or filter criteria.</p>
+        </div>
+      )}
+
+      {/* Uploaded Materials Generation Section */}
+      {materials && materials.length > 0 && (
+        <div className="mt-12 space-y-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <h2 className="text-xl font-bold text-gray-900 tracking-tight">
+                Create Course from Materials
+              </h2>
+              <p className="text-sm text-gray-500 mt-1">
+                Turn your uploaded PDFs and text into structured, step-by-step lessons.
+              </p>
+            </div>
+            <Link to="/materials" className="hidden sm:flex items-center gap-2 text-sm font-medium text-[#8b5cf6] hover:text-[#7c3aed] bg-[#f5f3ff] px-4 py-2 rounded-xl transition-colors">
+              <Plus className="h-4 w-4" />
+              New Material
+            </Link>
+          </div>
+          
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+            {materials.map((m: any) => {
+              const alreadyGenerated = topics.some((t: any) => t.material_id === m.id);
+              if (alreadyGenerated) return null;
+              return (
+                <div key={m.id} className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100 flex flex-col justify-between gap-5 hover:shadow-md transition-shadow">
+                  <div className="flex items-start gap-3">
+                    <div className="h-10 w-10 rounded-xl bg-indigo-50 flex items-center justify-center flex-shrink-0">
+                      <FileText className="h-5 w-5 text-indigo-500" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="text-sm font-semibold text-gray-900 line-clamp-2 leading-tight" title={m.file_name}>{m.file_name}</div>
+                      <div className="text-[10px] font-bold tracking-widest uppercase text-gray-400 mt-2">Material</div>
+                    </div>
+                  </div>
+                  <Button 
+                    onClick={() => handleGenerateCourse(m)}
+                    disabled={generatingFor === m.id}
+                    className="w-full bg-[#1e1b2e] text-white hover:bg-[#1e1b2e]/90 text-sm font-medium gap-2 rounded-xl h-10"
+                  >
+                    {generatingFor === m.id ? (
+                      <><Loader2 className="h-4 w-4 animate-spin" /> Generating...</>
+                    ) : (
+                      <><Sparkles className="h-4 w-4 text-[#8b5cf6]" /> Generate Course</>
+                    )}
+                  </Button>
+                </div>
+              );
+            })}
+            <Link to="/materials" className="sm:hidden bg-white border-2 border-dashed border-gray-200 rounded-2xl p-5 flex flex-col items-center justify-center text-gray-400 hover:text-[#8b5cf6] hover:border-[#8b5cf6]/50 hover:bg-[#f5f3ff] transition-all gap-2 min-h-[160px]">
+              <Plus className="h-8 w-8" />
+              <span className="text-sm font-semibold">Upload Material</span>
+            </Link>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

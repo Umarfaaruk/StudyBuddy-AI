@@ -30,30 +30,30 @@ const PracticeArena = () => {
   });
 
   return (
-    <div className="p-6 md:p-8 max-w-4xl mx-auto space-y-6">
+    <div className="p-6 md:p-10 max-w-5xl mx-auto space-y-8">
       {/* Header */}
       <div>
-        <h1 className="text-2xl font-bold text-foreground tracking-tight">Practice Arena</h1>
-        <p className="text-muted-foreground text-sm mt-1">
+        <h1 className="text-3xl font-extrabold text-gray-900 tracking-tight">Practice Arena</h1>
+        <p className="text-gray-500 text-[15px] mt-2 max-w-xl leading-relaxed">
           Generate custom AI quizzes or flashcards directly from your uploaded study materials.
         </p>
       </div>
 
       {/* Difficulty Selector */}
-      <div className="bg-card border border-border rounded-xl p-4 flex items-center justify-between gap-4 flex-wrap">
+      <div className="bg-white border border-gray-200 rounded-2xl p-5 md:p-6 flex items-center justify-between gap-4 flex-wrap shadow-sm">
         <div>
-          <h3 className="text-sm font-semibold text-foreground">Quiz Difficulty</h3>
-          <p className="text-xs text-muted-foreground">Adjust the complexity of the quiz questions</p>
+          <h3 className="text-sm font-bold text-gray-900">Quiz Difficulty</h3>
+          <p className="text-xs text-gray-400 mt-0.5">Adjust the complexity of the quiz questions</p>
         </div>
         <div className="flex gap-2">
           {["Easy", "Medium", "Hard"].map((lvl) => (
             <button
               key={lvl}
               onClick={() => setDifficulty(lvl)}
-              className={`px-4 py-2 rounded-lg text-xs font-semibold border transition-all ${
+              className={`px-5 py-2 rounded-full text-xs font-bold border-2 transition-all duration-200 ${
                 difficulty === lvl
-                  ? "bg-primary text-primary-foreground border-primary shadow-sm"
-                  : "bg-background text-muted-foreground border-border hover:border-primary/40 hover:text-foreground"
+                  ? "bg-[#8b5cf6] text-white border-[#8b5cf6] shadow-md shadow-[#8b5cf6]/20"
+                  : "bg-white text-gray-500 border-gray-200 hover:border-[#8b5cf6]/40 hover:text-[#8b5cf6]"
               }`}
             >
               {lvl}
@@ -63,79 +63,92 @@ const PracticeArena = () => {
       </div>
 
       {/* User Materials grid */}
-      <div className="mt-8">
-        <div className="mb-4">
-          <h2 className="text-xl font-bold text-foreground tracking-tight">Your Study Materials</h2>
-        </div>
+      <div>
+        <h2 className="text-xl font-bold text-gray-900 tracking-tight mb-5">Your Study Materials</h2>
         
-        <div className="grid sm:grid-cols-2 gap-3">
+        <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-5">
           {materialsLoading ? (
-            Array.from({ length: 2 }).map((_, i) => (
-              <div key={i} className="bg-card border border-border rounded-xl p-5">
-                <Skeleton className="h-10 w-10 rounded-lg mb-3" />
-                <Skeleton className="h-4 w-40 mb-2" />
-                <Skeleton className="h-3 w-24" />
-                <Skeleton className="h-9 w-full mt-4" />
+            Array.from({ length: 3 }).map((_, i) => (
+              <div key={i} className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+                <Skeleton className="h-44 w-full rounded-none" />
+                <div className="p-4 space-y-3">
+                  <Skeleton className="h-4 w-3/4" />
+                  <Skeleton className="h-3 w-1/2" />
+                  <div className="flex gap-2 pt-2">
+                    <Skeleton className="h-9 flex-1 rounded-lg" />
+                    <Skeleton className="h-9 flex-1 rounded-lg" />
+                  </div>
+                </div>
               </div>
             ))
           ) : materials?.length ? (
             materials?.map((m) => (
               <div
                 key={m.id}
-                className="bg-card border border-border rounded-xl p-5 hover:border-cta/40 hover:shadow-sm transition-all flex flex-col justify-between gap-4"
+                className="bg-white rounded-2xl border border-gray-100 shadow-sm hover:shadow-lg hover:border-[#8b5cf6]/30 transition-all duration-300 overflow-hidden flex flex-col group"
               >
-                <div className="flex items-start gap-4">
-                  <div className="h-10 w-10 rounded-lg bg-cta/10 flex items-center justify-center flex-shrink-0">
-                    <FileText className="h-5 w-5 text-cta" />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="text-sm font-semibold text-foreground truncate">{m.file_name}</div>
-                    <div className="text-xs text-muted-foreground mt-0.5">
-                      Uploaded Material
-                    </div>
-                  </div>
+                {/* Thumbnail Area */}
+                <div className="relative h-44 bg-gradient-to-br from-gray-100 to-gray-50 flex items-center justify-center overflow-hidden">
+                  <FileText className="h-12 w-12 text-gray-300 group-hover:text-[#8b5cf6]/30 transition-colors duration-300" />
+                  {/* PDF Badge */}
+                  <span className="absolute top-3 left-3 bg-[#8b5cf6]/90 text-white text-[10px] font-bold px-2 py-0.5 rounded-md uppercase tracking-wide">
+                    PDF Document
+                  </span>
                 </div>
-                
-                <div className="flex gap-2 mt-auto">
-                  <Link
-                    to={`/quiz/${m.id}`}
-                    state={{ 
-                      topicTitle: m.file_name, 
-                      subjectName: "Your Material",
-                      materialContext: m.summary || m.extracted_text?.substring(0, 5000) || "",
-                      difficulty
-                    }}
-                    className="flex-1"
-                  >
-                    <Button
-                      size="sm"
-                      className="w-full bg-cta text-cta-foreground hover:bg-cta/90 text-xs font-semibold gap-1.5"
+
+                {/* Card Body */}
+                <div className="p-4 flex flex-col flex-1">
+                  <h3 className="text-sm font-semibold text-gray-900 truncate leading-snug">{m.file_name}</h3>
+                  <p className="text-[11px] text-gray-400 mt-1">
+                    Added recently • Uploaded Material
+                  </p>
+
+                  <div className="flex gap-2 mt-auto pt-4">
+                    <Link
+                      to={`/quiz/${m.id}`}
+                      state={{ 
+                        topicTitle: m.file_name, 
+                        subjectName: "Your Material",
+                        materialContext: m.summary || m.extracted_text?.substring(0, 5000) || "",
+                        difficulty
+                      }}
+                      className="flex-1"
                     >
-                      <Gamepad2 className="h-4 w-4" /> Quiz
-                    </Button>
-                  </Link>
-                  <Link
-                    to={`/materials/flashcards`}
-                    state={{ preselectedMaterial: m }}
-                    className="flex-1"
-                  >
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      className="w-full text-xs font-semibold gap-1.5"
+                      <Button
+                        size="sm"
+                        className="w-full bg-[#8b5cf6] hover:bg-[#7c3aed] text-white text-xs font-bold gap-1.5 rounded-lg shadow-sm shadow-[#8b5cf6]/20 transition-all duration-200"
+                      >
+                        <Gamepad2 className="h-3.5 w-3.5" /> Quiz
+                      </Button>
+                    </Link>
+                    <Link
+                      to={`/materials/flashcards`}
+                      state={{ preselectedMaterial: m }}
+                      className="flex-1"
                     >
-                      <BrainCircuit className="h-4 w-4" /> Flashcards
-                    </Button>
-                  </Link>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="w-full text-xs font-bold gap-1.5 rounded-lg border-gray-200 text-gray-600 hover:border-[#8b5cf6]/40 hover:text-[#8b5cf6] transition-all duration-200"
+                      >
+                        <BrainCircuit className="h-3.5 w-3.5" /> Flashcards
+                      </Button>
+                    </Link>
+                  </div>
                 </div>
               </div>
             ))
           ) : (
-            <div className="col-span-2 text-center py-12 bg-muted/30 rounded-xl border border-dashed border-border">
-              <FileText className="h-8 w-8 mx-auto mb-3 opacity-40 text-muted-foreground" />
-              <p className="text-sm text-muted-foreground mb-4">No materials uploaded yet. Upload a PDF or text to start practicing!</p>
+            <div className="col-span-full text-center py-16 bg-gray-50/60 rounded-2xl border-2 border-dashed border-gray-200">
+              <div className="h-14 w-14 rounded-2xl bg-[#8b5cf6]/10 flex items-center justify-center mx-auto mb-4">
+                <FileText className="h-7 w-7 text-[#8b5cf6]/50" />
+              </div>
+              <p className="text-sm text-gray-500 mb-1 font-medium">No materials uploaded yet</p>
+              <p className="text-xs text-gray-400 mb-5">Upload a PDF or text to start practicing!</p>
               <Link to="/materials">
-                <Button size="sm">Upload Material</Button>
+                <Button size="sm" className="bg-[#8b5cf6] hover:bg-[#7c3aed] text-white font-bold rounded-lg px-6 shadow-sm shadow-[#8b5cf6]/20">
+                  Upload Material
+                </Button>
               </Link>
             </div>
           )}
