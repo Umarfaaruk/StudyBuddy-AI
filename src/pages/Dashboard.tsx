@@ -1,7 +1,7 @@
 import { Link } from "react-router-dom";
 import {
   BookOpen, MessageCircleQuestion, Gamepad2, Upload, BarChart3,
-  Trophy, Flame, Lightbulb, Bot, AlertTriangle, CalendarDays, User
+  Trophy, Flame, Lightbulb, AlertTriangle, CalendarDays, User
 } from "lucide-react";
 import { useDashboardData } from "@/hooks/useDashboardData";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -10,6 +10,8 @@ import { useQuery } from "@tanstack/react-query";
 import { db } from "@/lib/firebase";
 import { doc, getDoc, collection, query, where, getDocs } from "firebase/firestore";
 import NotificationPanel from "@/components/NotificationPanel";
+import EduOnxAIChat from "@/components/EduOnxAIChat";
+import FeedbackEnforcer from "@/components/FeedbackEnforcer";
 
 const Dashboard = () => {
   const { user } = useAuth();
@@ -392,25 +394,11 @@ const Dashboard = () => {
         ))}
       </div>
 
-      {/* ── Floating "Ask me anything" input ─────────────────── */}
-      <div className="fixed bottom-6 left-1/2 -translate-x-1/2 w-[90%] max-w-xl z-50">
-        <div className="flex items-center gap-3 bg-white rounded-2xl shadow-lg shadow-gray-200/60 border border-gray-100 px-5 py-3">
-          <Bot className="h-5 w-5 text-gray-400 flex-shrink-0" />
-          <input
-            type="text"
-            placeholder="Ask me anything..."
-            className="flex-1 bg-transparent text-sm text-gray-700 placeholder-gray-400 outline-none"
-          />
-          <Link
-            to="/materials/tutor"
-            className="h-9 w-9 rounded-xl bg-gradient-to-br from-[#1D4ED8] to-[#2563EB] flex items-center justify-center hover:shadow-md hover:shadow-blue-200 transition-all flex-shrink-0"
-          >
-            <svg className="h-4 w-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M6 12L3.269 3.126A59.768 59.768 0 0121.485 12 59.77 59.77 0 013.27 20.876L5.999 12zm0 0h7.5" />
-            </svg>
-          </Link>
-        </div>
-      </div>
+      {/* ── EduOnx AI Side Chat ──────────────────────────── */}
+      <EduOnxAIChat />
+
+      {/* ── Mandatory Feedback Check ────────────────────── */}
+      <FeedbackEnforcer />
     </div>
   );
 };

@@ -130,8 +130,8 @@ export default async function handler(req, res) {
       channel,
       hasTranscript: segments.length > 0,
       segmentCount: segments.length,
-      transcript: transcript.substring(0, 30000), // Cap at 30K chars
-      segments: segments.slice(0, 500), // Cap segments for response size
+      transcript: transcript, // Full transcript — no truncation
+      segments: segments, // All segments
     };
 
     res.setHeader("Cache-Control", "s-maxage=3600, stale-while-revalidate=7200");

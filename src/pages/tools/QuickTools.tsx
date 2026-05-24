@@ -138,68 +138,80 @@ const VideoNotebookWorkspace = () => {
   };
 
   /**
-   * Chunked summarization: summarize each segment, then combine into a comprehensive summary.
-   * This ensures no part of the video is skipped, even for very long videos.
+   * Chunked summarization: summarize each segment, then combine.
+   * Uses low temperature (0.3) for factual precision. Each chunk produces
+   * a structured summary, then all are merged into one cohesive document.
    */
   const generateChunkedSummary = async (transcript: string, title: string): Promise<string> => {
     const chunks = splitTranscriptIntoChunks(transcript);
-    
+    const totalMinutes = Math.round(transcript.length / 800); // rough estimate: ~800 chars/min spoken
+
     if (chunks.length === 1) {
       const res = await aiComplete({
         messages: [
-          { role: "system", content: "You are an expert educational researcher. Follow instructions strictly. Return answers in markdown." },
-          { role: "user", content: `Create a comprehensive, detailed summary of this entire video transcript. Cover EVERY key point, concept, example, and argument from start to finish. Do not skip any part. Use timestamps or sequence markers (e.g., "First...", "Then...", "Later...") to show progression through the video.
+          { role: "system", content: "You are a precise educational summarizer. Stick strictly to the transcript content. Never add information not present in the transcript. Be thorough but concise." },
+          { role: "user", content: `Summarize this entire video transcript precisely and completely. Cover every key point, concept, and argument from beginning to end in chronological order.
 
-Format with markdown: use ## headers for major sections, bullet points for key details, and **bold** for important terms.
+Rules:
+- ONLY include information explicitly stated in the transcript
+- Do NOT infer, assume, or add external knowledge
+- Use ## headers for major sections
+- Use bullet points for key details
+- Use **bold** for important terms
+- Include a "## Key Takeaways" section at the end with 3-5 main lessons
+- Estimated video length: ~${totalMinutes} minutes
 
 Video Title: "${title}"
 Transcript:
 ${transcript}` }
         ],
-        temperature: 0.5,
+        temperature: 0.3,
         maxTokens: 4096,
       });
       return res;
     }
 
-    // Multi-chunk: summarize each chunk, then combine
+    // Multi-chunk: summarize each chunk precisely
     const chunkSummaries: string[] = [];
     for (let i = 0; i < chunks.length; i++) {
-      const chunkLabel = `Part ${i + 1} of ${chunks.length}`;
+      const startMin = Math.round((i * 6000) / 800);
+      const endMin = Math.round(((i + 1) * 6000) / 800);
+      const chunkLabel = `[~${startMin}-${endMin} min] Part ${i + 1}/${chunks.length}`;
+
       const res = await aiComplete({
         messages: [
-          { role: "system", content: "You are an expert educational researcher. Summarize video transcript segments thoroughly." },
-          { role: "user", content: `This is ${chunkLabel} of the video "${title}". Summarize ALL key points, concepts, examples, and arguments in this segment. Be thorough — do not skip anything.
+          { role: "system", content: "You are a precise transcript summarizer. Extract only what is explicitly said. No external knowledge." },
+          { role: "user", content: `Summarize this transcript segment (${chunkLabel}) from the video "${title}". List every key point, concept, example, and argument mentioned. Be precise and factual.
 
 Transcript segment:
 ${chunks[i]}` }
         ],
-        temperature: 0.5,
-        maxTokens: 2048,
+        temperature: 0.3,
+        maxTokens: 1500,
       });
       chunkSummaries.push(`### ${chunkLabel}\n${res}`);
     }
 
-    // Combine all chunk summaries into a unified document
+    // Combine into a single precise document
     const combinedSummaries = chunkSummaries.join("\n\n---\n\n");
     const finalRes = await aiComplete({
       messages: [
-        { role: "system", content: "You are an expert educational researcher. Create polished, comprehensive summaries." },
-        { role: "user", content: `Below are summaries of each segment of the video "${title}" (${chunks.length} parts). Combine them into ONE comprehensive, well-structured summary document that covers the ENTIRE video from beginning to end without missing any content.
+        { role: "system", content: "You are a precise educational summarizer. Merge segment summaries into one cohesive document. Do not add information not present in the segment summaries." },
+        { role: "user", content: `Merge these ${chunks.length} segment summaries of the video "${title}" into ONE well-structured summary. Cover the ENTIRE video from start (~0 min) to end (~${totalMinutes} min).
 
-Requirements:
-- Cover every key point from start to finish
-- Use chronological flow showing how the video progresses
+Rules:
+- Preserve ALL key points from every segment — do not drop any
+- Use chronological flow with time markers where available
 - Use ## headers for major topic sections
-- Use bullet points for key details and examples
-- Use **bold** for important terms and concepts
-- Include a "Key Takeaways" section at the end
-- The summary should be detailed enough that someone reading it understands the full video content
+- Use bullet points for details
+- Use **bold** for important terms
+- End with "## Key Takeaways" (3-5 bullet points)
+- Be precise — only include what was in the segment summaries
 
 Segment summaries:
 ${combinedSummaries}` }
       ],
-      temperature: 0.5,
+      temperature: 0.3,
       maxTokens: 4096,
     });
     return finalRes;
