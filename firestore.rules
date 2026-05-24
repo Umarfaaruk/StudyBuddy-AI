@@ -191,5 +191,31 @@ service cloud.firestore {
       allow create: if isNewOwner();
       allow update, delete: if isOwner();
     }
+
+    // ── /notifications collection ─────────────────────
+    match /notifications/{notificationId} {
+      allow read: if isAuthenticated() && resource.data.user_id == request.auth.uid;
+      allow create: if isAuthenticated();
+      allow update: if isAuthenticated() && resource.data.user_id == request.auth.uid;
+      allow delete: if isAuthenticated() && resource.data.user_id == request.auth.uid;
+    }
+
+    // ── Admin overrides ───────────────────────────────
+    // Allow admins to read all user data for the admin panel
+    match /study_sessions/{sessionId} {
+      allow read: if isAdmin();
+    }
+    match /xp_logs/{logId} {
+      allow read: if isAdmin();
+    }
+    match /quiz_attempts/{attemptId} {
+      allow read: if isAdmin();
+    }
+    match /materials/{materialId} {
+      allow read: if isAdmin();
+    }
+    match /user_streaks/{userId} {
+      allow read: if isAdmin();
+    }
   }
 }

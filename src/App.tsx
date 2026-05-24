@@ -3,6 +3,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider } from "@/contexts/AuthContext";
+import { NotificationProvider } from "@/contexts/NotificationContext";
 import { DeepFocusProvider } from "@/hooks/useDeepFocus";
 import ProtectedRoute from "@/components/ProtectedRoute";
 import AdminRoute from "@/components/AdminRoute";
@@ -62,6 +63,7 @@ const App = () => (
       <Sonner />
       <BrowserRouter>
         <AuthProvider>
+          <NotificationProvider>
           <DeepFocusProvider>
             <Routes>
               {/* Public */}
@@ -82,12 +84,6 @@ const App = () => (
               {/* Legacy onboarding routes redirect to new flow */}
               <Route path="/onboarding/profile" element={<Navigate to="/onboarding" replace />} />
               <Route path="/onboarding/goals" element={<Navigate to="/onboarding" replace />} />
-
-              {/* Admin Panel — only for admin & super_admin */}
-              <Route
-                path="/admin"
-                element={<AdminRoute><AdminPanel /></AdminRoute>}
-              />
 
               {/* Protected: App screens with sidebar layout */}
               <Route element={<ProtectedRoute><AppLayout /></ProtectedRoute>}>
@@ -122,11 +118,13 @@ const App = () => (
                 <Route path="/profile" element={<ErrorBoundary><Profile /></ErrorBoundary>} />
                 <Route path="/settings" element={<ErrorBoundary><Settings /></ErrorBoundary>} />
                 <Route path="/feedback" element={<ErrorBoundary><Feedback /></ErrorBoundary>} />
+                <Route path="/admin" element={<AdminRoute><ErrorBoundary><AdminPanel /></ErrorBoundary></AdminRoute>} />
               </Route>
 
               <Route path="*" element={<NotFound />} />
             </Routes>
           </DeepFocusProvider>
+          </NotificationProvider>
         </AuthProvider>
       </BrowserRouter>
     </TooltipProvider>

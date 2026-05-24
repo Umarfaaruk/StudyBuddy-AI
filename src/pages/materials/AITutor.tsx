@@ -1,13 +1,13 @@
 import { useState, useRef, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Bot, Send, Sparkles, Loader2, Copy, Check, Square, Trash2, Calculator, Atom, BookOpen, Code2, Globe, FileText, X, Upload, Link2 } from "lucide-react";
+import { Bot, Send, Sparkles, Loader2, Copy, Check, Square, Trash2, FileText, X, Upload } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
 import ReactMarkdown from "react-markdown";
 import { aiStream } from "@/lib/aiService";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { collection, query, where, getDocs, orderBy, addDoc, updateDoc, doc } from "firebase/firestore";
+import { collection, query, where, getDocs, addDoc, doc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import {
   Select,
@@ -30,30 +30,10 @@ interface Material {
   key_topics: string[];
 }
 
-
-
-// Sentinel value for "no file selected" in Radix Select (empty string is invalid)
-const NO_FILE_VALUE = "__none__";
-
 // Maximum document content to include in the system prompt (avoid token overflow)
 const MAX_DOC_CONTEXT_CHARS = 12_000;
 
-const GENERIC_SYSTEM_PROMPT = `You are EduOnx AI Tutor — an expert, patient, and encouraging tutor that helps students learn and master any subject.
-
-Guidelines:
-- Give clear, step-by-step explanations
-- Use analogies and real-world examples to make concepts intuitive
-- Break down complex topics into digestible parts
-- Encourage critical thinking by asking follow-up questions
-- Highlight common mistakes students make and how to avoid them
-- Use markdown formatting: headers (##), bullet points, numbered lists, **bold**, and \`code\` blocks
-- If math is involved, show each step clearly
-- Be warm and supportive — celebrate understanding
-- Keep responses focused and practical (not too long)
-- End with a brief summary or key takeaway when explaining concepts`;
-
 const getFileBasedSystemPrompt = (fileName: string, documentContent: string): string => {
-  // Truncate document content to avoid exceeding model context limits
   const truncatedContent = documentContent.length > MAX_DOC_CONTEXT_CHARS
     ? documentContent.substring(0, MAX_DOC_CONTEXT_CHARS) +
       `\n\n[... Document truncated. Total length: ${documentContent.length} characters. The above represents the first ${MAX_DOC_CONTEXT_CHARS} characters.]`
@@ -132,14 +112,10 @@ async function extractTextFromFile(file: File): Promise<string> {
 }
 
 /**
- * AI Tutor — Enhanced with File Support & Inline Upload
+ * AI Tutor — File-Only Mode
  * 
- * Features:
- * - Generic Q&A mode (standard tutoring)
- * - File-based Q&A (answer questions about uploaded documents)
- * - Inline file upload directly in the tutor
- * - Real-time streaming responses
- * - Context-aware answers from document content
+ * Users must upload a file to start asking questions.
+ * All answers are strictly based on the uploaded document content.
  */
 const AITutor = () => {
   const { user } = useAuth();
@@ -151,6 +127,7 @@ const AITutor = () => {
   const [selectedMaterialId, setSelectedMaterialId] = useState<string | null>(null);
   const [selectedMaterial, setSelectedMaterial] = useState<Material | null>(null);
   const [uploading, setUploading] = useState(false);
+  const [isDragOver, setIsDragOver] = useState(false);
   const chatEndRef = useRef<HTMLDivElement>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -175,7 +152,6 @@ const AITutor = () => {
         _uploaded_at: doc.data().uploaded_at || "",
       }));
       
-      // Sort client-side to avoid needing a Firestore composite index
       fetched.sort((a, b) => {
         const timeA = a._uploaded_at ? new Date(a._uploaded_at).getTime() : 0;
         const timeB = b._uploaded_at ? new Date(b._uploaded_at).getTime() : 0;
@@ -209,7 +185,7 @@ const AITutor = () => {
   }, []);
 
   /**
-   * Handle inline file upload directly in the AI Tutor
+   * Handle file upload
    */
   const handleFileUpload = async (files: FileList | null) => {
     if (!files || !user || files.length === 0) return;
@@ -223,15 +199,10 @@ const AITutor = () => {
     setUploading(true);
     try {
       toast.info(`Processing ${file.name}...`);
-
-      // Extract text
       const extractedText = await extractTextFromFile(file);
-
-      // Generate simple topics
       const nameBase = file.name.replace(/\.[^.]+$/, "").replace(/[_-]/g, " ");
       const keyTopics = [nameBase];
 
-      // Save to Firestore
       const materialRef = await addDoc(collection(db, "materials"), {
         user_id: user.uid,
         file_name: file.name,
@@ -246,7 +217,6 @@ const AITutor = () => {
         processed_at: new Date().toISOString(),
       });
 
-      // Refresh materials list and auto-select the new file
       await queryClient.invalidateQueries({ queryKey: ["materials", user.uid] });
       setSelectedMaterialId(materialRef.id);
       setMessages([]);
@@ -256,24 +226,28 @@ const AITutor = () => {
       toast.error("Failed to process file. Please try again.");
     } finally {
       setUploading(false);
-      // Reset file input so same file can be selected again
       if (fileInputRef.current) fileInputRef.current.value = "";
     }
   };
 
-
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragOver(false);
+    handleFileUpload(e.dataTransfer.files);
+  };
 
   const streamResponse = async (userMessage: string, history: Message[]) => {
+    if (!selectedMaterial) {
+      toast.error("Please upload or select a file first");
+      return;
+    }
+
     const controller = new AbortController();
     abortControllerRef.current = controller;
     setStreaming(true);
 
-    // Determine system prompt based on whether a file is selected
-    const systemPrompt = selectedMaterial
-      ? getFileBasedSystemPrompt(selectedMaterial.file_name, selectedMaterial.extracted_text)
-      : GENERIC_SYSTEM_PROMPT;
+    const systemPrompt = getFileBasedSystemPrompt(selectedMaterial.file_name, selectedMaterial.extracted_text);
 
-    // Build conversation history for OpenRouter
     const apiMessages: { role: "system" | "user" | "assistant"; content: string }[] = [
       { role: "system", content: systemPrompt },
       ...history.map((m) => ({
@@ -283,7 +257,6 @@ const AITutor = () => {
       { role: "user", content: userMessage },
     ];
 
-    // Add assistant placeholder
     setMessages((prev) => [...prev, { role: "assistant", content: "" }]);
 
     try {
@@ -296,8 +269,6 @@ const AITutor = () => {
           signal: controller.signal,
         },
         (token) => {
-          // If we get a retry notification, reset accumulated text
-          // so the "retrying..." message doesn't persist in the final answer
           if (token.includes("⏳") && token.includes("retrying")) {
             full = "";
           }
@@ -310,7 +281,6 @@ const AITutor = () => {
         }
       );
 
-      // Clean any leftover retry status text from final response
       const cleanResponse = full.replace(/\n*⏳\s*\*Rate limited[^*]*\*\n*/g, "").trim();
       if (cleanResponse !== full) {
         setMessages((prev) => {
@@ -349,6 +319,10 @@ const AITutor = () => {
 
   const handleSend = () => {
     if (!question.trim() || streaming) return;
+    if (!selectedMaterial) {
+      toast.error("Please upload or select a file first to ask questions.");
+      return;
+    }
     const userMsg: Message = { role: "user", content: question.trim() };
     const newHistory = [...messages, userMsg];
     setMessages(newHistory);
@@ -376,26 +350,18 @@ const AITutor = () => {
     toast.success("Copied to clipboard");
   };
 
-  const handleStarterClick = (prompt: string) => {
-    setQuestion(prompt);
-    const userMsg: Message = { role: "user", content: prompt };
-    const newHistory = [...messages, userMsg];
-    setMessages(newHistory);
-    streamResponse(prompt, messages);
-  };
-
   return (
     <div className="flex flex-col h-[calc(100vh-80px)] max-w-3xl mx-auto">
       {/* Header */}
       <div className="px-6 pt-6 pb-4 flex items-center justify-between">
         <div className="space-y-1">
-          <h1 className="text-2xl font-bold text-foreground tracking-tight flex items-center gap-2">
-            <Bot className="h-6 w-6 text-primary" /> AI Tutor
+          <h1 className="text-2xl font-bold text-gray-900 tracking-tight flex items-center gap-2">
+            <Bot className="h-6 w-6 text-[#1D4ED8]" /> AI Tutor
           </h1>
-          <p className="text-muted-foreground text-sm">
+          <p className="text-gray-500 text-sm">
             {selectedMaterial
               ? `Learning from: ${selectedMaterial.file_name}`
-              : "Ask me anything — I'll explain concepts, solve problems, and help you learn."
+              : "Upload a file to start asking questions about it."
             }
           </p>
         </div>
@@ -409,15 +375,15 @@ const AITutor = () => {
       </div>
 
       {/* File Selector & Upload */}
-      <div className="px-6 pb-3 border-b border-border">
+      <div className="px-6 pb-3 border-b border-gray-200">
         <div className="flex items-center gap-3">
-          <FileText className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+          <FileText className="h-4 w-4 text-gray-400 flex-shrink-0" />
 
           {materials.length > 0 ? (
             <Select
-              value={selectedMaterialId || NO_FILE_VALUE}
+              value={selectedMaterialId || "__none__"}
               onValueChange={(value) => {
-                if (value === NO_FILE_VALUE) {
+                if (value === "__none__") {
                   setSelectedMaterialId(null);
                   setMessages([]);
                 } else {
@@ -430,8 +396,8 @@ const AITutor = () => {
                 <SelectValue placeholder="Select a file to ask questions about it" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value={NO_FILE_VALUE}>
-                  <span className="text-muted-foreground">Generic Tutor (No File)</span>
+                <SelectItem value="__none__">
+                  <span className="text-gray-400">Choose a document...</span>
                 </SelectItem>
                 {materials.map((m) => (
                   <SelectItem key={m.id} value={m.id}>
@@ -441,8 +407,8 @@ const AITutor = () => {
               </SelectContent>
             </Select>
           ) : (
-            <span className="text-sm text-muted-foreground flex-1">
-              No files uploaded yet. Upload a PDF to ask questions about it.
+            <span className="text-sm text-gray-400 flex-1">
+              No files uploaded yet. Upload a PDF, TXT, or MD file to get started.
             </span>
           )}
 
@@ -460,7 +426,6 @@ const AITutor = () => {
             </Button>
           )}
 
-          {/* Inline Upload Button */}
           <Button
             variant="outline"
             size="sm"
@@ -484,30 +449,28 @@ const AITutor = () => {
             onChange={(e) => handleFileUpload(e.target.files)}
           />
         </div>
-
-
       </div>
 
       {/* Chat Area */}
       <div className="flex-1 overflow-y-auto px-6 space-y-4 pb-4">
         {messages.length === 0 ? (
-          /* Empty state — subject starters or file info */
-          <div className="flex flex-col items-center justify-center h-full space-y-8 py-12">
+          /* Empty state */
+          <div className="flex flex-col items-center justify-center h-full space-y-6 py-12">
             {selectedMaterial ? (
               <div className="text-center space-y-3">
-                <div className="h-16 w-16 rounded-2xl bg-accent/10 flex items-center justify-center mx-auto">
-                  <FileText className="h-8 w-8 text-accent" />
+                <div className="h-16 w-16 rounded-2xl bg-[#1D4ED8]/10 flex items-center justify-center mx-auto">
+                  <FileText className="h-8 w-8 text-[#1D4ED8]" />
                 </div>
-                <h2 className="text-xl font-bold text-foreground">{selectedMaterial.file_name}</h2>
-                <p className="text-sm text-muted-foreground max-w-md">
+                <h2 className="text-xl font-bold text-gray-900">{selectedMaterial.file_name}</h2>
+                <p className="text-sm text-gray-500 max-w-md">
                   Ask me any questions about this document. I'll answer strictly based on the content.
                 </p>
                 {selectedMaterial.key_topics.length > 0 && (
                   <div className="mt-4 space-y-2">
-                    <p className="text-xs font-semibold text-muted-foreground uppercase">Key Topics:</p>
+                    <p className="text-xs font-semibold text-gray-400 uppercase">Key Topics:</p>
                     <div className="flex flex-wrap gap-2 justify-center">
                       {selectedMaterial.key_topics.slice(0, 5).map((topic, idx) => (
-                        <span key={idx} className="px-3 py-1 rounded-full bg-primary/10 text-xs text-primary">
+                        <span key={idx} className="px-3 py-1 rounded-full bg-[#1D4ED8]/10 text-xs text-[#1D4ED8]">
                           {topic}
                         </span>
                       ))}
@@ -516,39 +479,33 @@ const AITutor = () => {
                 )}
               </div>
             ) : (
-              <>
-                <div className="text-center space-y-3">
-                  <div className="h-16 w-16 rounded-2xl bg-primary/10 flex items-center justify-center mx-auto">
-                    <Sparkles className="h-8 w-8 text-primary" />
-                  </div>
-                  <h2 className="text-xl font-bold text-foreground">What would you like to learn?</h2>
-                  <p className="text-sm text-muted-foreground max-w-md">
-                    Upload your materials or type a specific question below. You can ask me to explain concepts, summarize text, or solve complex problems based on your provided data.
-                  </p>
+              /* Upload prompt - large drag-and-drop zone */
+              <div
+                className={`w-full max-w-lg mx-auto rounded-2xl border-2 border-dashed p-10 text-center transition-all duration-200 cursor-pointer ${
+                  isDragOver
+                    ? "border-[#1D4ED8] bg-[#1D4ED8]/5 scale-[1.02]"
+                    : "border-gray-200 hover:border-[#1D4ED8]/40 hover:bg-gray-50"
+                }`}
+                onClick={() => fileInputRef.current?.click()}
+                onDragOver={(e) => { e.preventDefault(); setIsDragOver(true); }}
+                onDragLeave={() => setIsDragOver(false)}
+                onDrop={handleDrop}
+              >
+                <div className="h-16 w-16 rounded-2xl bg-[#1D4ED8]/10 flex items-center justify-center mx-auto mb-4">
+                  <Upload className="h-8 w-8 text-[#1D4ED8]" />
                 </div>
-
-                {/* Subject starter prompts */}
-                <div className="grid grid-cols-2 gap-2 max-w-md mx-auto">
-                  {[
-                    { icon: Calculator, label: "Math", prompt: "Explain how to solve quadratic equations step by step" },
-                    { icon: Atom, label: "Physics", prompt: "Explain Newton's laws of motion with real-world examples" },
-                    { icon: Code2, label: "Coding", prompt: "Explain the concept of recursion with a simple example" },
-                    { icon: Globe, label: "General", prompt: "Help me create a study plan for my upcoming exams" },
-                  ].map((s) => (
-                    <button
-                      key={s.label}
-                      onClick={() => handleStarterClick(s.prompt)}
-                      className="flex items-center gap-2 px-4 py-3 rounded-xl border border-border bg-card hover:border-primary/40 hover:bg-primary/5 transition-all text-left group"
-                    >
-                      <s.icon className="h-4 w-4 text-muted-foreground group-hover:text-primary transition-colors" />
-                      <div>
-                        <div className="text-xs font-semibold text-foreground">{s.label}</div>
-                        <div className="text-[10px] text-muted-foreground truncate max-w-[140px]">{s.prompt}</div>
-                      </div>
-                    </button>
-                  ))}
+                <h2 className="text-xl font-bold text-gray-900 mb-2">Upload your study material</h2>
+                <p className="text-sm text-gray-500 max-w-sm mx-auto mb-4">
+                  Drop a PDF, TXT, or Markdown file here, or click to browse. The AI Tutor will answer questions based on your uploaded content.
+                </p>
+                <div className="flex items-center justify-center gap-3 text-xs text-gray-400">
+                  <span className="px-2 py-1 rounded-lg bg-gray-100">PDF</span>
+                  <span className="px-2 py-1 rounded-lg bg-gray-100">TXT</span>
+                  <span className="px-2 py-1 rounded-lg bg-gray-100">MD</span>
+                  <span className="text-gray-300">•</span>
+                  <span>Max 50MB</span>
                 </div>
-              </>
+              </div>
             )}
           </div>
         ) : (
@@ -556,33 +513,33 @@ const AITutor = () => {
           messages.map((msg, idx) => (
             <div key={idx} className={`flex gap-3 ${msg.role === "user" ? "justify-end" : ""}`}>
               {msg.role === "assistant" && (
-                <div className="h-8 w-8 rounded-lg bg-primary/10 flex items-center justify-center flex-shrink-0 mt-1">
-                  <Sparkles className="h-4 w-4 text-primary" />
+                <div className="h-8 w-8 rounded-lg bg-[#1D4ED8]/10 flex items-center justify-center flex-shrink-0 mt-1">
+                  <Sparkles className="h-4 w-4 text-[#1D4ED8]" />
                 </div>
               )}
               <div
                 className={`max-w-[85%] rounded-xl px-4 py-3 ${msg.role === "user"
-                  ? "bg-primary text-primary-foreground"
-                  : "bg-card border border-border"
+                  ? "bg-[#1D4ED8] text-white"
+                  : "bg-white border border-gray-100 shadow-sm"
                   }`}
               >
                 {msg.role === "user" ? (
                   <p className="text-sm whitespace-pre-wrap">{msg.content}</p>
                 ) : msg.content ? (
                   <div className="relative group">
-                    <div className="prose prose-sm max-w-none dark:prose-invert [&>*:first-child]:mt-0 [&>*:last-child]:mb-0">
+                    <div className="prose prose-sm max-w-none [&>*:first-child]:mt-0 [&>*:last-child]:mb-0">
                       <ReactMarkdown>{msg.content}</ReactMarkdown>
                     </div>
                     <button
                       onClick={() => handleCopy(msg.content, idx)}
-                      className="absolute top-0 right-0 opacity-0 group-hover:opacity-100 transition-opacity p-1 rounded bg-muted"
+                      className="absolute top-0 right-0 opacity-0 group-hover:opacity-100 transition-opacity p-1 rounded bg-gray-100"
                       title="Copy response"
                     >
-                      {copiedIdx === idx ? <Check className="h-3.5 w-3.5 text-accent" /> : <Copy className="h-3.5 w-3.5 text-muted-foreground" />}
+                      {copiedIdx === idx ? <Check className="h-3.5 w-3.5 text-green-500" /> : <Copy className="h-3.5 w-3.5 text-gray-400" />}
                     </button>
                   </div>
                 ) : streaming && idx === messages.length - 1 ? (
-                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <div className="flex items-center gap-2 text-sm text-gray-400">
                     <Loader2 className="h-4 w-4 animate-spin" /> Thinking...
                   </div>
                 ) : null}
@@ -594,13 +551,13 @@ const AITutor = () => {
       </div>
 
       {/* Input Bar */}
-      <div className="px-6 pb-6 pt-2 border-t border-border bg-background">
+      <div className="px-6 pb-6 pt-2 border-t border-gray-200 bg-[#F3F4F6]">
         <div className="flex items-center gap-3">
           <Input
             ref={inputRef}
             placeholder={selectedMaterial
               ? `Ask about ${selectedMaterial.file_name}...`
-              : "Ask anything — e.g. 'Explain photosynthesis step by step'"
+              : "Upload a file first to start asking questions..."
             }
             value={question}
             onChange={(e) => setQuestion(e.target.value)}
@@ -610,7 +567,7 @@ const AITutor = () => {
                 handleSend();
               }
             }}
-            disabled={streaming}
+            disabled={streaming || !selectedMaterial}
             className="flex-1 h-11"
             autoFocus
           />
@@ -621,15 +578,15 @@ const AITutor = () => {
           ) : (
             <Button
               onClick={handleSend}
-              disabled={!question.trim()}
-              className="h-11 w-11 p-0 bg-primary text-primary-foreground hover:bg-primary/90"
+              disabled={!question.trim() || !selectedMaterial}
+              className="h-11 w-11 p-0 bg-[#1D4ED8] text-white hover:bg-[#2563EB]"
             >
               <Send className="h-4 w-4" />
             </Button>
           )}
         </div>
-        <p className="text-[10px] text-muted-foreground text-center mt-2">
-          Powered by Llama 3 via Groq · {selectedMaterial ? "Answers based on your document" : "Responses may not always be accurate"}
+        <p className="text-[10px] text-gray-400 text-center mt-2">
+          Powered by Llama 3 via Groq · Answers based on your uploaded document
         </p>
       </div>
     </div>

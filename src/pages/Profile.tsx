@@ -94,7 +94,7 @@ const Profile = () => {
 
       {/* Breadcrumb */}
       <div className="flex items-center gap-2 text-xs text-gray-500">
-        <Link to="/dashboard" className="hover:text-gray-900">Dashboard</Link>
+        <Link to="/dashboard" className="hover:text-gray-900">Home</Link>
         <span>›</span>
         <span className="text-gray-900 font-medium">Profile</span>
       </div>

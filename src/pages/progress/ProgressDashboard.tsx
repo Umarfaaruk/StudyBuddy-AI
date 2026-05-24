@@ -78,12 +78,12 @@ const ProgressDashboard = () => {
       <div className="flex items-start justify-between">
         <div>
           <div className="flex items-center gap-2 text-xs text-gray-400 mb-3">
-            <Link to="/dashboard" className="hover:text-gray-700 transition-colors">Dashboard</Link>
+            <Link to="/dashboard" className="hover:text-gray-700 transition-colors">Home</Link>
             <span>›</span>
-            <span className="text-gray-700 font-medium">Insights</span>
+            <span className="text-gray-700 font-medium">Dashboard</span>
           </div>
           <h1 className="text-3xl md:text-4xl font-extrabold text-gray-900 tracking-tight">
-            Insights Dashboard
+             Dashboard
           </h1>
           <p className="text-gray-400 text-sm mt-1.5">
             Performance analytics, retention metrics &amp; AI-powered recommendations.

@@ -16,10 +16,10 @@ import { doc, getDoc } from "firebase/firestore";
 import eduonxLogoOnDark from "@/assets/eduonx-logo-on-dark.png";
 
 const sidebarLinks = [
-  { to: "/dashboard", icon: LayoutDashboard, label: "Dashboard" },
+  { to: "/dashboard", icon: LayoutDashboard, label: "Home" },
   { to: "/lessons", icon: BookOpen, label: "Academy" },
   { to: "/materials/tutor", icon: Bot, label: "AI Tutor" },
-  { to: "/progress", icon: BarChart3, label: "Insights" },
+  { to: "/progress", icon: BarChart3, label: "Dashboard" },
   { to: "/doubts", icon: MessageCircleQuestion, label: "Ask Doubt" },
   { to: "/leaderboard", icon: Trophy, label: "Leaderboard" },
   { to: "/quiz", icon: Gamepad2, label: "Practice Arena" },

@@ -120,64 +120,152 @@ const VideoNotebookWorkspace = () => {
     }
   };
 
+  /**
+   * Split transcript into chunks for comprehensive summarization.
+   * Each chunk is ~6000 chars with ~500 char overlap to preserve context.
+   */
+  const splitTranscriptIntoChunks = (transcript: string, chunkSize = 6000, overlap = 500): string[] => {
+    if (transcript.length <= chunkSize) return [transcript];
+    const chunks: string[] = [];
+    let start = 0;
+    while (start < transcript.length) {
+      const end = Math.min(start + chunkSize, transcript.length);
+      chunks.push(transcript.substring(start, end));
+      start = end - overlap;
+      if (start >= transcript.length) break;
+    }
+    return chunks;
+  };
+
+  /**
+   * Chunked summarization: summarize each segment, then combine into a comprehensive summary.
+   * This ensures no part of the video is skipped, even for very long videos.
+   */
+  const generateChunkedSummary = async (transcript: string, title: string): Promise<string> => {
+    const chunks = splitTranscriptIntoChunks(transcript);
+    
+    if (chunks.length === 1) {
+      const res = await aiComplete({
+        messages: [
+          { role: "system", content: "You are an expert educational researcher. Follow instructions strictly. Return answers in markdown." },
+          { role: "user", content: `Create a comprehensive, detailed summary of this entire video transcript. Cover EVERY key point, concept, example, and argument from start to finish. Do not skip any part. Use timestamps or sequence markers (e.g., "First...", "Then...", "Later...") to show progression through the video.
+
+Format with markdown: use ## headers for major sections, bullet points for key details, and **bold** for important terms.
+
+Video Title: "${title}"
+Transcript:
+${transcript}` }
+        ],
+        temperature: 0.5,
+        maxTokens: 4096,
+      });
+      return res;
+    }
+
+    // Multi-chunk: summarize each chunk, then combine
+    const chunkSummaries: string[] = [];
+    for (let i = 0; i < chunks.length; i++) {
+      const chunkLabel = `Part ${i + 1} of ${chunks.length}`;
+      const res = await aiComplete({
+        messages: [
+          { role: "system", content: "You are an expert educational researcher. Summarize video transcript segments thoroughly." },
+          { role: "user", content: `This is ${chunkLabel} of the video "${title}". Summarize ALL key points, concepts, examples, and arguments in this segment. Be thorough — do not skip anything.
+
+Transcript segment:
+${chunks[i]}` }
+        ],
+        temperature: 0.5,
+        maxTokens: 2048,
+      });
+      chunkSummaries.push(`### ${chunkLabel}\n${res}`);
+    }
+
+    // Combine all chunk summaries into a unified document
+    const combinedSummaries = chunkSummaries.join("\n\n---\n\n");
+    const finalRes = await aiComplete({
+      messages: [
+        { role: "system", content: "You are an expert educational researcher. Create polished, comprehensive summaries." },
+        { role: "user", content: `Below are summaries of each segment of the video "${title}" (${chunks.length} parts). Combine them into ONE comprehensive, well-structured summary document that covers the ENTIRE video from beginning to end without missing any content.
+
+Requirements:
+- Cover every key point from start to finish
+- Use chronological flow showing how the video progresses
+- Use ## headers for major topic sections
+- Use bullet points for key details and examples
+- Use **bold** for important terms and concepts
+- Include a "Key Takeaways" section at the end
+- The summary should be detailed enough that someone reading it understands the full video content
+
+Segment summaries:
+${combinedSummaries}` }
+      ],
+      temperature: 0.5,
+      maxTokens: 4096,
+    });
+    return finalRes;
+  };
+
   const generateToolOutput = useCallback(async (tool: typeof activeNotebookTool) => {
     if (!workspaceVideoData) return;
-    if (notebookOutputs[tool]) return; // Already generated
+    if (notebookOutputs[tool]) return;
 
     setGeneratingTool(tool);
     try {
-      let prompt = "";
-      if (tool === "briefing") {
-        prompt = `You are an expert educational researcher. Create a comprehensive "Briefing Document" based on this video transcript.
-Summarize the core thesis, outline the key takeaways, and compile a structured, high-level summary of all main ideas.
-Format with markdown headers (##), bold text, and brief bullet points. Ensure it is factually aligned with the video transcript.
+      let result = "";
+      const fullTranscript = workspaceVideoData.transcript;
 
-Video Title: "${workspaceVideoData.title}"
-Transcript:
-${workspaceVideoData.transcript.substring(0, 15000)}`;
-      } else if (tool === "study") {
-        prompt = `You are a master teacher. Generate a complete "Study Guide" based on the video transcript.
+      if (tool === "briefing") {
+        result = await generateChunkedSummary(fullTranscript, workspaceVideoData.title);
+      } else {
+        const transcriptForPrompt = fullTranscript.length > 12000
+          ? fullTranscript.substring(0, 12000) + `\n\n[... transcript continues for ${fullTranscript.length} total characters.]`
+          : fullTranscript;
+
+        let prompt = "";
+        if (tool === "study") {
+          prompt = `You are a master teacher. Generate a complete "Study Guide" based on the video transcript.
 It must contain:
 1. Key Definitions & Concepts (with detailed explanations)
 2. 3-5 Essay or Short-Answer Prompts to test comprehension
 3. A concluding summary of the intellectual significance of the topic.
-Format with clean markdown headings (##) and bold text. Ensure all generated information aligns with the transcript.
+Format with clean markdown headings (##) and bold text.
 
 Video Title: "${workspaceVideoData.title}"
 Transcript:
-${workspaceVideoData.transcript.substring(0, 15000)}`;
-      } else if (tool === "faq") {
-        prompt = `You are an academic advisor. Analyze the video transcript and generate a list of 5-8 Frequently Asked Questions (FAQ) that a student would ask, followed by clear, thorough, and highly accurate answers based strictly on the transcript. Format as markdown.
+${transcriptForPrompt}`;
+        } else if (tool === "faq") {
+          prompt = `You are an academic advisor. Generate 5-8 FAQ that a student would ask about this video, with clear answers based strictly on the transcript. Format as markdown.
 
 Video Title: "${workspaceVideoData.title}"
 Transcript:
-${workspaceVideoData.transcript.substring(0, 15000)}`;
-      } else if (tool === "timeline") {
-        prompt = `You are a historian and structure planner. Outline a chronological timeline of topics discussed in the video transcript. Group ideas by time periods or logical sequence. Highlight key milestones, transitions, or narrative arcs in the explanation. Format as markdown.
+${transcriptForPrompt}`;
+        } else if (tool === "timeline") {
+          prompt = `You are a historian and structure planner. Outline a chronological timeline of ALL topics discussed in the video from start to finish. Cover every section and transition. Format as markdown.
 
 Video Title: "${workspaceVideoData.title}"
 Transcript:
-${workspaceVideoData.transcript.substring(0, 15000)}`;
-      } else if (tool === "podcast") {
-        prompt = `You are a professional audio scriptwriter. Create a lively, engaging dialogue script between two podcast hosts (named Alex and Robin) who are discussing and explaining the main points of this video in an accessible, conversational way. Alex asks insightful questions, and Robin explains the details clearly with analogies. Format the script like:
+${transcriptForPrompt}`;
+        } else if (tool === "podcast") {
+          prompt = `You are a professional audio scriptwriter. Create a lively dialogue script between two podcast hosts (Alex and Robin) discussing the main points of this video. Alex asks insightful questions, Robin explains with analogies.
+Format as:
 Alex: ...
 Robin: ...
-Keep it highly educational and engaging!
 
 Video Title: "${workspaceVideoData.title}"
 Transcript:
-${workspaceVideoData.transcript.substring(0, 15000)}`;
+${transcriptForPrompt}`;
+        }
+
+        result = await aiComplete({
+          messages: [
+            { role: "system", content: "You are a helpful educational AI assistant. Follow instructions strictly and return answers in markdown formatting." },
+            { role: "user", content: prompt }
+          ],
+          temperature: 0.6
+        });
       }
 
-      const res = await aiComplete({
-        messages: [
-          { role: "system", content: "You are a helpful educational AI assistant representing a NotebookLM-style workspace. Follow instructions strictly and return answers in markdown formatting." },
-          { role: "user", content: prompt }
-        ],
-        temperature: 0.6
-      });
-
-      setNotebookOutputs(prev => ({ ...prev, [tool]: res }));
+      setNotebookOutputs(prev => ({ ...prev, [tool]: result }));
     } catch (err: any) {
       console.error(err);
       toast.error("Failed to generate tool output");
@@ -211,7 +299,7 @@ ${workspaceVideoData.transcript.substring(0, 15000)}`;
           {
             role: "system",
             content: `You are an expert tutor in a NotebookLM-style study environment. You have loaded the transcript of the video: "${workspaceVideoData.title}" by "${workspaceVideoData.channel}".
-Answer the user's questions strictly using the video transcript provided below. If the answer is not mentioned in the transcript, explain that you are answering from the video context and do not have additional details outside the video, but try to be as helpful as possible based on the video context.
+Answer the user's questions strictly using the video transcript provided below.
 
 Transcript:
 ${workspaceVideoData.transcript.substring(0, 15000)}`
@@ -235,11 +323,11 @@ ${workspaceVideoData.transcript.substring(0, 15000)}`
   };
 
   return (
-    <div className="bg-card border border-border rounded-xl p-6 space-y-6 shadow-sm">
-      <div className="flex items-center justify-between pb-3 border-b border-border">
+    <div className="bg-white border border-gray-100 rounded-2xl p-6 space-y-6 shadow-sm">
+      <div className="flex items-center justify-between pb-3 border-b border-gray-100">
         <div className="flex items-center gap-2">
           <Youtube className="h-6 w-6 text-red-500 animate-pulse" />
-          <h2 className="font-bold text-lg text-foreground">AI Video Notebook (NotebookLM Workspace)</h2>
+          <h2 className="font-bold text-lg text-gray-900">AI Video Notebook</h2>
         </div>
         {workspaceVideoData && (
           <button
@@ -249,7 +337,7 @@ ${workspaceVideoData.transcript.substring(0, 15000)}`
               setNotebookOutputs({});
               setNotebookChatMessages([]);
             }}
-            className="text-xs text-muted-foreground hover:text-destructive flex items-center gap-1 transition-colors"
+            className="text-xs text-gray-400 hover:text-red-500 flex items-center gap-1 transition-colors"
           >
             <X className="h-3.5 w-3.5" /> Clear Workspace
           </button>
@@ -257,26 +345,26 @@ ${workspaceVideoData.transcript.substring(0, 15000)}`
       </div>
 
       {!workspaceVideoData ? (
-        <div className="space-y-4 font-sans">
-          <p className="text-xs text-muted-foreground leading-relaxed">
-            Paste a YouTube link below to index it. This creates a virtual NotebookLM study workspace where you can generate study guides, briefing documents, interactive timelines, podcast scripts, and chat directly with the video's content.
+        <div className="space-y-4">
+          <p className="text-xs text-gray-500 leading-relaxed">
+            Paste a YouTube link below to create a study workspace. Generate summaries, study guides, FAQs, timelines, podcast scripts, and chat with the video content.
           </p>
           <div className="flex gap-2">
-            <div className="relative flex-1 font-sans">
+            <div className="relative flex-1">
               <Youtube className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-red-500" />
               <input
                 type="url"
-                placeholder="Paste YouTube link here... e.g. https://www.youtube.com/watch?v=..."
+                placeholder="Paste YouTube link here..."
                 value={workspaceUrl}
                 onChange={(e) => setWorkspaceUrl(e.target.value)}
-                className="w-full h-11 pl-10 pr-3 text-sm bg-muted/30 border border-border rounded-lg outline-none focus:border-primary/40 text-foreground transition-all"
+                className="w-full h-11 pl-10 pr-3 text-sm bg-gray-50 border border-gray-200 rounded-xl outline-none focus:border-[#1D4ED8]/40 focus:ring-2 focus:ring-[#1D4ED8]/10 text-gray-900 transition-all"
                 onKeyDown={(e) => e.key === "Enter" && handleLoadVideo()}
               />
             </div>
             <Button
               onClick={handleLoadVideo}
               disabled={isWorkspaceLoading || !workspaceUrl.trim()}
-              className="bg-accent text-accent-foreground hover:bg-accent/90 h-11 px-5 gap-2 font-semibold"
+              className="bg-[#1D4ED8] text-white hover:bg-[#2563EB] h-11 px-5 gap-2 font-semibold rounded-xl"
             >
               {isWorkspaceLoading ? (
                 <Loader2 className="h-4 w-4 animate-spin" />
@@ -288,9 +376,9 @@ ${workspaceVideoData.transcript.substring(0, 15000)}`
         </div>
       ) : (
         <div className="grid lg:grid-cols-12 gap-6">
-          {/* Left Column: YouTube Video Player & User Notes */}
+          {/* Left Column: Video Player & User Notes */}
           <div className="lg:col-span-7 space-y-4">
-            <div className="rounded-xl overflow-hidden bg-black aspect-video relative shadow-md border border-border">
+            <div className="rounded-xl overflow-hidden bg-black aspect-video relative shadow-md border border-gray-200">
               <iframe
                 src={`https://www.youtube.com/embed/${workspaceVideoData.id}`}
                 className="absolute inset-0 w-full h-full border-none"
@@ -299,16 +387,16 @@ ${workspaceVideoData.transcript.substring(0, 15000)}`
               />
             </div>
             <div>
-              <h3 className="text-sm font-bold text-foreground line-clamp-2 leading-tight" title={workspaceVideoData.title}>
+              <h3 className="text-sm font-bold text-gray-900 line-clamp-2 leading-tight" title={workspaceVideoData.title}>
                 {workspaceVideoData.title}
               </h3>
-              <p className="text-xs text-muted-foreground mt-1">{workspaceVideoData.channel}</p>
+              <p className="text-xs text-gray-500 mt-1">{workspaceVideoData.channel}</p>
             </div>
 
             {/* User Note Taking Area */}
-            <div className="bg-card border border-border rounded-xl p-4 space-y-3 shadow-sm">
-              <div className="flex justify-between items-center pb-2 border-b border-border/40">
-                <h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">My Study Notes</h4>
+            <div className="bg-white border border-gray-100 rounded-xl p-4 space-y-3 shadow-sm">
+              <div className="flex justify-between items-center pb-2 border-b border-gray-100">
+                <h4 className="text-xs font-bold uppercase tracking-wider text-gray-400">My Study Notes</h4>
                 <div className="flex items-center gap-2">
                   <Button
                     size="sm"
@@ -327,7 +415,7 @@ ${workspaceVideoData.transcript.substring(0, 15000)}`
                   </Button>
                   <Button
                     size="sm"
-                    className="h-7 text-[10px] bg-accent text-accent-foreground hover:bg-accent/90 px-2"
+                    className="h-7 text-[10px] bg-[#1D4ED8] text-white hover:bg-[#2563EB] px-2"
                     onClick={handleSaveNotesToResources}
                     disabled={isSavingNotes || !personalNotes.trim()}
                   >
@@ -336,18 +424,18 @@ ${workspaceVideoData.transcript.substring(0, 15000)}`
                 </div>
               </div>
               <textarea
-                placeholder="Write your notes here while watching the video. You can copy AI summaries here or type your own takeaways."
+                placeholder="Write your notes here while watching the video..."
                 value={personalNotes}
                 onChange={(e) => setPersonalNotes(e.target.value)}
-                className="w-full min-h-[160px] p-3 text-xs bg-muted/20 border border-border rounded-lg outline-none focus:border-accent/40 text-foreground resize-y font-mono"
+                className="w-full min-h-[160px] p-3 text-xs bg-gray-50 border border-gray-200 rounded-lg outline-none focus:border-[#1D4ED8]/40 text-gray-900 resize-y font-mono"
               />
             </div>
           </div>
 
           {/* Right Column: AI Study Tools & Chat */}
-          <div className="lg:col-span-5 flex flex-col bg-muted/10 border border-border/60 rounded-xl p-4 min-h-[500px]">
+          <div className="lg:col-span-5 flex flex-col bg-gray-50 border border-gray-100 rounded-xl p-4 min-h-[500px]">
             {/* Tabs for tools */}
-            <div className="flex border-b border-border/40 pb-2 mb-4 overflow-x-auto gap-1">
+            <div className="flex border-b border-gray-200 pb-2 mb-4 overflow-x-auto gap-1">
               {[
                 { key: "briefing" as const, label: "Summary" },
                 { key: "study" as const, label: "Study Guide" },
@@ -361,8 +449,8 @@ ${workspaceVideoData.transcript.substring(0, 15000)}`
                   onClick={() => setActiveNotebookTool(tool.key)}
                   className={`px-3 py-1.5 text-xs rounded-lg whitespace-nowrap transition-colors font-medium ${
                     activeNotebookTool === tool.key
-                      ? "bg-accent/10 text-accent font-semibold"
-                      : "text-muted-foreground hover:text-foreground hover:bg-muted/40"
+                      ? "bg-[#1D4ED8]/10 text-[#1D4ED8] font-semibold"
+                      : "text-gray-400 hover:text-gray-900 hover:bg-gray-100"
                   }`}
                 >
                   {tool.label}
@@ -372,25 +460,24 @@ ${workspaceVideoData.transcript.substring(0, 15000)}`
 
             {generatingTool === activeNotebookTool ? (
               <div className="flex-1 flex flex-col items-center justify-center py-12 space-y-3">
-                <Loader2 className="h-8 w-8 animate-spin text-accent" />
-                <p className="text-xs text-muted-foreground animate-pulse text-center">AI Notebook is generating content parallelly...</p>
+                <Loader2 className="h-8 w-8 animate-spin text-[#1D4ED8]" />
+                <p className="text-xs text-gray-400 animate-pulse text-center">AI Notebook is generating content...</p>
               </div>
             ) : activeNotebookTool === "chat" ? (
               /* Chat view */
               <div className="flex flex-col h-full flex-1">
-                <div className="flex items-center justify-between pb-3 border-b border-border/40">
-                  <div className="text-xs font-semibold text-foreground flex items-center gap-1.5">
-                    <MessageSquare className="h-3.5 w-3.5 text-accent" />
+                <div className="flex items-center justify-between pb-3 border-b border-gray-200">
+                  <div className="text-xs font-semibold text-gray-900 flex items-center gap-1.5">
+                    <MessageSquare className="h-3.5 w-3.5 text-[#1D4ED8]" />
                     Ask anything about this video
                   </div>
                 </div>
 
-                {/* Messages list */}
                 <div className="flex-1 overflow-y-auto space-y-3 py-3 pr-1 max-h-[300px] scrollbar-thin">
                   {notebookChatMessages.length === 0 ? (
-                    <div className="flex flex-col items-center justify-center py-12 text-center text-muted-foreground space-y-2">
-                      <MessageSquare className="h-8 w-8 opacity-30" />
-                      <p className="text-xs text-muted-foreground/80">Ask a question to begin chatting with this YouTube video.</p>
+                    <div className="flex flex-col items-center justify-center py-12 text-center space-y-2">
+                      <MessageSquare className="h-8 w-8 text-gray-200" />
+                      <p className="text-xs text-gray-400">Ask a question to begin chatting with this YouTube video.</p>
                     </div>
                   ) : (
                     notebookChatMessages.map((msg, i) => (
@@ -401,8 +488,8 @@ ${workspaceVideoData.transcript.substring(0, 15000)}`
                         <div
                           className={`max-w-[85%] rounded-lg p-2.5 text-xs whitespace-pre-wrap leading-relaxed ${
                             msg.role === "user"
-                              ? "bg-accent text-accent-foreground"
-                              : "bg-card border border-border text-foreground prose prose-sm max-w-none dark:prose-invert"
+                              ? "bg-[#1D4ED8] text-white"
+                              : "bg-white border border-gray-100 text-gray-900 prose prose-sm max-w-none"
                           }`}
                         >
                           {msg.role === "user" ? (
@@ -416,29 +503,28 @@ ${workspaceVideoData.transcript.substring(0, 15000)}`
                   )}
                   {isNotebookChatSending && (
                     <div className="flex justify-start">
-                      <div className="bg-card border border-border rounded-lg p-2.5 flex items-center gap-2">
-                        <Loader2 className="h-3 w-3 animate-spin text-accent" />
-                        <span className="text-[10px] text-muted-foreground">Thinking...</span>
+                      <div className="bg-white border border-gray-100 rounded-lg p-2.5 flex items-center gap-2">
+                        <Loader2 className="h-3 w-3 animate-spin text-[#1D4ED8]" />
+                        <span className="text-[10px] text-gray-400">Thinking...</span>
                       </div>
                     </div>
                   )}
                   <div ref={chatEndRef} />
                 </div>
 
-                {/* Chat input box */}
-                <div className="flex gap-2 pt-3 border-t border-border/40 mt-auto">
+                <div className="flex gap-2 pt-3 border-t border-gray-200 mt-auto">
                   <input
                     type="text"
                     placeholder="Ask about this video..."
                     value={notebookChatInput}
                     onChange={(e) => setNotebookChatInput(e.target.value)}
-                    className="flex-1 h-9 px-3 text-xs bg-muted/40 border border-border rounded-lg outline-none focus:border-accent/40 text-foreground transition-all"
+                    className="flex-1 h-9 px-3 text-xs bg-white border border-gray-200 rounded-lg outline-none focus:border-[#1D4ED8]/40 text-gray-900 transition-all"
                     onKeyDown={(e) => e.key === "Enter" && handleSendChatMessage()}
                   />
                   <Button
                     onClick={handleSendChatMessage}
                     disabled={isNotebookChatSending || !notebookChatInput.trim()}
-                    className="bg-accent text-accent-foreground hover:bg-accent/90 h-9 w-9 p-0 flex items-center justify-center rounded-lg"
+                    className="bg-[#1D4ED8] text-white hover:bg-[#2563EB] h-9 w-9 p-0 flex items-center justify-center rounded-lg"
                   >
                     <Send className="h-3.5 w-3.5" />
                   </Button>
@@ -447,8 +533,8 @@ ${workspaceVideoData.transcript.substring(0, 15000)}`
             ) : (
               /* Markdown generated outputs */
               <div className="flex-1 flex flex-col justify-between">
-                <div className="flex items-center justify-between pb-2.5 border-b border-border/40 mb-3">
-                  <span className="text-xs font-bold text-foreground">
+                <div className="flex items-center justify-between pb-2.5 border-b border-gray-200 mb-3">
+                  <span className="text-xs font-bold text-gray-900">
                     {activeNotebookTool === "briefing" && "📖 Summary notes"}
                     {activeNotebookTool === "study" && "📝 Comprehension study guide"}
                     {activeNotebookTool === "faq" && "❓ Frequently asked questions"}
@@ -462,21 +548,21 @@ ${workspaceVideoData.transcript.substring(0, 15000)}`
                         setPersonalNotes(prev => prev + noteSnippet);
                         toast.success("AI notes appended to study notes!");
                       }}
-                      className="text-[10px] text-accent hover:underline flex items-center gap-1 transition-all bg-accent/5 hover:bg-accent/10 px-2 py-1 rounded border border-accent/20"
+                      className="text-[10px] text-[#1D4ED8] hover:underline flex items-center gap-1 transition-all bg-[#1D4ED8]/5 hover:bg-[#1D4ED8]/10 px-2 py-1 rounded border border-[#1D4ED8]/20"
                     >
                       Append to My Notes
                     </button>
                   )}
                 </div>
-                <div className="flex-1 overflow-y-auto max-h-[360px] py-3 pr-1 scrollbar-thin mt-2 font-sans font-normal">
+                <div className="flex-1 overflow-y-auto max-h-[360px] py-3 pr-1 scrollbar-thin mt-2">
                   {notebookOutputs[activeNotebookTool] ? (
-                    <div className="prose prose-sm dark:prose-invert max-w-none text-xs text-foreground/90 leading-relaxed font-sans font-normal">
+                    <div className="prose prose-sm max-w-none text-xs text-gray-700 leading-relaxed">
                       <ReactMarkdown>{notebookOutputs[activeNotebookTool]}</ReactMarkdown>
                     </div>
                   ) : (
-                    <div className="flex flex-col items-center justify-center py-12 text-center text-muted-foreground space-y-2">
-                      <Sparkles className="h-8 w-8 opacity-30 animate-pulse" />
-                      <p className="text-xs font-sans">Generating details...</p>
+                    <div className="flex flex-col items-center justify-center py-12 text-center space-y-2">
+                      <Sparkles className="h-8 w-8 text-gray-200 animate-pulse" />
+                      <p className="text-xs text-gray-400">Generating details...</p>
                     </div>
                   )}
                 </div>
@@ -497,7 +583,7 @@ const QuickTools = () => {
   const [activeTab, setActiveTab] = useState<"youtube" | "concept" | "doubt">("youtube");
 
   return (
-    <div className="p-6 md:p-8 max-w-6xl mx-auto space-y-8 font-sans">
+    <div className="p-6 md:p-8 max-w-6xl mx-auto space-y-8">
       {/* Header */}
       <div className="flex items-center gap-3">
         <div className="h-10 w-10 rounded-lg bg-[#1D4ED8]/10 flex items-center justify-center">

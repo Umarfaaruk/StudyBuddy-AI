@@ -1,18 +1,71 @@
 import { Link } from "react-router-dom";
 import {
   BookOpen, MessageCircleQuestion, Gamepad2, Upload, BarChart3,
-  Trophy, Flame, Lightbulb, Bot, AlertTriangle, CalendarDays
+  Trophy, Flame, Lightbulb, Bot, AlertTriangle, CalendarDays, User
 } from "lucide-react";
 import { useDashboardData } from "@/hooks/useDashboardData";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useAuth } from "@/contexts/AuthContext";
+import { useQuery } from "@tanstack/react-query";
+import { db } from "@/lib/firebase";
+import { doc, getDoc, collection, query, where, getDocs } from "firebase/firestore";
+import NotificationPanel from "@/components/NotificationPanel";
 
 const Dashboard = () => {
+  const { user } = useAuth();
   const { profile, streak, totalXp, studyTime, avgScore, continueLearning, weakTopics, isLoading, greeting } =
     useDashboardData();
 
   const displayName = profile?.full_name?.split(" ")[0] ?? "there";
   const nextMilestone = Math.ceil(totalXp / 500) * 500 || 500;
   const currentStreak = streak?.current_streak ?? 0;
+
+  // Fetch additional stats for badge computation
+  const { data: badgeStats } = useQuery({
+    queryKey: ["badge-stats", user?.uid],
+    queryFn: async () => {
+      if (!user) return { materialsCount: 0, quizCount: 0, studyHours: 0, doubtCount: 0, longestStreak: 0 };
+      
+      const [materialsSnap, quizSnap, sessionsSnap, doubtsSnap, streakSnap] = await Promise.all([
+        getDocs(query(collection(db, "materials"), where("user_id", "==", user.uid))),
+        getDocs(query(collection(db, "quiz_attempts"), where("user_id", "==", user.uid))),
+        getDocs(query(collection(db, "study_sessions"), where("user_id", "==", user.uid))),
+        getDocs(query(collection(db, "doubt_sessions"), where("user_id", "==", user.uid))),
+        getDoc(doc(db, "user_streaks", user.uid)),
+      ]);
+
+      const totalSeconds = sessionsSnap.docs.reduce((sum, d) => sum + (d.data().duration_seconds || 0), 0);
+      const streakData = streakSnap.exists() ? streakSnap.data() : {};
+
+      return {
+        materialsCount: materialsSnap.size,
+        quizCount: quizSnap.size,
+        studyHours: totalSeconds / 3600,
+        doubtCount: doubtsSnap.size,
+        longestStreak: streakData?.longest_streak ?? currentStreak,
+      };
+    },
+    enabled: !!user,
+  });
+
+  // Compute earned badges from actual user activity
+  const earnedBadges = (() => {
+    if (!badgeStats) return [];
+    const badges: { emoji: string; label: string }[] = [];
+    
+    if (currentStreak >= 7 || (badgeStats.longestStreak ?? 0) >= 7) badges.push({ emoji: "🔥", label: "On Fire" });
+    if (badgeStats.materialsCount >= 5) badges.push({ emoji: "📚", label: "Bookworm" });
+    if ((avgScore ?? 0) > 80) badges.push({ emoji: "⭐", label: "Star" });
+    if (badgeStats.quizCount >= 10) badges.push({ emoji: "🎯", label: "Bullseye" });
+    if (badgeStats.studyHours >= 10) badges.push({ emoji: "🚀", label: "Rocket" });
+    if (badgeStats.doubtCount >= 20) badges.push({ emoji: "🧠", label: "Brain" });
+    if (currentStreak >= 30 || (badgeStats.longestStreak ?? 0) >= 30) badges.push({ emoji: "💎", label: "Diamond" });
+    
+    // Champion = all of the above (excluding Diamond)
+    if (badges.length >= 6) badges.unshift({ emoji: "🏆", label: "Champion" });
+    
+    return badges;
+  })();
 
   // Streak calendar — Current week (Mon-Sun)
   const streakDays = Array.from({ length: 7 }, (_, i) => {
@@ -26,13 +79,6 @@ const Dashboard = () => {
     return { label: dayNames[i], active: isActive };
   });
 
-  // Mock leaderboard data
-  const leaderboardUsers = [
-    { name: "Xenon_77", xp: "+2.4k", avatar: "X", color: "bg-yellow-400" },
-    { name: "Helios_42", xp: "+2.1k", avatar: "H", color: "bg-blue-400" },
-    { name: "Neptune_19", xp: "+1.8k", avatar: "N", color: "bg-green-400" },
-  ];
-
   // Mock retention data for bar chart
   const retentionData = [
     { label: "Mon", value: 65 },
@@ -42,18 +88,6 @@ const Dashboard = () => {
     { label: "Fri", value: 70 },
     { label: "Sat", value: 55 },
     { label: "Sun", value: 85 },
-  ];
-
-  // Badge emojis
-  const badges = [
-    { emoji: "🏆", label: "Champion" },
-    { emoji: "🔥", label: "On Fire" },
-    { emoji: "📚", label: "Bookworm" },
-    { emoji: "⭐", label: "Star" },
-    { emoji: "🎯", label: "Bullseye" },
-    { emoji: "💎", label: "Diamond" },
-    { emoji: "🚀", label: "Rocket" },
-    { emoji: "🧠", label: "Brain" },
   ];
 
   return (
@@ -80,23 +114,24 @@ const Dashboard = () => {
         </div>
         <div className="flex items-center gap-3">
           {/* Notification bell */}
-          <button className="relative h-10 w-10 rounded-xl bg-white shadow-sm flex items-center justify-center hover:bg-gray-50 transition-colors">
-            <svg className="h-5 w-5 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
-            </svg>
-            <span className="absolute -top-0.5 -right-0.5 h-3 w-3 bg-red-500 rounded-full border-2 border-white" />
-          </button>
-          {/* Search bar */}
-          <div className="hidden md:flex items-center gap-2 bg-white rounded-xl shadow-sm px-4 py-2.5 w-64">
-            <svg className="h-4 w-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-            </svg>
-            <input
-              type="text"
-              placeholder="Search..."
-              className="bg-transparent text-sm text-gray-600 placeholder-gray-400 outline-none flex-1"
-            />
-          </div>
+          <NotificationPanel />
+          {/* Profile button (replaces search bar) */}
+          <Link
+            to="/profile"
+            className="hidden md:flex items-center gap-3 bg-white rounded-xl shadow-sm px-4 py-2 hover:shadow-md transition-all duration-200 border border-gray-100"
+          >
+            {profile?.avatar_url ? (
+              <img src={profile.avatar_url} alt="Avatar" className="h-8 w-8 rounded-full object-cover" />
+            ) : (
+              <div className="h-8 w-8 rounded-full bg-[#1D4ED8] flex items-center justify-center">
+                <User className="h-4 w-4 text-white" />
+              </div>
+            )}
+            <div className="text-left">
+              <div className="text-sm font-semibold text-gray-900 leading-tight">{displayName}</div>
+              <div className="text-[10px] text-gray-400">View Profile</div>
+            </div>
+          </Link>
         </div>
       </div>
 
@@ -180,7 +215,7 @@ const Dashboard = () => {
         </div>
       </div>
 
-      {/* ── Streak Bar ──────────────────────────────────────── */}
+      {/* ── Streak Bar + Earned Badges ──────────────────────── */}
       <div className="bg-white rounded-2xl shadow-sm p-5">
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-3">
@@ -191,20 +226,42 @@ const Dashboard = () => {
             </span>
           </div>
         </div>
-        <div className="flex gap-2">
-          {streakDays.map((d, i) => (
-            <div key={i} className="flex flex-col items-center gap-1.5">
-              <div
-                className={`h-10 w-10 rounded-xl flex items-center justify-center text-xs font-bold transition-all duration-300 ${
-                  d.active
-                    ? "bg-gradient-to-br from-[#1D4ED8] to-[#2563EB] text-white shadow-md shadow-blue-200"
-                    : "bg-gray-100 text-gray-400"
-                }`}
-              >
-                {d.label}
+        <div className="flex items-center gap-6 flex-wrap">
+          {/* Streak calendar */}
+          <div className="flex gap-2">
+            {streakDays.map((d, i) => (
+              <div key={i} className="flex flex-col items-center gap-1.5">
+                <div
+                  className={`h-10 w-10 rounded-xl flex items-center justify-center text-xs font-bold transition-all duration-300 ${
+                    d.active
+                      ? "bg-gradient-to-br from-[#1D4ED8] to-[#2563EB] text-white shadow-md shadow-blue-200"
+                      : "bg-gray-100 text-gray-400"
+                  }`}
+                >
+                  {d.label}
+                </div>
               </div>
-            </div>
-          ))}
+            ))}
+          </div>
+
+          {/* Earned Badges - beside streak */}
+          {earnedBadges.length > 0 && (
+            <>
+              <div className="h-10 w-px bg-gray-200 hidden sm:block" />
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-semibold text-gray-400 mr-1">Badges</span>
+                {earnedBadges.map((b) => (
+                  <div
+                    key={b.label}
+                    className="h-10 w-10 rounded-xl bg-gradient-to-br from-[#1D4ED8]/5 to-[#2563EB]/10 flex items-center justify-center text-lg hover:scale-110 transition-transform cursor-default border border-[#1D4ED8]/10"
+                    title={b.label}
+                  >
+                    {b.emoji}
+                  </div>
+                ))}
+              </div>
+            </>
+          )}
         </div>
       </div>
 
@@ -269,32 +326,6 @@ const Dashboard = () => {
             </Link>
           </div>
         )}
-      </div>
-
-      {/* ── Your Badges ─────────────────────────────────────── */}
-      <div className="bg-white rounded-2xl shadow-sm p-6">
-        <div className="flex items-center justify-between mb-5">
-          <h3 className="text-base font-bold text-gray-900 flex items-center gap-2">
-            <Trophy className="h-5 w-5 text-[#1D4ED8]" />
-            Your Badges
-          </h3>
-          <Link to="/achievements" className="text-xs font-semibold text-[#1D4ED8] hover:underline">
-            See all →
-          </Link>
-        </div>
-        <div className="flex gap-3 overflow-x-auto scrollbar-thin pb-2">
-          {badges.map((b) => (
-            <div
-              key={b.label}
-              className="flex flex-col items-center gap-2 min-w-[72px] group"
-            >
-              <div className="h-14 w-14 rounded-2xl bg-gray-50 group-hover:bg-[#1D4ED8]/10 flex items-center justify-center text-2xl transition-all duration-200 group-hover:scale-110 shadow-sm border border-gray-100">
-                {b.emoji}
-              </div>
-              <span className="text-[10px] font-medium text-gray-400 group-hover:text-[#1D4ED8] transition-colors">{b.label}</span>
-            </div>
-          ))}
-        </div>
       </div>
 
       {/* ── Weak Topics / Recommendations ───────────────────── */}
