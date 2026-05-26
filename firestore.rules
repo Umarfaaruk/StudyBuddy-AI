@@ -27,8 +27,9 @@ service cloud.firestore {
     }
     
     // ── /users collection ─────────────────────────────
+    // Users can read their own doc; admins can read any user doc
     match /users/{userId} {
-      allow read: if isUser(userId);
+      allow read: if isUser(userId) || isAdmin();
       allow write: if isUser(userId);
       
       match /profile_data/{document=**} {
@@ -52,7 +53,7 @@ service cloud.firestore {
     
     // ── /study_sessions collection ────────────────────
     match /study_sessions/{sessionId} {
-      allow read: if isOwner();
+      allow read: if isOwner() || isAdmin();
       allow create: if isNewOwner();
       allow update: if isOwner();
       allow delete: if isOwner();
@@ -60,14 +61,14 @@ service cloud.firestore {
     
     // ── /xp_logs collection ───────────────────────────
     match /xp_logs/{logId} {
-      allow read: if isOwner();
+      allow read: if isOwner() || isAdmin();
       allow create: if isNewOwner();
       allow update, delete: if isOwner();
     }
     
     // ── /user_streaks collection ──────────────────────
     match /user_streaks/{userId} {
-      allow read: if isUser(userId);
+      allow read: if isUser(userId) || isAdmin();
       allow write: if isUser(userId);
     }
     
@@ -81,7 +82,7 @@ service cloud.firestore {
     
     // ── /quiz_attempts collection ─────────────────────
     match /quiz_attempts/{attemptId} {
-      allow read: if isOwner();
+      allow read: if isOwner() || isAdmin();
       allow create: if isNewOwner();
       allow update: if isOwner();
     }
@@ -144,7 +145,7 @@ service cloud.firestore {
     
     // ── /materials collection ─────────────────────────
     match /materials/{materialId} {
-      allow read: if isOwner();
+      allow read: if isOwner() || isAdmin();
       allow create: if isNewOwner();
       allow update: if isOwner();
       allow delete: if isOwner();
@@ -198,24 +199,6 @@ service cloud.firestore {
       allow create: if isAuthenticated();
       allow update: if isAuthenticated() && resource.data.user_id == request.auth.uid;
       allow delete: if isAuthenticated() && resource.data.user_id == request.auth.uid;
-    }
-
-    // ── Admin overrides ───────────────────────────────
-    // Allow admins to read all user data for the admin panel
-    match /study_sessions/{sessionId} {
-      allow read: if isAdmin();
-    }
-    match /xp_logs/{logId} {
-      allow read: if isAdmin();
-    }
-    match /quiz_attempts/{attemptId} {
-      allow read: if isAdmin();
-    }
-    match /materials/{materialId} {
-      allow read: if isAdmin();
-    }
-    match /user_streaks/{userId} {
-      allow read: if isAdmin();
     }
   }
 }

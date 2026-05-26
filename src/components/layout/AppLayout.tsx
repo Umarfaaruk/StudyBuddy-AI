@@ -3,7 +3,7 @@ import {
   LayoutDashboard, BookOpen, MessageCircleQuestion, Trophy,
   BarChart3, Upload, Settings, User, Flame, Gamepad2, Bot,
   Timer, Focus, X, ChevronLeft, MessageSquare, Camera, Menu, Wrench,
-  SkipBack, Play, SkipForward, Pause, Bell
+  SkipBack, Play, SkipForward, Pause, Bell, ShieldCheck
 } from "lucide-react";
 import { useDeepFocus } from "@/hooks/useDeepFocus";
 import GlobalTimer from "@/components/GlobalTimer";
@@ -74,6 +74,27 @@ const AppLayout = () => {
     staleTime: 1000 * 60 * 5,
   });
 
+  // Check if user is admin for showing admin link
+  const { data: isAdmin } = useQuery({
+    queryKey: ["is-admin-sidebar", user?.uid],
+    queryFn: async () => {
+      if (!user) return false;
+      try {
+        const userSnap = await getDoc(doc(db, "users", user.uid));
+        const userData = userSnap.data();
+        if (userData?.role === "admin" || userData?.is_admin === true) return true;
+      } catch {}
+      try {
+        const profileSnap = await getDoc(doc(db, "profiles", user.uid));
+        const profileData = profileSnap.data();
+        if (profileData?.role === "admin" || profileData?.is_admin === true) return true;
+      } catch {}
+      return false;
+    },
+    enabled: !!user,
+    staleTime: 1000 * 60 * 10,
+  });
+
   const displayName = profile?.full_name || user?.displayName || "Student";
   const firstName = displayName.split(" ")[0];
 
@@ -142,6 +163,28 @@ const AppLayout = () => {
                 </Link>
               );
             })}
+
+            {/* Admin Section — only for admins */}
+            {isAdmin && (
+              <>
+                <div className="pt-4 pb-1">
+                  <span className="px-4 text-[11px] font-bold text-white/30 uppercase tracking-widest">
+                    Admin
+                  </span>
+                </div>
+                <Link
+                  to="/admin"
+                  className={`flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 ${
+                    pathname === "/admin"
+                      ? "bg-white text-[#0F172A] shadow-md font-semibold"
+                      : "text-white/60 hover:text-white hover:bg-white/[0.08]"
+                  }`}
+                >
+                  <ShieldCheck className="h-[18px] w-[18px] flex-shrink-0" />
+                  Admin Panel
+                </Link>
+              </>
+            )}
           </nav>
         </aside>
       )}
@@ -185,6 +228,28 @@ const AppLayout = () => {
                   </Link>
                 );
               })}
+              {/* Admin link in mobile menu */}
+              {isAdmin && (
+                <>
+                  <div className="pt-3 pb-1">
+                    <span className="px-4 text-[10px] font-bold text-white/30 uppercase tracking-widest">
+                      Admin
+                    </span>
+                  </div>
+                  <Link
+                    to="/admin"
+                    onClick={() => setMobileMenuOpen(false)}
+                    className={`flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all ${
+                      pathname === "/admin"
+                        ? "bg-white text-[#0F172A] font-semibold"
+                        : "text-white/60 hover:text-white hover:bg-white/[0.08]"
+                    }`}
+                  >
+                    <ShieldCheck className="h-5 w-5 flex-shrink-0" />
+                    Admin Panel
+                  </Link>
+                </>
+              )}
             </nav>
           </aside>
         </div>
