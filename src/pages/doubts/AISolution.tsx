@@ -25,7 +25,17 @@ const AISolution = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
   const question = (location.state as { question?: string })?.question as string | undefined;
-  const youtubeUrl = (location.state as { youtubeUrl?: string })?.youtubeUrl as string | undefined;
+  const youtubeUrlState = (location.state as { youtubeUrl?: string })?.youtubeUrl as string | undefined;
+
+  // Extract YouTube URL from the question text if not explicitly passed
+  let youtubeUrl = youtubeUrlState;
+  if (!youtubeUrl && question) {
+    const ytMatch = question.match(/(https?:\/\/(?:www\.)?(?:youtube\.com\/(?:watch\?v=|embed\/)|youtu\.be\/)[a-zA-Z0-9_-]{11})/i);
+    if (ytMatch) {
+      youtubeUrl = ytMatch[0];
+    }
+  }
+
   const [answer, setAnswer] = useState("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -99,7 +109,8 @@ When answering:
 6. If math is involved, show each step clearly
 7. End with a brief summary and suggest related topics to explore
 8. CRITICAL: If a YouTube Video Context/Transcript is provided, prioritize it as the primary source of truth. Your explanation and answers must be strictly factual and aligned with the information, details, and concepts presented in the video.
-9. CRITICAL: ALWAYS provide dynamic YouTube reference suggestions. At the end of your explanation, append a "📺 Recommended Videos" section with 1-2 highly relevant YouTube search links based on the topic discussed. Use the markdown format: [Watch on YouTube: <Topic>](https://www.youtube.com/results?search_query=<URL_encoded_topic>)`;
+9. CRITICAL: If the user's prompt is a YouTube URL or requests a video summary, provide a highly accurate, structured summary including Main Thesis, Key Takeaways, Detailed Explanations, and Actionable Lessons. Never state that you don't have the context or that the summary is hypothetical, since the full transcript is provided to you.
+10. CRITICAL: ALWAYS provide dynamic YouTube reference suggestions. At the end of your explanation, append a "📺 Recommended Videos" section with 1-2 highly relevant YouTube search links based on the topic discussed. Use the markdown format: [Watch on YouTube: <Topic>](https://www.youtube.com/results?search_query=<URL_encoded_topic>)`;
 
         let full = "";
         await aiStream(

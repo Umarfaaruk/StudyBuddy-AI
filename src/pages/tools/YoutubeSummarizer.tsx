@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { Youtube, Loader2, Sparkles } from "lucide-react";
+import { useState, useRef } from "react";
+import { Youtube, Loader2, Sparkles, Copy, CheckCheck, MessageSquare, Send, X, BookOpen, Clock, HelpCircle, ListChecks } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { aiComplete } from "@/lib/aiService";
@@ -7,126 +7,472 @@ import ReactMarkdown from "react-markdown";
 
 export const YoutubeSummarizer = () => {
   const [url, setUrl] = useState("");
-  const [videoId, setVideoId] = useState<string | null>(null);
+  const [videoData, setVideoData] = useState<{
+    id: string;
+    title: string;
+    channel: string;
+    transcript: string;
+    segments: { start: number; text: string }[];
+  } | null>(null);
   const [summary, setSummary] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
+  const [copied, setCopied] = useState(false);
+  const [activeTab, setActiveTab] = useState<"summary" | "keypoints" | "faq" | "chat">("summary");
+  const [tabOutputs, setTabOutputs] = useState<Record<string, string>>({});
+  const [generatingTab, setGeneratingTab] = useState<string | null>(null);
+  // Chat state
+  const [chatMessages, setChatMessages] = useState<{ role: "user" | "assistant"; content: string }[]>([]);
+  const [chatInput, setChatInput] = useState("");
+  const [isChatSending, setIsChatSending] = useState(false);
+  const chatEndRef = useRef<HTMLDivElement>(null);
 
-  const extractVideoId = (link: string) => {
-    const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|&v=)([^#&?]*).*/;
-    const match = link.match(regExp);
-    return match && match[2].length === 11 ? match[2] : null;
+  const extractVideoId = (link: string): string | null => {
+    const patterns = [
+      /(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/)([a-zA-Z0-9_-]{11})/,
+      /^([a-zA-Z0-9_-]{11})$/,
+    ];
+    for (const p of patterns) {
+      const m = link.match(p);
+      if (m) return m[1];
+    }
+    return null;
   };
 
+  const formatTimestamp = (seconds: number): string => {
+    const h = Math.floor(seconds / 3600);
+    const m = Math.floor((seconds % 3600) / 60);
+    const s = Math.floor(seconds % 60);
+    if (h > 0) return `${h}:${m.toString().padStart(2, "0")}:${s.toString().padStart(2, "0")}`;
+    return `${m}:${s.toString().padStart(2, "0")}`;
+  };
+
+  // ── Chunked summarization for accuracy ──────────────────────
+  const splitIntoChunks = (text: string, chunkSize = 6000, overlap = 500): string[] => {
+    if (text.length <= chunkSize) return [text];
+    const chunks: string[] = [];
+    let start = 0;
+    while (start < text.length) {
+      const end = Math.min(start + chunkSize, text.length);
+      chunks.push(text.substring(start, end));
+      start = end - overlap;
+      if (start >= text.length) break;
+    }
+    return chunks;
+  };
+
+  const generateAccurateSummary = async (transcript: string, title: string, segments: { start: number; text: string }[]): Promise<string> => {
+    const chunks = splitIntoChunks(transcript);
+    const totalMinutes = Math.round(transcript.length / 800);
+
+    // Build timestamp markers from segments
+    const timestampMarkers = segments
+      .filter((_, i) => i % Math.max(1, Math.floor(segments.length / 10)) === 0) // ~10 markers
+      .map(s => `[${formatTimestamp(s.start)}] ${s.text.substring(0, 80)}`)
+      .join("\n");
+
+    if (chunks.length === 1) {
+      return await aiComplete({
+        messages: [
+          { role: "system", content: "You are a precise educational summarizer. Stick strictly to the transcript content. NEVER add information not present in the transcript. Be thorough and factual." },
+          { role: "user", content: `Summarize this entire video transcript precisely and completely. Cover every key point from beginning to end.
+
+Rules:
+- ONLY include information explicitly stated in the transcript
+- Do NOT infer, assume, or add external knowledge
+- Use ## headers for major sections
+- Use bullet points for key details
+- Use **bold** for important terms and concepts
+- Include timestamp references where relevant (use the markers below)
+- End with "## Key Takeaways" section with 3-5 main lessons
+- Estimated video length: ~${totalMinutes} minutes
+
+Video Title: "${title}"
+Timestamp markers:
+${timestampMarkers}
+
+Transcript:
+${transcript}` }
+        ],
+        temperature: 0.3,
+        maxTokens: 4096,
+      });
+    }
+
+    // Multi-chunk: summarize each, then merge
+    const chunkSummaries: string[] = [];
+    for (let i = 0; i < chunks.length; i++) {
+      const startMin = Math.round((i * 6000) / 800);
+      const endMin = Math.round(((i + 1) * 6000) / 800);
+      const res = await aiComplete({
+        messages: [
+          { role: "system", content: "You are a precise transcript summarizer. Extract only what is explicitly said. No external knowledge." },
+          { role: "user", content: `Summarize this transcript segment (~${startMin}-${endMin} min, Part ${i + 1}/${chunks.length}) from the video "${title}". List every key point, concept, example, and argument mentioned.\n\nTranscript:\n${chunks[i]}` }
+        ],
+        temperature: 0.3,
+        maxTokens: 1500,
+      });
+      chunkSummaries.push(res);
+    }
+
+    // Merge into one cohesive document
+    const combined = chunkSummaries.join("\n\n---\n\n");
+    return await aiComplete({
+      messages: [
+        { role: "system", content: "You are a precise educational summarizer. Merge segment summaries into one cohesive document. Do not add information not in the summaries." },
+        { role: "user", content: `Merge these ${chunks.length} segment summaries of "${title}" into ONE well-structured summary covering the ENTIRE video (~${totalMinutes} min).
+
+Rules:
+- Preserve ALL key points from every segment
+- Use chronological flow with time markers
+- Use ## headers for major topic sections
+- Use bullet points for details, **bold** for terms
+- End with "## Key Takeaways" (3-5 bullet points)
+- Be precise — only include what was in the segments
+
+Segment summaries:
+${combined}` }
+      ],
+      temperature: 0.3,
+      maxTokens: 4096,
+    });
+  };
+
+  // ── Main handler ────────────────────────────────────────────
   const handleSummarize = async () => {
     const id = extractVideoId(url);
     if (!id) {
       toast.error("Please enter a valid YouTube URL");
       return;
     }
-    
-    setVideoId(id);
-    setIsGenerating(true);
+
+    setIsLoading(true);
+    setVideoData(null);
     setSummary("");
-    
+    setTabOutputs({});
+    setChatMessages([]);
+    setActiveTab("summary");
+
     try {
-      // In a real app, we would fetch the YouTube transcript here.
-      // For now, we simulate summarization based on the video URL/Topic.
-      const prompt = `You are an expert AI summarizer. The user has provided a YouTube video URL: ${url}. 
-Please provide a highly structured, comprehensive summary of what this video likely covers. 
-Include:
-1. Main thesis or topic
-2. Key takeaways (bullet points)
-3. Target audience and value provided
+      // Step 1: Fetch the actual transcript
+      const resp = await fetch(`/api/youtube-transcript?v=${id}`);
+      if (!resp.ok) throw new Error("Failed to fetch video data");
+      const data = await resp.json();
 
-Format your output in professional Markdown.`;
+      if (!data.transcript || data.transcript.length < 50) {
+        toast.error("This video doesn't have captions/transcript available. Try a different video.");
+        setIsLoading(false);
+        return;
+      }
 
-      const result = await aiComplete({
-        messages: [
-          { role: "system", content: "You are an expert educational summarizer." },
-          { role: "user", content: prompt }
-        ],
-        temperature: 0.7
+      setVideoData({
+        id,
+        title: data.title || "YouTube Video",
+        channel: data.channel || "Unknown Channel",
+        transcript: data.transcript,
+        segments: data.segments || [],
       });
+
+      // Step 2: Generate accurate summary from real transcript
+      setIsLoading(false);
+      setIsGenerating(true);
+
+      const result = await generateAccurateSummary(
+        data.transcript,
+        data.title || "YouTube Video",
+        data.segments || []
+      );
       setSummary(result);
-      toast.success("Summary generated!");
+      setTabOutputs(prev => ({ ...prev, summary: result }));
+      toast.success("Summary generated from video transcript!");
     } catch (err: any) {
       console.error(err);
-      toast.error("Failed to generate summary");
+      toast.error(err.message || "Failed to generate summary");
     } finally {
+      setIsLoading(false);
       setIsGenerating(false);
     }
   };
 
+  // ── Tab content generators ──────────────────────────────────
+  const generateTabContent = async (tab: string) => {
+    if (!videoData || tabOutputs[tab]) return;
+    setGeneratingTab(tab);
+
+    try {
+      const transcriptForPrompt = videoData.transcript.length > 12000
+        ? videoData.transcript.substring(0, 12000) + `\n\n[... transcript continues for ${videoData.transcript.length} total characters.]`
+        : videoData.transcript;
+
+      let prompt = "";
+      if (tab === "keypoints") {
+        prompt = `Extract ALL key points, important concepts, and actionable takeaways from this video transcript. Format as a numbered list with **bold** key terms. Group by topic section. Be precise — only include what's in the transcript.
+
+Video: "${videoData.title}"
+Transcript:
+${transcriptForPrompt}`;
+      } else if (tab === "faq") {
+        prompt = `Generate 6-8 FAQ that a viewer would ask about this video, with clear, detailed answers based STRICTLY on the transcript content. Do NOT make up answers — only use information from the transcript. Format as markdown with ## for each question.
+
+Video: "${videoData.title}"
+Transcript:
+${transcriptForPrompt}`;
+      }
+
+      const result = await aiComplete({
+        messages: [
+          { role: "system", content: "You are an educational assistant. Answer strictly from the provided transcript content. Never add external information." },
+          { role: "user", content: prompt }
+        ],
+        temperature: 0.3,
+        maxTokens: 4096,
+      });
+
+      setTabOutputs(prev => ({ ...prev, [tab]: result }));
+    } catch (err) {
+      console.error(err);
+      toast.error("Failed to generate content");
+    } finally {
+      setGeneratingTab(null);
+    }
+  };
+
+  // ── Chat with video ─────────────────────────────────────────
+  const handleSendChat = async () => {
+    if (!chatInput.trim() || !videoData || isChatSending) return;
+
+    const userMsg = chatInput.trim();
+    setChatInput("");
+    setChatMessages(prev => [...prev, { role: "user", content: userMsg }]);
+    setIsChatSending(true);
+
+    try {
+      const history = chatMessages.map(m => ({ role: m.role as "user" | "assistant", content: m.content }));
+
+      const result = await aiComplete({
+        messages: [
+          {
+            role: "system",
+            content: `You are an expert tutor. Answer the user's questions STRICTLY using the video transcript below. If the answer is not in the transcript, say so honestly.
+
+Video: "${videoData.title}" by "${videoData.channel}"
+Transcript:
+${videoData.transcript.substring(0, 15000)}`
+          },
+          ...history,
+          { role: "user", content: userMsg }
+        ],
+        temperature: 0.4,
+      });
+
+      setChatMessages(prev => [...prev, { role: "assistant", content: result }]);
+      setTimeout(() => chatEndRef.current?.scrollIntoView({ behavior: "smooth" }), 50);
+    } catch (err) {
+      console.error(err);
+      toast.error("Failed to send message");
+    } finally {
+      setIsChatSending(false);
+    }
+  };
+
+  const handleCopy = () => {
+    const content = activeTab === "chat" ? "" : (tabOutputs[activeTab] || summary);
+    if (!content) return;
+    navigator.clipboard.writeText(content);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  // Auto-generate tab content when switching
+  const handleTabSwitch = (tab: typeof activeTab) => {
+    setActiveTab(tab);
+    if (tab !== "summary" && tab !== "chat" && !tabOutputs[tab] && videoData) {
+      generateTabContent(tab);
+    }
+  };
+
   return (
-    <div className="bg-card border border-border rounded-xl p-6 space-y-6 shadow-sm font-sans h-full">
-      <div className="flex items-center gap-2 pb-3 border-b border-border">
-        <Youtube className="h-6 w-6 text-red-500 animate-pulse" />
-        <h2 className="font-bold text-lg text-foreground">YouTube Video Summarizer</h2>
-      </div>
-
-      <div className="space-y-4">
-        <div className="flex gap-3">
-          <input
-            type="text"
-            placeholder="Paste YouTube Link here (e.g., https://youtube.com/watch?v=...)"
-            value={url}
-            onChange={(e) => setUrl(e.target.value)}
-            className="flex-1 h-11 px-4 text-sm bg-muted/40 border border-border rounded-xl outline-none focus:border-red-500/40 focus:ring-2 focus:ring-red-500/10 text-foreground transition-all"
-            onKeyDown={(e) => e.key === "Enter" && handleSummarize()}
-          />
-          <Button
-            onClick={handleSummarize}
-            disabled={isGenerating || !url.trim()}
-            className="bg-red-500 text-white hover:bg-red-600 h-11 gap-2 font-semibold rounded-xl px-6"
-          >
-            {isGenerating ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
-            ) : (
-              <Sparkles className="h-4 w-4" />
-            )}
-            Summarize
-          </Button>
+    <div className="bg-white border border-gray-100 rounded-2xl p-6 space-y-6 shadow-sm">
+      <div className="flex items-center justify-between pb-3 border-b border-gray-100">
+        <div className="flex items-center gap-2">
+          <Youtube className="h-6 w-6 text-red-500" />
+          <h2 className="font-bold text-lg text-gray-900">YouTube Video Summarizer</h2>
         </div>
-
-        {videoId && (
-          <div className="grid md:grid-cols-2 gap-6 mt-6">
-            {/* Left: Video Player */}
-            <div className="rounded-xl overflow-hidden border border-border bg-black aspect-video flex-shrink-0 shadow-sm">
-              <iframe
-                width="100%"
-                height="100%"
-                src={`https://www.youtube.com/embed/${videoId}`}
-                title="YouTube video player"
-                frameBorder="0"
-                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                allowFullScreen
-                className="w-full h-full"
-              ></iframe>
-            </div>
-
-            {/* Right: AI Summary */}
-            <div className="bg-muted/20 border border-border rounded-xl p-5 flex flex-col min-h-[300px]">
-              {isGenerating ? (
-                <div className="flex-1 flex items-center justify-center flex-col gap-3">
-                  <Loader2 className="h-8 w-8 text-red-500 animate-spin" />
-                  <p className="text-sm text-muted-foreground animate-pulse">Analyzing video content...</p>
-                </div>
-              ) : summary ? (
-                <div className="flex-1 overflow-y-auto scrollbar-thin">
-                  <h3 className="font-bold text-sm text-foreground mb-4 pb-2 border-b border-border/50">AI Summary</h3>
-                  <div className="prose prose-sm dark:prose-invert max-w-none text-sm text-foreground/90 leading-relaxed font-sans">
-                    <ReactMarkdown>{summary}</ReactMarkdown>
-                  </div>
-                </div>
-              ) : (
-                <div className="flex-1 flex items-center justify-center text-muted-foreground text-sm">
-                  The AI summary will appear here.
-                </div>
-              )}
-            </div>
-          </div>
+        {videoData && (
+          <button
+            onClick={() => {
+              setVideoData(null);
+              setUrl("");
+              setSummary("");
+              setTabOutputs({});
+              setChatMessages([]);
+            }}
+            className="text-xs text-gray-400 hover:text-red-500 flex items-center gap-1 transition-colors"
+          >
+            <X className="h-3.5 w-3.5" /> Clear
+          </button>
         )}
       </div>
+
+      {/* URL Input */}
+      {!videoData ? (
+        <div className="space-y-3">
+          <p className="text-xs text-gray-500 leading-relaxed">
+            Paste a YouTube link to get an accurate AI summary based on the actual video transcript — not guesswork.
+          </p>
+          <div className="flex gap-2">
+            <div className="relative flex-1">
+              <Youtube className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-red-500" />
+              <input
+                type="url"
+                placeholder="Paste YouTube link here..."
+                value={url}
+                onChange={(e) => setUrl(e.target.value)}
+                disabled={isLoading}
+                className="w-full h-11 pl-10 pr-3 text-sm bg-gray-50 border border-gray-200 rounded-xl outline-none focus:border-red-500/40 focus:ring-2 focus:ring-red-500/10 text-gray-900 transition-all disabled:opacity-50"
+                onKeyDown={(e) => e.key === "Enter" && handleSummarize()}
+              />
+            </div>
+            <Button
+              onClick={handleSummarize}
+              disabled={isLoading || !url.trim()}
+              className="bg-red-500 text-white hover:bg-red-600 h-11 gap-2 font-semibold rounded-xl px-6"
+            >
+              {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
+              Summarize
+            </Button>
+          </div>
+        </div>
+      ) : (
+        /* ── Video Loaded: Player + Tabs ── */
+        <div className="grid lg:grid-cols-12 gap-6">
+          {/* Left: Video Player */}
+          <div className="lg:col-span-6 space-y-3">
+            <div className="rounded-xl overflow-hidden bg-black aspect-video relative shadow-md border border-gray-200">
+              <iframe
+                src={`https://www.youtube.com/embed/${videoData.id}`}
+                className="absolute inset-0 w-full h-full border-none"
+                title={videoData.title}
+                allowFullScreen
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+              />
+            </div>
+            <div>
+              <h3 className="text-sm font-bold text-gray-900 line-clamp-2 leading-tight">{videoData.title}</h3>
+              <p className="text-xs text-gray-500 mt-1">{videoData.channel}</p>
+            </div>
+          </div>
+
+          {/* Right: AI Output Tabs */}
+          <div className="lg:col-span-6 flex flex-col bg-gray-50 border border-gray-100 rounded-xl p-4 min-h-[400px]">
+            {/* Tab buttons */}
+            <div className="flex gap-1 pb-2 mb-3 border-b border-gray-200 overflow-x-auto">
+              {[
+                { key: "summary" as const, label: "Summary", icon: BookOpen },
+                { key: "keypoints" as const, label: "Key Points", icon: ListChecks },
+                { key: "faq" as const, label: "FAQ", icon: HelpCircle },
+                { key: "chat" as const, label: "Ask AI", icon: MessageSquare },
+              ].map((tab) => (
+                <button
+                  key={tab.key}
+                  onClick={() => handleTabSwitch(tab.key)}
+                  className={`px-3 py-1.5 text-xs rounded-lg whitespace-nowrap transition-colors font-medium flex items-center gap-1.5 ${
+                    activeTab === tab.key
+                      ? "bg-red-500/10 text-red-600 font-semibold"
+                      : "text-gray-400 hover:text-gray-900 hover:bg-gray-100"
+                  }`}
+                >
+                  <tab.icon className="h-3 w-3" />
+                  {tab.label}
+                </button>
+              ))}
+              {/* Copy button */}
+              {activeTab !== "chat" && tabOutputs[activeTab] && (
+                <button
+                  onClick={handleCopy}
+                  className="ml-auto px-2 py-1 text-[10px] text-gray-400 hover:text-gray-700 flex items-center gap-1 transition-colors"
+                >
+                  {copied ? <CheckCheck className="h-3 w-3 text-emerald-500" /> : <Copy className="h-3 w-3" />}
+                  {copied ? "Copied" : "Copy"}
+                </button>
+              )}
+            </div>
+
+            {/* Tab content */}
+            {isGenerating || generatingTab === activeTab ? (
+              <div className="flex-1 flex flex-col items-center justify-center py-12 space-y-3">
+                <Loader2 className="h-8 w-8 animate-spin text-red-500" />
+                <p className="text-xs text-gray-400 animate-pulse text-center">Analyzing video transcript...</p>
+              </div>
+            ) : activeTab === "chat" ? (
+              /* Chat interface */
+              <div className="flex flex-col h-full flex-1">
+                <div className="flex-1 overflow-y-auto space-y-3 py-2 pr-1 max-h-[300px] scrollbar-thin">
+                  {chatMessages.length === 0 ? (
+                    <div className="flex flex-col items-center justify-center py-12 text-center space-y-2">
+                      <MessageSquare className="h-8 w-8 text-gray-200" />
+                      <p className="text-xs text-gray-400">Ask anything about this video.</p>
+                      <p className="text-[10px] text-gray-300">AI answers from the actual transcript only.</p>
+                    </div>
+                  ) : (
+                    chatMessages.map((msg, i) => (
+                      <div key={i} className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}>
+                        <div className={`max-w-[85%] rounded-lg p-2.5 text-xs whitespace-pre-wrap leading-relaxed ${
+                          msg.role === "user"
+                            ? "bg-red-500 text-white"
+                            : "bg-white border border-gray-100 text-gray-900 prose prose-sm max-w-none"
+                        }`}>
+                          {msg.role === "user" ? msg.content : <ReactMarkdown>{msg.content}</ReactMarkdown>}
+                        </div>
+                      </div>
+                    ))
+                  )}
+                  {isChatSending && (
+                    <div className="flex justify-start">
+                      <div className="bg-white border border-gray-100 rounded-lg p-2.5 flex items-center gap-2">
+                        <Loader2 className="h-3 w-3 animate-spin text-red-500" />
+                        <span className="text-[10px] text-gray-400">Thinking...</span>
+                      </div>
+                    </div>
+                  )}
+                  <div ref={chatEndRef} />
+                </div>
+                <div className="flex gap-2 pt-3 border-t border-gray-200 mt-auto">
+                  <input
+                    type="text"
+                    placeholder="Ask about this video..."
+                    value={chatInput}
+                    onChange={(e) => setChatInput(e.target.value)}
+                    className="flex-1 h-9 px-3 text-xs bg-white border border-gray-200 rounded-lg outline-none focus:border-red-500/40 text-gray-900 transition-all"
+                    onKeyDown={(e) => e.key === "Enter" && handleSendChat()}
+                  />
+                  <Button
+                    onClick={handleSendChat}
+                    disabled={isChatSending || !chatInput.trim()}
+                    className="bg-red-500 text-white hover:bg-red-600 h-9 w-9 p-0 flex items-center justify-center rounded-lg"
+                  >
+                    <Send className="h-3.5 w-3.5" />
+                  </Button>
+                </div>
+              </div>
+            ) : (
+              /* Summary / Key Points / FAQ content */
+              <div className="flex-1 overflow-y-auto max-h-[360px] py-2 pr-1 scrollbar-thin">
+                {tabOutputs[activeTab] ? (
+                  <div className="prose prose-sm max-w-none text-xs text-gray-700 leading-relaxed">
+                    <ReactMarkdown>{tabOutputs[activeTab]}</ReactMarkdown>
+                  </div>
+                ) : (
+                  <div className="flex flex-col items-center justify-center py-12 text-center space-y-2">
+                    <Sparkles className="h-8 w-8 text-gray-200" />
+                    <p className="text-xs text-gray-400">Click to generate content</p>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 };
