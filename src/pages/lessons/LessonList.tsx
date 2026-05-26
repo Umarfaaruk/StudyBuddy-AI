@@ -1,6 +1,6 @@
 import { useState, lazy, Suspense } from "react";
 import { Link } from "react-router-dom";
-import { BookOpen, ChevronRight, Search, Calculator, Atom, FlaskConical, Leaf, FileText, Loader2, Sparkles, Plus, CalendarDays, Trash2, AlertTriangle } from "lucide-react";
+import { BookOpen, ChevronRight, Search, Calculator, Atom, FlaskConical, Leaf, FileText, Loader2, Sparkles, Plus, CalendarDays, Trash2, AlertTriangle, Youtube, Link2 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
@@ -28,6 +28,8 @@ const LessonList = () => {
   const [showPlanner, setShowPlanner] = useState(false);
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [youtubeUrl, setYoutubeUrl] = useState("");
+  const [youtubeGenerating, setYoutubeGenerating] = useState(false);
   const queryClient = useQueryClient();
 
   // Fetch user materials
@@ -268,6 +270,182 @@ ${materialContent}`;
     }
   };
 
+  // ── YouTube to Course ───────────────────────────────────────────
+  const extractYouTubeId = (url: string): string | null => {
+    const patterns = [
+      /(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/)([a-zA-Z0-9_-]{11})/,
+      /^([a-zA-Z0-9_-]{11})$/,
+    ];
+    for (const p of patterns) {
+      const m = url.match(p);
+      if (m) return m[1];
+    }
+    return null;
+  };
+
+  const handleGenerateYouTubeCourse = async () => {
+    if (!user) return;
+    const videoId = extractYouTubeId(youtubeUrl);
+    if (!videoId) {
+      toast.error("Please enter a valid YouTube URL");
+      return;
+    }
+
+    setYoutubeGenerating(true);
+    toast.info("Fetching video transcript & generating course. This may take a minute...");
+
+    try {
+      // Step 1: Fetch transcript
+      const resp = await fetch(`/api/youtube-transcript?v=${videoId}`);
+      if (!resp.ok) throw new Error("Failed to fetch video data");
+      const videoData = await resp.json();
+
+      if (!videoData.transcript || videoData.transcript.length < 100) {
+        toast.error("This video doesn't have enough transcript/captions to generate a course. Try a different video.");
+        setYoutubeGenerating(false);
+        return;
+      }
+
+      const videoTitle = videoData.title || "YouTube Video";
+      const videoChannel = videoData.channel || "Unknown Channel";
+      const transcript = videoData.transcript;
+
+      // Step 2: Chunked transcript for long videos
+      const maxChunkLen = 8000;
+      const chunks: string[] = [];
+      if (transcript.length <= maxChunkLen) {
+        chunks.push(transcript);
+      } else {
+        let start = 0;
+        while (start < transcript.length) {
+          const end = Math.min(start + maxChunkLen, transcript.length);
+          chunks.push(transcript.substring(start, end));
+          start = end - 500;
+          if (start >= transcript.length) break;
+        }
+      }
+
+      // Step 3: Summarize each chunk for accuracy
+      let condensedContent = transcript;
+      if (chunks.length > 1) {
+        const chunkSummaries: string[] = [];
+        for (let i = 0; i < chunks.length; i++) {
+          const summary = await aiComplete({
+            messages: [
+              { role: "system", content: "You are a precise transcript summarizer. Extract every key point, concept, example, and argument. Do not add information not in the transcript." },
+              { role: "user", content: `Summarize this transcript segment (Part ${i + 1}/${chunks.length}) from the video "${videoTitle}". Be thorough and precise.\n\nTranscript segment:\n${chunks[i]}` }
+            ],
+            temperature: 0.3,
+            maxTokens: 1500,
+          });
+          chunkSummaries.push(summary);
+        }
+        condensedContent = chunkSummaries.join("\n\n---\n\n");
+      }
+
+      // Step 4: Generate structured course
+      let parsed = null;
+      let attempt = 0;
+      const maxRetries = 3;
+      let lastError: any = null;
+
+      while (attempt < maxRetries && !parsed) {
+        try {
+          attempt++;
+          const prompt = `You are an expert educator. Create a structured course from this YouTube video transcript. Return ONLY a valid JSON object (no markdown wrappers, no commentary).
+
+JSON format:
+{"topic_title":"string","subject":"string","description":"string","lessons":[{"title":"string","content":"string"}]}
+
+Rules:
+- topic_title: A clear, concise course name based on the video content
+- subject: the academic subject area (e.g., "Science", "History", "Business", "Technology")
+- description: 1-2 sentence summary of what this course covers
+- lessons: 4-6 lessons that break down the video content chronologically
+- Each lesson content: 200-400 words using ## headings, **bold** key terms, and bullet points
+- Progress from the beginning of the video to the end
+- Each lesson should cover a distinct section/topic from the video
+- Include specific facts, examples, and key points from the transcript — be PRECISE
+- Do NOT add generic filler content — everything must come from the video
+- Reference timestamps where possible (e.g., "As discussed early in the video...")
+
+Video Title: "${videoTitle}"
+Channel: ${videoChannel}
+Video Content:
+${condensedContent.substring(0, 15000)}`;
+
+          const res = await aiComplete({
+            messages: [{ role: "user", content: prompt }],
+            temperature: 0.4,
+            maxTokens: 4096,
+          });
+
+          let jsonString = res;
+          const match = jsonString.match(/```(?:json)?\s*([\s\S]*?)\s*```/);
+          if (match) jsonString = match[1];
+          const startIdx = jsonString.indexOf('{');
+          const endIdx = jsonString.lastIndexOf('}');
+          if (startIdx === -1 || endIdx === -1) throw new Error("No JSON object found");
+          jsonString = jsonString.substring(startIdx, endIdx + 1);
+
+          parsed = JSON.parse(jsonString.trim());
+          if (!parsed.topic_title || !parsed.lessons || !Array.isArray(parsed.lessons) || parsed.lessons.length === 0) {
+            throw new Error("Invalid course structure");
+          }
+          parsed.lessons = parsed.lessons.filter((l: any) => l && l.title && l.content);
+          if (parsed.lessons.length === 0) throw new Error("No valid lessons generated");
+        } catch (err) {
+          lastError = err;
+          parsed = null;
+          if (attempt < maxRetries) await new Promise(r => setTimeout(r, 1000));
+        }
+      }
+
+      if (!parsed) throw lastError || new Error("Failed to generate course.");
+
+      // Step 5: Save to Firestore
+      const batch = writeBatch(db);
+      const newTopicRef = doc(collection(db, "topics"));
+
+      batch.set(newTopicRef, {
+        title: parsed.topic_title,
+        subject: parsed.subject || "General",
+        subjectName: parsed.subject || "General",
+        subjectIcon: "file-text",
+        description: parsed.description || "",
+        lesson_count: parsed.lessons.length,
+        is_custom: true,
+        source: "youtube",
+        youtube_video_id: videoId,
+        youtube_title: videoTitle,
+        youtube_channel: videoChannel,
+        user_id: user.uid,
+        created_at: new Date()
+      });
+
+      parsed.lessons.forEach((lesson: any, i: number) => {
+        const lessonRef = doc(collection(db, "lessons"));
+        batch.set(lessonRef, {
+          topic_id: newTopicRef.id,
+          title: lesson.title,
+          content: lesson.content,
+          order: i + 1,
+          created_at: new Date()
+        });
+      });
+
+      await batch.commit();
+      toast.success(`Course "${parsed.topic_title}" created with ${parsed.lessons.length} lessons from YouTube!`);
+      queryClient.invalidateQueries({ queryKey: ["topics", user.uid] });
+      setFilter("Your Courses");
+      setYoutubeUrl("");
+    } catch (error: any) {
+      console.error("YouTube course generation error:", error);
+      toast.error(error.message || "Failed to generate course from YouTube. Try again.");
+    } finally {
+      setYoutubeGenerating(false);
+    }
+  };
 
   return (
     <div className="p-6 md:p-8 max-w-4xl mx-auto space-y-8">
@@ -450,6 +628,58 @@ ${materialContent}`;
           <p className="text-sm text-gray-500">Try adjusting your search or filter criteria.</p>
         </div>
       )}
+
+      {/* ── Create Course from YouTube ─────────────────────── */}
+      <div className="mt-12 space-y-6">
+        <div>
+          <h2 className="text-xl font-bold text-gray-900 tracking-tight flex items-center gap-2">
+            <Youtube className="h-5 w-5 text-red-500" />
+            Create Course from YouTube
+          </h2>
+          <p className="text-sm text-gray-500 mt-1">
+            Paste a YouTube link to auto-generate a structured course with lessons from the video's content.
+          </p>
+        </div>
+
+        <div className="bg-white rounded-2xl p-5 md:p-6 shadow-sm border border-gray-100 hover:shadow-md transition-shadow">
+          <div className="flex flex-col sm:flex-row gap-3">
+            <div className="relative flex-1">
+              <Youtube className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-red-500" />
+              <input
+                type="url"
+                placeholder="Paste YouTube link here (e.g. https://youtube.com/watch?v=...)" 
+                value={youtubeUrl}
+                onChange={(e) => setYoutubeUrl(e.target.value)}
+                disabled={youtubeGenerating}
+                className="w-full h-12 pl-10 pr-4 text-sm bg-gray-50 border border-gray-200 rounded-xl outline-none focus:border-[#1D4ED8]/40 focus:ring-2 focus:ring-[#1D4ED8]/10 text-gray-900 transition-all disabled:opacity-50"
+                onKeyDown={(e) => e.key === "Enter" && !youtubeGenerating && handleGenerateYouTubeCourse()}
+              />
+            </div>
+            <Button
+              onClick={handleGenerateYouTubeCourse}
+              disabled={youtubeGenerating || !youtubeUrl.trim()}
+              className="h-12 px-6 bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white font-semibold rounded-xl gap-2 shadow-sm shrink-0"
+            >
+              {youtubeGenerating ? (
+                <><Loader2 className="h-4 w-4 animate-spin" /> Generating...</>
+              ) : (
+                <><Sparkles className="h-4 w-4" /> Generate Course</>
+              )}
+            </Button>
+          </div>
+          {youtubeGenerating && (
+            <div className="mt-4 flex items-center gap-3 p-3 bg-blue-50 border border-blue-100 rounded-xl animate-in fade-in duration-300">
+              <div className="h-8 w-8 rounded-lg bg-blue-100 flex items-center justify-center flex-shrink-0">
+                <Loader2 className="h-4 w-4 animate-spin text-[#1D4ED8]" />
+              </div>
+              <div>
+                <p className="text-xs font-semibold text-blue-900">AI is analyzing the video...</p>
+                <p className="text-[10px] text-blue-600 mt-0.5">Fetching transcript → Summarizing content → Generating lessons</p>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
 
       {/* Uploaded Materials Generation Section */}
       {materials && materials.length > 0 && (
