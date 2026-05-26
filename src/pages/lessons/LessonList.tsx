@@ -299,16 +299,17 @@ ${materialContent}`;
       const resp = await fetch(`/api/youtube-transcript?v=${videoId}`);
       if (!resp.ok) throw new Error("Failed to fetch video data");
       const videoData = await resp.json();
-
-      if (!videoData.transcript || videoData.transcript.length < 100) {
-        toast.error("This video doesn't have enough transcript/captions to generate a course. Try a different video.");
-        setYoutubeGenerating(false);
-        return;
-      }
-
       const videoTitle = videoData.title || "YouTube Video";
       const videoChannel = videoData.channel || "Unknown Channel";
-      const transcript = videoData.transcript;
+      const hasTranscript = !!(videoData.transcript && videoData.transcript.trim().length > 100);
+
+      if (!hasTranscript) {
+        toast.warning("Captions are not available for this video. Generating a high-quality educational course based on its topic instead!");
+      }
+
+      const transcript = hasTranscript 
+        ? videoData.transcript 
+        : `No transcript available. Topic: ${videoTitle}\nChannel: ${videoChannel}\nDescription: ${videoData.transcript || "No description provided."}`;
 
       // Step 2: Chunked transcript for long videos
       const maxChunkLen = 8000;
@@ -352,7 +353,7 @@ ${materialContent}`;
       while (attempt < maxRetries && !parsed) {
         try {
           attempt++;
-          const prompt = `You are an expert educator. Create a structured course from this YouTube video transcript. Return ONLY a valid JSON object (no markdown wrappers, no commentary).
+          const prompt = `You are an expert educator. Create a structured course from this YouTube video transcript ${hasTranscript ? '' : '(or since captions are not available, from the video title and topic) '}. Return ONLY a valid JSON object (no markdown wrappers, no commentary).
 
 JSON format:
 {"topic_title":"string","subject":"string","description":"string","lessons":[{"title":"string","content":"string"}]}
@@ -361,13 +362,13 @@ Rules:
 - topic_title: A clear, concise course name based on the video content
 - subject: the academic subject area (e.g., "Science", "History", "Business", "Technology")
 - description: 1-2 sentence summary of what this course covers
-- lessons: 4-6 lessons that break down the video content chronologically
+- lessons: 4-6 lessons that break down the video content ${hasTranscript ? 'chronologically' : 'comprehensively'}
 - Each lesson content: 200-400 words using ## headings, **bold** key terms, and bullet points
-- Progress from the beginning of the video to the end
-- Each lesson should cover a distinct section/topic from the video
-- Include specific facts, examples, and key points from the transcript — be PRECISE
-- Do NOT add generic filler content — everything must come from the video
-- Reference timestamps where possible (e.g., "As discussed early in the video...")
+${hasTranscript ? '- Progress from the beginning of the video to the end' : '- Provide a highly informative, accurate educational guide on the topic'}
+${hasTranscript ? '- Each lesson should cover a distinct section/topic from the video' : '- Ensure each lesson covers a core sub-topic, theory, or application of this subject'}
+- Include specific facts, examples, and key points — be PRECISE
+- Do NOT add generic filler content
+${hasTranscript ? '- Reference timestamps where possible (e.g., "As discussed early in the video...")' : ''}
 
 Video Title: "${videoTitle}"
 Channel: ${videoChannel}

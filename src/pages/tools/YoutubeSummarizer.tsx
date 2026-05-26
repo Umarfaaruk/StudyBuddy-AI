@@ -62,6 +62,27 @@ export const YoutubeSummarizer = () => {
   };
 
   const generateAccurateSummary = async (transcript: string, title: string, segments: { start: number; text: string }[]): Promise<string> => {
+    if (transcript.startsWith("No transcript available")) {
+      return await aiComplete({
+        messages: [
+          { role: "system", content: "You are an expert educator. Generate a comprehensive educational summary and study guide on the topic provided." },
+          { role: "user", content: `Since this YouTube video has no captions/transcript available, generate a highly informative, structured study guide and comprehensive summary on the video's topic: "${title}".
+          
+Use the description and metadata below as context:
+${transcript}
+
+Rules:
+- Cover the core concepts, theories, and real-world applications of this topic.
+- Format with beautiful markdown headers (##), bullet points, and **bold** text.
+- Group the summary into 3-4 distinct logical sections.
+- End with a "## Key Takeaways" section listing the 3-5 most critical lessons.
+- Ensure the tone is extremely helpful, professional, and educational.` }
+        ],
+        temperature: 0.5,
+        maxTokens: 4096,
+      });
+    }
+
     const chunks = splitIntoChunks(transcript);
     const totalMinutes = Math.round(transcript.length / 800);
 
@@ -159,17 +180,21 @@ ${combined}` }
       if (!resp.ok) throw new Error("Failed to fetch video data");
       const data = await resp.json();
 
-      if (!data.transcript || data.transcript.length < 50) {
-        toast.error("This video doesn't have captions/transcript available. Try a different video.");
-        setIsLoading(false);
-        return;
+      const hasTranscript = !!(data.transcript && data.transcript.trim().length >= 100);
+
+      if (!hasTranscript) {
+        toast.warning("Captions are not available for this video. Generating an educational overview of the video's topic instead!");
       }
+
+      const transcriptText = hasTranscript
+        ? data.transcript
+        : `No transcript available. Topic: ${data.title || "YouTube Video"}\nChannel: ${data.channel || "Unknown"}\nDescription: ${data.transcript || "No description provided."}`;
 
       setVideoData({
         id,
         title: data.title || "YouTube Video",
         channel: data.channel || "Unknown Channel",
-        transcript: data.transcript,
+        transcript: transcriptText,
         segments: data.segments || [],
       });
 
@@ -178,13 +203,13 @@ ${combined}` }
       setIsGenerating(true);
 
       const result = await generateAccurateSummary(
-        data.transcript,
+        transcriptText,
         data.title || "YouTube Video",
         data.segments || []
       );
       setSummary(result);
       setTabOutputs(prev => ({ ...prev, summary: result }));
-      toast.success("Summary generated from video transcript!");
+      toast.success(hasTranscript ? "Summary generated from video transcript!" : "Educational summary generated successfully!");
     } catch (err: any) {
       console.error(err);
       toast.error(err.message || "Failed to generate summary");
@@ -204,15 +229,20 @@ ${combined}` }
         ? videoData.transcript.substring(0, 12000) + `\n\n[... transcript continues for ${videoData.transcript.length} total characters.]`
         : videoData.transcript;
 
+      const isFallback = videoData.transcript.startsWith("No transcript available");
       let prompt = "";
       if (tab === "keypoints") {
-        prompt = `Extract ALL key points, important concepts, and actionable takeaways from this video transcript. Format as a numbered list with **bold** key terms. Group by topic section. Be precise — only include what's in the transcript.
+        prompt = isFallback
+          ? `Generate a highly detailed list of key points, important concepts, and core learnings regarding the topic: "${videoData.title}". Format as a numbered list with **bold** key terms, grouped by section. Ensure it is extremely informative and accurate.`
+          : `Extract ALL key points, important concepts, and actionable takeaways from this video transcript. Format as a numbered list with **bold** key terms. Group by topic section. Be precise — only include what's in the transcript.
 
 Video: "${videoData.title}"
 Transcript:
 ${transcriptForPrompt}`;
       } else if (tab === "faq") {
-        prompt = `Generate 6-8 FAQ that a viewer would ask about this video, with clear, detailed answers based STRICTLY on the transcript content. Do NOT make up answers — only use information from the transcript. Format as markdown with ## for each question.
+        prompt = isFallback
+          ? `Generate 6-8 comprehensive Frequently Asked Questions (FAQ) with highly detailed educational answers regarding the topic: "${videoData.title}". Format as markdown with ## for each question.`
+          : `Generate 6-8 FAQ that a viewer would ask about this video, with clear, detailed answers based STRICTLY on the transcript content. Do NOT make up answers — only use information from the transcript. Format as markdown with ## for each question.
 
 Video: "${videoData.title}"
 Transcript:
@@ -221,10 +251,10 @@ ${transcriptForPrompt}`;
 
       const result = await aiComplete({
         messages: [
-          { role: "system", content: "You are an educational assistant. Answer strictly from the provided transcript content. Never add external information." },
+          { role: "system", content: isFallback ? "You are an expert educator helping a student learn about this topic." : "You are an educational assistant. Answer strictly from the provided transcript content. Never add external information." },
           { role: "user", content: prompt }
         ],
-        temperature: 0.3,
+        temperature: isFallback ? 0.6 : 0.3,
         maxTokens: 4096,
       });
 
@@ -249,11 +279,15 @@ ${transcriptForPrompt}`;
     try {
       const history = chatMessages.map(m => ({ role: m.role as "user" | "assistant", content: m.content }));
 
+      const isFallback = videoData.transcript.startsWith("No transcript available");
+
       const result = await aiComplete({
         messages: [
           {
             role: "system",
-            content: `You are an expert tutor. Answer the user's questions STRICTLY using the video transcript below. If the answer is not in the transcript, say so honestly.
+            content: isFallback
+              ? `You are an expert tutor. Answer the user's questions about the topic: "${videoData.title}" using your extensive educational knowledge. Provide clear, step-by-step explanations.`
+              : `You are an expert tutor. Answer the user's questions STRICTLY using the video transcript below. If the answer is not in the transcript, say so honestly.
 
 Video: "${videoData.title}" by "${videoData.channel}"
 Transcript:
@@ -262,7 +296,7 @@ ${videoData.transcript.substring(0, 15000)}`
           ...history,
           { role: "user", content: userMsg }
         ],
-        temperature: 0.4,
+        temperature: isFallback ? 0.6 : 0.4,
       });
 
       setChatMessages(prev => [...prev, { role: "assistant", content: result }]);

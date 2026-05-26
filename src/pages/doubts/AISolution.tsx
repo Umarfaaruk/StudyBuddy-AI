@@ -88,8 +88,10 @@ const AISolution = () => {
               });
               if (resp.ok) {
                 const data = await resp.json();
-                if (data.transcript) {
+                if (data.transcript && data.transcript.trim().length > 50) {
                   youtubeContext = `\n\nYouTube Video Context:\nTitle: "${data.title || 'Video'}"\nChannel: "${data.channel || 'Unknown'}"\nTranscript:\n${data.transcript.substring(0, 15000)}`;
+                } else {
+                  youtubeContext = `\n\nYouTube Video Context (Note: Full transcript not available, please explain the video's core topic based on its title and channel):\nTitle: "${data.title || 'Video'}"\nChannel: "${data.channel || 'Unknown'}"`;
                 }
               }
             } catch (err) {
