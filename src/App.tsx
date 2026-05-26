@@ -46,6 +46,7 @@ import Settings from "./pages/Settings";
 import LessonList from "./pages/lessons/LessonList";
 import LessonViewer from "./pages/lessons/LessonViewer";
 import AdminPanel from "./pages/admin/AdminPanel";
+import AdminLogin from "./pages/admin/AdminLogin";
 import Feedback from "./pages/Feedback";
 
 const queryClient = new QueryClient({
@@ -75,6 +76,7 @@ const App = () => (
               />
               <Route path="/login" element={<Login />} />
               <Route path="/signup" element={<Signup />} />
+              <Route path="/admin-login" element={<AdminLogin />} />
 
               {/* Protected: Onboarding (new multi-stage flow) */}
               <Route
