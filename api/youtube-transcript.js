@@ -7,6 +7,8 @@
  * Endpoint: /api/youtube-transcript?v=<videoId>
  */
 
+import { YoutubeTranscript } from "youtube-transcript";
+
 export default async function handler(req, res) {
   if (req.method !== "GET") {
     return res.status(405).json({ error: "Method not allowed" });
@@ -39,72 +41,31 @@ export default async function handler(req, res) {
     const titleMatch = html.match(/<title>([^<]*)<\/title>/);
     const rawTitle = titleMatch ? titleMatch[1].replace(/ - YouTube$/, "").trim() : "Unknown Video";
 
-    // Step 2: Find captions/transcript URL from the page source
-    let captionUrl = null;
-    const playerResponse = extractJsonFromHtml(html, "ytInitialPlayerResponse");
-    
-    if (playerResponse && playerResponse.captions && playerResponse.captions.playerCaptionsTracklistRenderer) {
-      const tracks = playerResponse.captions.playerCaptionsTracklistRenderer.captionTracks;
-      if (Array.isArray(tracks) && tracks.length > 0) {
-        // Prefer English, or first available track
-        const englishTrack = tracks.find(t => t.languageCode === "en" || t.languageCode?.startsWith("en"));
-        const chosenTrack = englishTrack || tracks[0];
-        if (chosenTrack && chosenTrack.baseUrl) {
-          captionUrl = chosenTrack.baseUrl;
-        }
-      }
-    }
-
-    if (!captionUrl) {
-      captionUrl = extractCaptionUrlFallback(html);
-    }
-
+    // Step 2 & 3: Find and fetch captions using the robust youtube-transcript library
     let transcript = "";
     let segments = [];
 
-    if (captionUrl) {
-      // Step 3: Fetch the actual transcript XML or JSON
-      const captionResp = await fetch(captionUrl, {
-        headers: {
-          "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
-        },
-        signal: AbortSignal.timeout(8000),
-      });
-
-      if (captionResp.ok) {
-        const rawContent = await captionResp.text();
-        const trimmed = rawContent.trim();
-
-        if (trimmed.startsWith("{") || trimmed.startsWith("[")) {
-          // JSON (fmt=json3 format)
-          try {
-            const data = JSON.parse(trimmed);
-            if (data.events && Array.isArray(data.events)) {
-              segments = data.events
-                .filter(ev => ev.segs && Array.isArray(ev.segs))
-                .map(ev => {
-                  const text = ev.segs.map(s => s.utf8).join(" ").trim();
-                  return {
-                    start: (ev.tStartMs || 0) / 1000,
-                    text: text
-                  };
-                })
-                .filter(s => s.text.length > 0);
-              transcript = segments.map(s => s.text).join(" ");
-            }
-          } catch (e) {
-            console.error("[YouTube Transcript] Failed to parse JSON captions:", e);
-          }
-        } else {
-          // XML format
-          const textMatches = [...trimmed.matchAll(/<text\s+start="([^"]*)"[^>]*>([^<]*)<\/text>/g)];
-          segments = textMatches.map(m => ({
-            start: parseFloat(m[1]),
-            text: decodeXMLEntities(m[2]).trim(),
-          })).filter(s => s.text.length > 0);
-
-          transcript = segments.map(s => s.text).join(" ");
-        }
+    try {
+      // First try fetching English captions
+      console.log(`[YouTube Transcript API] Fetching English transcript for: ${videoId}`);
+      const rawSegments = await YoutubeTranscript.fetchTranscript(videoId, { lang: "en" });
+      segments = rawSegments.map(s => ({
+        start: s.offset / 1000,
+        text: s.text,
+      }));
+      transcript = segments.map(s => s.text).join(" ");
+    } catch (e) {
+      console.warn(`[YouTube Transcript API] Failed to fetch English transcript for ${videoId}, trying default language...`);
+      try {
+        // Fallback: Fetch first available captions track
+        const rawSegments = await YoutubeTranscript.fetchTranscript(videoId);
+        segments = rawSegments.map(s => ({
+          start: s.offset / 1000,
+          text: s.text,
+        }));
+        transcript = segments.map(s => s.text).join(" ");
+      } catch (err2) {
+        console.error(`[YouTube Transcript API] Failed to fetch any transcript for ${videoId}:`, err2);
       }
     }
 
