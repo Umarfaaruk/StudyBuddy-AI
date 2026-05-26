@@ -12,7 +12,68 @@ export default defineConfig(() => ({
       overlay: false,
     },
   },
-  plugins: [react()],
+  plugins: [
+    react(),
+    {
+      name: "vercel-api-middleware",
+      configureServer(server) {
+        server.middlewares.use(async (req, res, next) => {
+          if (req.url?.startsWith("/api/youtube-transcript")) {
+            try {
+              const urlObj = new URL(req.url, `http://${req.headers.host || 'localhost'}`);
+              const videoId = urlObj.searchParams.get("v");
+
+              if (!videoId) {
+                res.statusCode = 400;
+                res.setHeader("Content-Type", "application/json");
+                res.end(JSON.stringify({ error: "Valid video ID required (param: v)" }));
+                return;
+              }
+
+              const apiPath = path.resolve(__dirname, "./api/youtube-transcript.js");
+              const { default: handler } = await import(apiPath);
+
+              const mockReq = {
+                method: req.method,
+                query: { v: videoId },
+              };
+
+              const mockRes = {
+                statusCode: 200,
+                headers: {},
+                status(code) {
+                  this.statusCode = code;
+                  return this;
+                },
+                setHeader(name, val) {
+                  this.headers[name] = val;
+                  return this;
+                },
+                json(data) {
+                  res.statusCode = this.statusCode;
+                  res.setHeader("Content-Type", "application/json");
+                  for (const [k, v] of Object.entries(this.headers)) {
+                    res.setHeader(k, v as string);
+                  }
+                  res.end(JSON.stringify(data));
+                  return this;
+                },
+              };
+
+              await handler(mockReq, mockRes);
+            } catch (err) {
+              console.error("Vercel API Middleware error:", err);
+              res.statusCode = 500;
+              res.setHeader("Content-Type", "application/json");
+              res.end(JSON.stringify({ error: "Internal Server Error" }));
+            }
+            return;
+          }
+          next();
+        });
+      },
+    },
+  ],
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"),
