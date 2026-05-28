@@ -40,16 +40,16 @@ export default defineConfig(() => ({
 
               const mockRes = {
                 statusCode: 200,
-                headers: {},
-                status(code) {
+                headers: {} as Record<string, string>,
+                status(code: number) {
                   this.statusCode = code;
                   return this;
                 },
-                setHeader(name, val) {
+                setHeader(name: string, val: string) {
                   this.headers[name] = val;
                   return this;
                 },
-                json(data) {
+                json(data: unknown) {
                   res.statusCode = this.statusCode;
                   res.setHeader("Content-Type", "application/json");
                   for (const [k, v] of Object.entries(this.headers)) {
@@ -110,6 +110,8 @@ export default defineConfig(() => ({
           "vendor-flow": ["@xyflow/react"],
           // Markdown renderer
           "vendor-markdown": ["react-markdown"],
+          // PDF renderer (heavy, only used on materials page)
+          "vendor-pdf": ["pdfjs-dist"],
         },
       },
     },

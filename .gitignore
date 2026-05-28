@@ -29,3 +29,9 @@ dist-ssr
 development/
 developments/
 !developments/*.md
+
+# Scratch/test scripts
+scratch/
+
+# Codex automation artifacts
+.codex-*

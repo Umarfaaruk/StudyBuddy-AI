@@ -120,106 +120,125 @@ const VideoNotebookWorkspace = () => {
     }
   };
 
-  /**
-   * Split transcript into chunks for comprehensive summarization.
-   * Each chunk is ~6000 chars with ~500 char overlap to preserve context.
-   */
-  const splitTranscriptIntoChunks = (transcript: string, chunkSize = 6000, overlap = 500): string[] => {
-    if (transcript.length <= chunkSize) return [transcript];
-    const chunks: string[] = [];
-    let start = 0;
-    while (start < transcript.length) {
-      const end = Math.min(start + chunkSize, transcript.length);
-      chunks.push(transcript.substring(start, end));
-      start = end - overlap;
-      if (start >= transcript.length) break;
-    }
-    return chunks;
-  };
+  const generateToolOutput = useCallback(async (tool: typeof activeNotebookTool) => {
+    if (!workspaceVideoData) return;
+    if (notebookOutputs[tool]) return;
 
-  /**
-   * Chunked summarization: summarize each segment, then combine.
-   * Uses low temperature (0.3) for factual precision. Each chunk produces
-   * a structured summary, then all are merged into one cohesive document.
-   */
-  const generateChunkedSummary = async (transcript: string, title: string): Promise<string> => {
-    const chunks = splitTranscriptIntoChunks(transcript);
-    const totalMinutes = Math.round(transcript.length / 800); // rough estimate: ~800 chars/min spoken
+    /**
+     * Split transcript into chunks for comprehensive summarization.
+     * Each chunk is ~6000 chars with ~500 char overlap to preserve context.
+     */
+    const splitTranscriptIntoChunks = (transcript: string, chunkSize = 6000, overlap = 500): string[] => {
+      if (transcript.length <= chunkSize) return [transcript];
+      const chunks: string[] = [];
+      let start = 0;
+      while (start < transcript.length) {
+        const end = Math.min(start + chunkSize, transcript.length);
+        chunks.push(transcript.substring(start, end));
+        start = end - overlap;
+        if (start >= transcript.length) break;
+      }
+      return chunks;
+    };
 
-    if (chunks.length === 1) {
-      const res = await aiComplete({
-        messages: [
-          { role: "system", content: "You are a precise educational summarizer. Stick strictly to the transcript content. Never add information not present in the transcript. Be thorough but concise." },
-          { role: "user", content: `Summarize this entire video transcript precisely and completely. Cover every key point, concept, and argument from beginning to end in chronological order.
+    /**
+     * Chunked summarization: summarize each segment, then combine.
+     * Uses low temperature (0.3) for factual precision. Each chunk produces
+     * a structured summary, then all are merged into one cohesive document.
+     */
+    const generateChunkedSummary = async (transcript: string, title: string): Promise<string> => {
+      const chunks = splitTranscriptIntoChunks(transcript);
+      const totalMinutes = Math.round(transcript.length / 800); // rough estimate: ~800 chars/min spoken
 
-Rules:
-- ONLY include information explicitly stated in the transcript
-- Do NOT infer, assume, or add external knowledge
-- Use ## headers for major sections
-- Use bullet points for key details
-- Use **bold** for important terms
-- Include a "## Key Takeaways" section at the end with 3-5 main lessons
-- Estimated video length: ~${totalMinutes} minutes
+      if (chunks.length === 1) {
+        const res = await aiComplete({
+          messages: [
+            { role: "system", content: "You are a world-class educational content analyst who creates comprehensive, textbook-quality video summaries. Your summaries are detailed enough that a reader could learn the core material without watching the video. Stick strictly to the transcript content — never add external knowledge." },
+            { role: "user", content: `Create a comprehensive, detailed summary of this entire video transcript. The summary should read like a structured study document that thoroughly covers every topic, concept, example, tool, and technique discussed.
+
+Structure & Formatting Rules:
+1. Start with an introductory paragraph describing what the video covers, who it is by, and how the content is organized (e.g., "This is a comprehensive summary of [title]. The course/video is structured into X primary phases/sections: ...")
+2. Use numbered top-level headings (## 1. Section Name) for each major topic area
+3. Under each section, use descriptive subheadings (### Subsection Name) to break down specific concepts
+4. Use bullet points with **bold key terms** followed by detailed explanations
+5. Include specific examples, code snippets, function names, library names, tools, and workflows mentioned in the transcript
+6. When the speaker demonstrates something step-by-step, document each step
+7. Preserve technical accuracy — use exact terminology from the transcript
+8. End with "## Key Takeaways" listing 5-7 main lessons from the entire video
+9. Be THOROUGH — a 1-hour video should produce a substantial multi-page summary
+
+Estimated video length: ~${totalMinutes} minutes
 
 Video Title: "${title}"
 Transcript:
 ${transcript}` }
-        ],
-        temperature: 0.3,
-        maxTokens: 4096,
-      });
-      return res;
-    }
+          ],
+          temperature: 0.3,
+          maxTokens: 8192,
+        });
+        return res;
+      }
 
-    // Multi-chunk: summarize each chunk precisely
-    const chunkSummaries: string[] = [];
-    for (let i = 0; i < chunks.length; i++) {
-      const startMin = Math.round((i * 6000) / 800);
-      const endMin = Math.round(((i + 1) * 6000) / 800);
-      const chunkLabel = `[~${startMin}-${endMin} min] Part ${i + 1}/${chunks.length}`;
+      // Multi-chunk: summarize each chunk with maximum detail extraction
+      const chunkSummaries: string[] = [];
+      for (let i = 0; i < chunks.length; i++) {
+        const startMin = Math.round((i * 6000) / 800);
+        const endMin = Math.round(((i + 1) * 6000) / 800);
+        const chunkLabel = `[~${startMin}-${endMin} min] Part ${i + 1}/${chunks.length}`;
 
-      const res = await aiComplete({
-        messages: [
-          { role: "system", content: "You are a precise transcript summarizer. Extract only what is explicitly said. No external knowledge." },
-          { role: "user", content: `Summarize this transcript segment (${chunkLabel}) from the video "${title}". List every key point, concept, example, and argument mentioned. Be precise and factual.
+        const res = await aiComplete({
+          messages: [
+            { role: "system", content: "You are a meticulous transcript analyst. Extract every piece of educational content with maximum granularity. Include specific examples, code/function names, library/tool names, step-by-step procedures, definitions, and demonstrations. No external knowledge — only what is explicitly stated." },
+            { role: "user", content: `Extract a detailed, granular summary of this transcript segment (${chunkLabel}) from the video "${title}".
+
+Requirements:
+- List EVERY key concept, definition, technique, tool, library, and example mentioned
+- Include specific code snippets, function names, class names, and commands if discussed
+- Document step-by-step workflows and demonstrations
+- Use **bold** for important terms and concepts
+- Use bullet points organized under descriptive subheadings
+- Be extremely thorough — do not skip or gloss over any topic covered in this segment
+- If the speaker builds something (a project, function, app), document what is built and how
 
 Transcript segment:
 ${chunks[i]}` }
-        ],
-        temperature: 0.3,
-        maxTokens: 1500,
-      });
-      chunkSummaries.push(`### ${chunkLabel}\n${res}`);
-    }
+          ],
+          temperature: 0.3,
+          maxTokens: 2500,
+        });
+        chunkSummaries.push(`### ${chunkLabel}\n${res}`);
+      }
 
-    // Combine into a single precise document
-    const combinedSummaries = chunkSummaries.join("\n\n---\n\n");
-    const finalRes = await aiComplete({
-      messages: [
-        { role: "system", content: "You are a precise educational summarizer. Merge segment summaries into one cohesive document. Do not add information not present in the segment summaries." },
-        { role: "user", content: `Merge these ${chunks.length} segment summaries of the video "${title}" into ONE well-structured summary. Cover the ENTIRE video from start (~0 min) to end (~${totalMinutes} min).
+      // Combine into a polished, comprehensive educational document
+      const combinedSummaries = chunkSummaries.join("\n\n---\n\n");
+      const finalRes = await aiComplete({
+        messages: [
+          { role: "system", content: "You are a world-class educational content writer. You merge raw segment notes into polished, comprehensive, textbook-quality summaries. Your output should be so thorough that a reader could understand the full material without watching the video. Do not add information not present in the segment summaries." },
+          { role: "user", content: `Merge these ${chunks.length} detailed segment summaries of the video "${title}" into ONE comprehensive, well-structured educational summary document. The video is approximately ${totalMinutes} minutes long.
 
-Rules:
-- Preserve ALL key points from every segment — do not drop any
-- Use chronological flow with time markers where available
-- Use ## headers for major topic sections
-- Use bullet points for details
-- Use **bold** for important terms
-- End with "## Key Takeaways" (3-5 bullet points)
-- Be precise — only include what was in the segment summaries
+Structure & Formatting Rules:
+1. **Opening paragraph**: Start with a descriptive introduction — what the video covers, who it's for, and how the content is organized into major phases/sections (e.g., "This is a comprehensive summary of [title]. The course is structured into X primary phases: [phase 1], [phase 2], ...")
+2. **Numbered major sections**: Use ## 1. Section Name, ## 2. Section Name, etc. for each major topic area. Group related segment content into logical sections.
+3. **Descriptive subsections**: Use **bold subsection headers** or ### headers within each section to cover specific topics (e.g., "**Setup & Installation:**", "**Variables & Data Types:**")
+4. **Rich detail**: Under each subsection, include:
+   - Specific concepts with clear explanations
+   - Function names, library names, code examples, and commands mentioned
+   - Step-by-step workflows when the speaker demonstrates something
+   - Real-world applications and use cases discussed
+5. **Technical terms**: Use **bold** for key terms, function names, and important concepts inline
+6. **Parenthetical context**: Use parentheses for clarifying details (e.g., "using the input() function (which always returns a string)")
+7. **Preserve ALL content**: Do not drop, skip, or condense any topic from ANY segment — every concept must appear in the final summary
+8. **Key Takeaways**: End with "## Key Takeaways" containing 5-7 bullet points summarizing the most important lessons
+9. **Length**: The summary should be substantial and comprehensive — proportional to the video length
 
 Segment summaries:
 ${combinedSummaries}` }
-      ],
-      temperature: 0.3,
-      maxTokens: 4096,
-    });
-    return finalRes;
-  };
-
-  const generateToolOutput = useCallback(async (tool: typeof activeNotebookTool) => {
-    if (!workspaceVideoData) return;
-    if (notebookOutputs[tool]) return;
+        ],
+        temperature: 0.3,
+        maxTokens: 8192,
+      });
+      return finalRes;
+    };
 
     setGeneratingTool(tool);
     try {

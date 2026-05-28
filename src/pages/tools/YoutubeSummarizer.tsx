@@ -65,18 +65,20 @@ export const YoutubeSummarizer = () => {
     if (transcript.startsWith("No transcript available")) {
       return await aiComplete({
         messages: [
-          { role: "system", content: "You are an expert educator. Generate a comprehensive educational summary and study guide on the topic provided." },
-          { role: "user", content: `Since this YouTube video has no captions/transcript available, generate a highly informative, structured study guide and comprehensive summary on the video's topic: "${title}".
-          
-Use the description and metadata below as context:
+          { role: "system", content: `You are a YouTube video summarizer that produces concise, scannable summaries in a specific live-summary style. Follow this exact format:
+
+1. Start with a brief 2-3 sentence overview paragraph describing what the video covers. Use **bold** for key names (people, brands, channels) mentioned in the title.
+2. Then write "**Key Highlights and Topics:**" on its own line.
+3. Follow with bullet points for each major topic/section. Each bullet MUST follow this exact pattern:
+   • **Topic Name:** Brief 1-2 sentence description of what is discussed.
+4. Keep the entire summary concise and scannable — no long paragraphs, no headers (##), no numbered lists.
+5. Do NOT use markdown headers (## or ###). Only use **bold** and bullet points (•).` },
+          { role: "user", content: `Generate a live-style video summary for: "${title}"
+
+Context:
 ${transcript}
 
-Rules:
-- Cover the core concepts, theories, and real-world applications of this topic.
-- Format with beautiful markdown headers (##), bullet points, and **bold** text.
-- Group the summary into 3-4 distinct logical sections.
-- End with a "## Key Takeaways" section listing the 3-5 most critical lessons.
-- Ensure the tone is extremely helpful, professional, and educational.` }
+Remember: Start with a short overview paragraph with **bold names**, then "**Key Highlights and Topics:**", then bullet points with **bold topic labels** and brief descriptions. Keep it concise and scannable like a YouTube video summary card.` }
         ],
         temperature: 0.5,
         maxTokens: 4096,
@@ -95,25 +97,28 @@ Rules:
     if (chunks.length === 1) {
       return await aiComplete({
         messages: [
-          { role: "system", content: "You are a precise educational summarizer. Stick strictly to the transcript content. NEVER add information not present in the transcript. Be thorough and factual." },
-          { role: "user", content: `Summarize this entire video transcript precisely and completely. Cover every key point from beginning to end.
+          { role: "system", content: `You are a YouTube video summarizer that produces concise, scannable live-style summaries. Follow this exact format:
 
-Rules:
-- ONLY include information explicitly stated in the transcript
-- Do NOT infer, assume, or add external knowledge
-- Use ## headers for major sections
-- Use bullet points for key details
-- Use **bold** for important terms and concepts
-- Include timestamp references where relevant (use the markers below)
-- End with "## Key Takeaways" section with 3-5 main lessons
-- Estimated video length: ~${totalMinutes} minutes
+1. Start with a brief 2-3 sentence overview paragraph describing what the video is about. Use **bold** for key names (people, brands, channels, guests).
+2. Then write "**Key Highlights and Topics:**" on its own line.
+3. Follow with bullet points for each major topic/segment. Each bullet MUST follow this exact pattern:
+   • **Topic Name (startTime - endTime):** Brief 1-2 sentence description of what is discussed in this segment.
+4. Use timestamps from the transcript segments. Format timestamps as M:SS or H:MM:SS.
+5. Keep the entire summary concise and scannable — no long paragraphs, no markdown headers (## or ###), no numbered lists.
+6. ONLY include information explicitly stated in the transcript. Do NOT infer or add external knowledge.
+7. Only use **bold** and bullet points (•). No headers.` },
+          { role: "user", content: `Summarize this video transcript in a live YouTube summary style.
 
 Video Title: "${title}"
+Estimated length: ~${totalMinutes} minutes
+
 Timestamp markers:
 ${timestampMarkers}
 
 Transcript:
-${transcript}` }
+${transcript}
+
+Remember: Brief overview paragraph with **bold names** → "**Key Highlights and Topics:**" → bullet points with **bold topic labels** and (timestamp ranges) and short descriptions. Be precise — only use what's in the transcript.` }
         ],
         temperature: 0.3,
         maxTokens: 4096,
@@ -127,8 +132,8 @@ ${transcript}` }
       const endMin = Math.round(((i + 1) * 6000) / 800);
       const res = await aiComplete({
         messages: [
-          { role: "system", content: "You are a precise transcript summarizer. Extract only what is explicitly said. No external knowledge." },
-          { role: "user", content: `Summarize this transcript segment (~${startMin}-${endMin} min, Part ${i + 1}/${chunks.length}) from the video "${title}". List every key point, concept, example, and argument mentioned.\n\nTranscript:\n${chunks[i]}` }
+          { role: "system", content: "You are a precise transcript summarizer. Extract key topics as bullet points with approximate timestamps. No external knowledge." },
+          { role: "user", content: `Extract the key topics and highlights from this transcript segment (~${startMin}-${endMin} min, Part ${i + 1}/${chunks.length}) from the video "${title}". Format each as a bullet point with **bold topic label** and brief description. Include approximate timestamps.\n\nTranscript:\n${chunks[i]}` }
         ],
         temperature: 0.3,
         maxTokens: 1500,
@@ -140,16 +145,21 @@ ${transcript}` }
     const combined = chunkSummaries.join("\n\n---\n\n");
     return await aiComplete({
       messages: [
-        { role: "system", content: "You are a precise educational summarizer. Merge segment summaries into one cohesive document. Do not add information not in the summaries." },
-        { role: "user", content: `Merge these ${chunks.length} segment summaries of "${title}" into ONE well-structured summary covering the ENTIRE video (~${totalMinutes} min).
+        { role: "system", content: `You are a YouTube video summarizer that produces concise, scannable live-style summaries. Follow this exact format:
 
-Rules:
-- Preserve ALL key points from every segment
-- Use chronological flow with time markers
-- Use ## headers for major topic sections
-- Use bullet points for details, **bold** for terms
-- End with "## Key Takeaways" (3-5 bullet points)
-- Be precise — only include what was in the segments
+1. Start with a brief 2-3 sentence overview paragraph describing what the video is about. Use **bold** for key names (people, brands, channels, guests).
+2. Then write "**Key Highlights and Topics:**" on its own line.
+3. Follow with bullet points for each major topic/segment. Each bullet MUST follow this exact pattern:
+   • **Topic Name (startTime - endTime):** Brief 1-2 sentence description.
+4. Use timestamps in M:SS or H:MM:SS format.
+5. Keep it concise and scannable — no long paragraphs, no markdown headers (## or ###), no numbered lists.
+6. Do not add information not present in the summaries.
+7. Only use **bold** and bullet points (•). No headers.` },
+        { role: "user", content: `Merge these ${chunks.length} segment summaries of "${title}" (~${totalMinutes} min) into ONE live-style YouTube summary.
+
+Format: Brief overview paragraph with **bold names** → "**Key Highlights and Topics:**" → bullet points with **bold topic labels**, (timestamp ranges), and short descriptions.
+
+Preserve ALL key points from every segment. Be precise — only include what was in the segments.
 
 Segment summaries:
 ${combined}` }
