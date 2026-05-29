@@ -1,6 +1,7 @@
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react-swc";
 import path from "path";
+import fs from "fs";
 
 export default defineConfig(() => ({
   root: path.resolve(__dirname),
@@ -18,24 +19,59 @@ export default defineConfig(() => ({
       name: "vercel-api-middleware",
       configureServer(server) {
         server.middlewares.use(async (req, res, next) => {
-          if (req.url?.startsWith("/api/youtube-transcript")) {
+          if (req.url?.startsWith("/api/")) {
             try {
               const urlObj = new URL(req.url, `http://${req.headers.host || 'localhost'}`);
-              const videoId = urlObj.searchParams.get("v");
+              const apiName = urlObj.pathname.slice(5); // Remove "/api/"
 
-              if (!videoId) {
-                res.statusCode = 400;
-                res.setHeader("Content-Type", "application/json");
-                res.end(JSON.stringify({ error: "Valid video ID required (param: v)" }));
+              if (!apiName) {
+                next();
                 return;
               }
 
-              const apiPath = path.resolve(__dirname, "./api/youtube-transcript.js");
+              // Resolve to .ts or .js file in ./api/ directory
+              let apiPath = path.resolve(__dirname, `./api/${apiName}.ts`);
+              let exists = true;
+              try {
+                await fs.promises.access(apiPath);
+              } catch {
+                try {
+                  apiPath = path.resolve(__dirname, `./api/${apiName}.js`);
+                  await fs.promises.access(apiPath);
+                } catch {
+                  exists = false;
+                }
+              }
+
+              if (!exists) {
+                next();
+                return;
+              }
+
+              // Import API handler dynamically
               const { default: handler } = await import(apiPath);
+
+              // Parse search query params
+              const query: Record<string, string> = {};
+              urlObj.searchParams.forEach((val, key) => {
+                query[key] = val;
+              });
+
+              // Read request body for POST/PUT requests
+              let body: any = "";
+              if (req.method === "POST" || req.method === "PUT") {
+                body = await new Promise((resolve) => {
+                  let data = "";
+                  req.on("data", (chunk) => { data += chunk; });
+                  req.on("end", () => { resolve(data); });
+                });
+              }
 
               const mockReq = {
                 method: req.method,
-                query: { v: videoId },
+                query,
+                body,
+                headers: req.headers,
               };
 
               const mockRes = {
@@ -47,6 +83,18 @@ export default defineConfig(() => ({
                 },
                 setHeader(name: string, val: string) {
                   this.headers[name] = val;
+                  return this;
+                },
+                write(chunk: any) {
+                  res.write(chunk);
+                  return this;
+                },
+                end(data?: any) {
+                  res.statusCode = this.statusCode;
+                  for (const [k, v] of Object.entries(this.headers)) {
+                    res.setHeader(k, v as string);
+                  }
+                  res.end(data);
                   return this;
                 },
                 json(data: unknown) {

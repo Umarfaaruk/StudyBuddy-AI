@@ -54,10 +54,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   const signOut = async () => {
     try {
-      // Clear all session data from localStorage to prevent data leakage
+      // Clear all session data and notepad drafts from localStorage to prevent data leakage
       const keys = Object.keys(localStorage);
       keys.forEach((key) => {
-        if (key.startsWith("session_")) {
+        if (key.startsWith("session_") || key.startsWith("notes_")) {
           localStorage.removeItem(key);
         }
       });
