@@ -1,7 +1,8 @@
 import { useState } from "react";
 import {
   ShieldCheck, Users, Clock, Flame, BookOpen, Search, ChevronDown, ChevronUp,
-  Trophy, Upload, BarChart3, Zap, Loader2, MessageSquare, Star, AlertTriangle
+  Trophy, Upload, BarChart3, Zap, Loader2, MessageSquare, MessageCircleQuestion,
+  Star, AlertTriangle, Target
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useQuery } from "@tanstack/react-query";
@@ -18,9 +19,12 @@ interface UserRow {
   joined: string;
   xp: number;
   streak: number;
+  longestStreak: number;
   studyHours: number;
   quizCount: number;
+  avgQuizScore: number;
   materialsCount: number;
+  doubtCount: number;
   lastActive: string;
 }
 
@@ -67,22 +71,33 @@ const AdminPanel = () => {
       });
 
       const streakDocs = await safeFetchCollection("user_streaks");
-      const streakByUser: Record<string, number> = {};
+      const streakByUser: Record<string, { current: number; longest: number }> = {};
       streakDocs.forEach(d => {
-        streakByUser[d.id] = d.data()?.current_streak || 0;
+        const data = d.data();
+        streakByUser[d.id] = {
+          current: data?.current_streak || 0,
+          longest: data?.longest_streak || 0,
+        };
       });
 
       const sessionDocs = await safeFetchCollection("study_sessions");
       const studyByUser: Record<string, { seconds: number; lastActive: string }> = {};
       const todayKey = new Date().toISOString().slice(0, 10);
-      let activeToday = 0;
+      const activeTodayUsers = new Set<string>();
       let totalStudySeconds = 0;
 
       sessionDocs.forEach(d => {
         const data = d.data();
         const uid = data.user_id;
         const duration = data.duration_seconds || 0;
-        const endedAt = data.ended_at || data.created_at?.toDate?.()?.toISOString() || "";
+
+        // Parse date consistently with user-facing pages
+        const dateObj = data.ended_at
+          ? new Date(data.ended_at)
+          : data.created_at?.toDate?.() ?? null;
+        const endedAt = dateObj && !isNaN(dateObj.getTime())
+          ? dateObj.toISOString()
+          : "";
 
         if (!studyByUser[uid]) studyByUser[uid] = { seconds: 0, lastActive: "" };
         studyByUser[uid].seconds += duration;
@@ -93,15 +108,19 @@ const AdminPanel = () => {
         }
 
         if (endedAt.slice(0, 10) === todayKey) {
-          activeToday++;
+          activeTodayUsers.add(uid);
         }
       });
 
       const quizDocs = await safeFetchCollection("quiz_attempts");
-      const quizByUser: Record<string, number> = {};
+      const quizByUser: Record<string, { count: number; totalScore: number; totalQuestions: number }> = {};
       quizDocs.forEach(d => {
-        const uid = d.data().user_id;
-        quizByUser[uid] = (quizByUser[uid] || 0) + 1;
+        const data = d.data();
+        const uid = data.user_id;
+        if (!quizByUser[uid]) quizByUser[uid] = { count: 0, totalScore: 0, totalQuestions: 0 };
+        quizByUser[uid].count += 1;
+        quizByUser[uid].totalScore += (data.score || 0);
+        quizByUser[uid].totalQuestions += (data.total_questions || 0);
       });
 
       const materialDocs = await safeFetchCollection("materials");
@@ -111,29 +130,46 @@ const AdminPanel = () => {
         matsByUser[uid] = (matsByUser[uid] || 0) + 1;
       });
 
-      const users: UserRow[] = profiles.map((p: any) => ({
-        uid: p.uid,
-        name: p.full_name || "Unknown",
-        email: p.email || "—",
-        avatar_url: p.avatar_url,
-        grade_level: p.grade_level,
-        joined: p.created_at || "—",
-        xp: xpByUser[p.uid] || 0,
-        streak: streakByUser[p.uid] || 0,
-        studyHours: parseFloat(((studyByUser[p.uid]?.seconds || 0) / 3600).toFixed(1)),
-        quizCount: quizByUser[p.uid] || 0,
-        materialsCount: matsByUser[p.uid] || 0,
-        lastActive: studyByUser[p.uid]?.lastActive
-          ? new Date(studyByUser[p.uid].lastActive).toLocaleDateString()
-          : "Never",
-      }));
+      const doubtDocs = await safeFetchCollection("doubt_sessions");
+      const doubtsByUser: Record<string, number> = {};
+      doubtDocs.forEach(d => {
+        const uid = d.data().user_id;
+        doubtsByUser[uid] = (doubtsByUser[uid] || 0) + 1;
+      });
+
+      const users: UserRow[] = profiles.map((p: any) => {
+        const quizData = quizByUser[p.uid];
+        const avgQuizScore = quizData && quizData.totalQuestions > 0
+          ? Math.round((quizData.totalScore / quizData.totalQuestions) * 100)
+          : 0;
+        return {
+          uid: p.uid,
+          name: p.full_name || "Unknown",
+          email: p.email || "—",
+          avatar_url: p.avatar_url,
+          grade_level: p.grade_level,
+          joined: p.created_at || "—",
+          xp: xpByUser[p.uid] || 0,
+          streak: streakByUser[p.uid]?.current || 0,
+          longestStreak: streakByUser[p.uid]?.longest || 0,
+          studyHours: parseFloat(((studyByUser[p.uid]?.seconds || 0) / 3600).toFixed(1)),
+          quizCount: quizData?.count || 0,
+          avgQuizScore,
+          materialsCount: matsByUser[p.uid] || 0,
+          doubtCount: doubtsByUser[p.uid] || 0,
+          lastActive: studyByUser[p.uid]?.lastActive
+            ? new Date(studyByUser[p.uid].lastActive).toLocaleDateString()
+            : "Never",
+        };
+      });
 
       users.sort((a, b) => b.xp - a.xp);
 
       const totalUsers = profiles.length;
+      const activeToday = activeTodayUsers.size;
       const totalStudyHours = parseFloat((totalStudySeconds / 3600).toFixed(1));
       const avgStreak = profiles.length > 0
-        ? parseFloat((Object.values(streakByUser).reduce((a, b) => a + b, 0) / profiles.length).toFixed(1))
+        ? parseFloat((Object.values(streakByUser).reduce((a, b) => a + b.current, 0) / profiles.length).toFixed(1))
         : 0;
 
       return { users, totalUsers, activeToday, totalStudyHours, avgStreak };
@@ -282,8 +318,8 @@ const AdminPanel = () => {
       {activeTab === "users" && (
         <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
           {/* Desktop Table Header */}
-          <div className="hidden md:grid grid-cols-[2fr_1fr_1fr_1fr_1fr_1fr_1fr] gap-4 px-6 py-3.5 bg-gray-50/80 border-b border-gray-100">
-            {["User", "XP", "Streak", "Study Hours", "Quizzes", "Materials", "Last Active"].map((h) => (
+          <div className="hidden md:grid grid-cols-[2fr_1fr_1fr_1fr_1fr_1fr_1fr_1fr_1fr] gap-4 px-6 py-3.5 bg-gray-50/80 border-b border-gray-100">
+            {["User", "XP", "Streak", "Study Hours", "Avg Score", "Quizzes", "Doubts", "Materials", "Last Active"].map((h) => (
               <div key={h} className="text-[11px] font-bold uppercase tracking-wider text-gray-400">{h}</div>
             ))}
           </div>
@@ -303,7 +339,7 @@ const AdminPanel = () => {
               <div key={u.uid}>
                 <button
                   onClick={() => setExpandedUserId(expandedUserId === u.uid ? null : u.uid)}
-                  className={`w-full grid grid-cols-1 md:grid-cols-[2fr_1fr_1fr_1fr_1fr_1fr_1fr] gap-2 md:gap-4 px-4 md:px-6 py-3.5 md:py-4 text-left hover:bg-gray-50/80 transition-colors items-center ${
+                  className={`w-full grid grid-cols-1 md:grid-cols-[2fr_1fr_1fr_1fr_1fr_1fr_1fr_1fr_1fr] gap-2 md:gap-4 px-4 md:px-6 py-3.5 md:py-4 text-left hover:bg-gray-50/80 transition-colors items-center ${
                     idx !== filteredUsers.length - 1 ? "border-b border-gray-50" : ""
                   }`}
                 >
@@ -327,18 +363,22 @@ const AdminPanel = () => {
                   </div>
 
                   {/* Mobile compact stats row */}
-                  <div className="flex items-center gap-4 md:hidden text-xs text-gray-500 pl-12">
+                  <div className="flex items-center gap-3 md:hidden text-xs text-gray-500 pl-12 flex-wrap">
                     <span className="flex items-center gap-1"><Zap className="h-3 w-3 text-amber-400" />{u.xp.toLocaleString()}</span>
                     <span className="flex items-center gap-1"><Flame className="h-3 w-3 text-red-400" />{u.streak}d</span>
                     <span className="flex items-center gap-1"><Clock className="h-3 w-3 text-green-500" />{u.studyHours}h</span>
+                    <span className="flex items-center gap-1"><Target className="h-3 w-3 text-emerald-500" />{u.avgQuizScore > 0 ? `${u.avgQuizScore}%` : '—'}</span>
                     <span className="flex items-center gap-1"><Trophy className="h-3 w-3 text-[#1D4ED8]" />{u.quizCount}</span>
+                    <span className="flex items-center gap-1"><MessageCircleQuestion className="h-3 w-3 text-violet-500" />{u.doubtCount}</span>
                   </div>
 
                   {/* Desktop columns */}
                   <div className="hidden md:flex items-center gap-1"><Zap className="h-3.5 w-3.5 text-amber-400" /><span className="text-sm font-semibold text-gray-900">{u.xp.toLocaleString()}</span></div>
                   <div className="hidden md:flex items-center gap-1"><Flame className="h-3.5 w-3.5 text-red-400" /><span className="text-sm font-semibold text-gray-900">{u.streak}d</span></div>
                   <div className="hidden md:flex items-center gap-1"><Clock className="h-3.5 w-3.5 text-green-500" /><span className="text-sm font-semibold text-gray-900">{u.studyHours}h</span></div>
+                  <div className="hidden md:flex items-center gap-1"><Target className="h-3.5 w-3.5 text-emerald-500" /><span className={`text-sm font-semibold ${u.avgQuizScore >= 80 ? 'text-emerald-600' : u.avgQuizScore >= 50 ? 'text-amber-600' : u.avgQuizScore > 0 ? 'text-red-500' : 'text-gray-400'}`}>{u.avgQuizScore > 0 ? `${u.avgQuizScore}%` : '—'}</span></div>
                   <div className="hidden md:flex items-center gap-1"><Trophy className="h-3.5 w-3.5 text-[#1D4ED8]" /><span className="text-sm font-semibold text-gray-900">{u.quizCount}</span></div>
+                  <div className="hidden md:flex items-center gap-1"><MessageCircleQuestion className="h-3.5 w-3.5 text-violet-500" /><span className="text-sm font-semibold text-gray-900">{u.doubtCount}</span></div>
                   <div className="hidden md:flex items-center gap-1"><Upload className="h-3.5 w-3.5 text-purple-500" /><span className="text-sm font-semibold text-gray-900">{u.materialsCount}</span></div>
                   <div className="hidden md:block text-xs text-gray-400">{u.lastActive}</div>
                 </button>
@@ -346,7 +386,7 @@ const AdminPanel = () => {
                 {/* Expanded User Details */}
                 {expandedUserId === u.uid && (
                   <div className="px-4 md:px-6 py-4 bg-gray-50/60 border-b border-gray-100 animate-in fade-in slide-in-from-top-2 duration-200">
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4">
+                    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 md:gap-4">
                       <div className="bg-white rounded-xl p-3.5 md:p-4 border border-gray-100 shadow-sm">
                         <div className="text-[10px] font-bold uppercase tracking-wider text-gray-400 mb-1">Total XP</div>
                         <div className="text-lg md:text-xl font-bold text-gray-900">{u.xp.toLocaleString()}</div>
@@ -357,8 +397,20 @@ const AdminPanel = () => {
                         <div className="text-lg md:text-xl font-bold text-gray-900">{u.studyHours}h</div>
                       </div>
                       <div className="bg-white rounded-xl p-3.5 md:p-4 border border-gray-100 shadow-sm">
-                        <div className="text-[10px] font-bold uppercase tracking-wider text-gray-400 mb-1">Quizzes</div>
-                        <div className="text-lg md:text-xl font-bold text-gray-900">{u.quizCount}</div>
+                        <div className="text-[10px] font-bold uppercase tracking-wider text-gray-400 mb-1">Streak</div>
+                        <div className="text-lg md:text-xl font-bold text-gray-900">{u.streak}d 🔥</div>
+                        <div className="text-[10px] text-gray-400 mt-0.5">Best: {u.longestStreak}d</div>
+                      </div>
+                      <div className="bg-white rounded-xl p-3.5 md:p-4 border border-gray-100 shadow-sm">
+                        <div className="text-[10px] font-bold uppercase tracking-wider text-gray-400 mb-1">Avg Quiz Score</div>
+                        <div className={`text-lg md:text-xl font-bold ${u.avgQuizScore >= 80 ? 'text-emerald-600' : u.avgQuizScore >= 50 ? 'text-amber-600' : u.avgQuizScore > 0 ? 'text-red-500' : 'text-gray-400'}`}>
+                          {u.avgQuizScore > 0 ? `${u.avgQuizScore}%` : '—'}
+                        </div>
+                        <div className="text-[10px] text-gray-400 mt-0.5">{u.quizCount} quiz{u.quizCount !== 1 ? 'zes' : ''}</div>
+                      </div>
+                      <div className="bg-white rounded-xl p-3.5 md:p-4 border border-gray-100 shadow-sm">
+                        <div className="text-[10px] font-bold uppercase tracking-wider text-gray-400 mb-1">Doubts Asked</div>
+                        <div className="text-lg md:text-xl font-bold text-gray-900">{u.doubtCount}</div>
                       </div>
                       <div className="bg-white rounded-xl p-3.5 md:p-4 border border-gray-100 shadow-sm">
                         <div className="text-[10px] font-bold uppercase tracking-wider text-gray-400 mb-1">Materials</div>

@@ -112,7 +112,7 @@ service cloud.firestore {
     
     // ── /doubt_sessions collection ──────────────────
     match /doubt_sessions/{sessionId} {
-      allow read: if isOwner();
+      allow read: if isOwner() || isAdmin();
       allow create: if isNewOwner();
       allow update, delete: if isOwner();
     }
