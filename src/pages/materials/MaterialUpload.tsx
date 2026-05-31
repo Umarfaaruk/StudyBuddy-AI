@@ -250,9 +250,24 @@ const MaterialUpload = () => {
     }
   };
 
+  type MaterialItem = {
+    id: string;
+    file_name: string;
+    content_type: string;
+    file_size: number;
+    processing_status: string;
+    extracted_text: string;
+    summary: string;
+    key_topics: string[];
+    content_length: number;
+    file_data?: string;
+    uploaded_at?: any;
+    user_id: string;
+  };
+
   const { data: materials, isLoading } = useQuery({
     queryKey: ["materials", user?.uid],
-    queryFn: async () => {
+    queryFn: async (): Promise<MaterialItem[]> => {
       if (!user) return [];
       const q = query(
         collection(db, "materials"),
@@ -263,22 +278,10 @@ const MaterialUpload = () => {
       return docs.docs.map(doc => ({
         id: doc.id,
         ...doc.data()
-      } as {
-        id: string;
-        file_name: string;
-        content_type: string;
-        file_size: number;
-        processing_status: string;
-        extracted_text: string;
-        summary: string;
-        key_topics: string[];
-        content_length: number;
-        file_data?: string;
-        uploaded_at?: any;
-        user_id: string;
-      }));
+      } as MaterialItem));
     },
     enabled: !!user,
+    refetchInterval: uploading ? 3000 : false, // Auto-refresh while uploading
   });
 
   const handleUpload = async (files: FileList | null) => {
@@ -295,6 +298,8 @@ const MaterialUpload = () => {
         setUploadProgress(`Processing ${file.name}...`);
         toast.info(`Processing ${file.name}...`);
 
+        const uploadTimestamp = new Date().toISOString();
+
         // Step 1: Create Firestore doc with "processing" status
         const materialRef = await addDoc(collection(db, "materials"), {
           user_id: user.uid,
@@ -302,8 +307,27 @@ const MaterialUpload = () => {
           content_type: file.type,
           file_size: file.size,
           processing_status: "processing",
-          uploaded_at: new Date().toISOString(),
+          uploaded_at: uploadTimestamp,
         });
+
+        // Optimistic update: immediately add the new file to the cache so it shows in the UI
+        const optimisticEntry: MaterialItem = {
+          id: materialRef.id,
+          file_name: file.name,
+          content_type: file.type,
+          file_size: file.size,
+          processing_status: "processing",
+          extracted_text: "",
+          summary: "",
+          key_topics: [],
+          content_length: 0,
+          uploaded_at: uploadTimestamp,
+          user_id: user.uid,
+        };
+        queryClient.setQueryData<MaterialItem[]>(
+          ["materials", user.uid],
+          (old) => [optimisticEntry, ...(old || [])]
+        );
 
         try {
           // Step 2: Extract text client-side (PDF.js for PDFs)
@@ -362,6 +386,24 @@ const MaterialUpload = () => {
             processed_at: new Date().toISOString(),
           });
 
+          // Update the optimistic entry in cache with the completed data
+          queryClient.setQueryData<MaterialItem[]>(
+            ["materials", user.uid],
+            (old) => (old || []).map(m =>
+              m.id === materialRef.id
+                ? {
+                    ...m,
+                    processing_status: "completed",
+                    extracted_text: extractedText.substring(0, 100000),
+                    summary,
+                    key_topics: keyTopics,
+                    content_length: extractedText.length,
+                    file_data: fileData ?? undefined,
+                  }
+                : m
+            )
+          );
+
           toast.success(`${file.name} processed successfully! ${extractedText.length > 100 ? `(${Math.round(extractedText.length / 1000)}K chars extracted)` : ''}`);
         } catch (err: any) {
           console.error("[Upload] Processing error:", err);
@@ -376,6 +418,16 @@ const MaterialUpload = () => {
               processed_at: new Date().toISOString(),
             });
           } catch { }
+
+          // Update optimistic entry for error case too
+          queryClient.setQueryData<MaterialItem[]>(
+            ["materials", user.uid],
+            (old) => (old || []).map(m =>
+              m.id === materialRef.id
+                ? { ...m, processing_status: "completed", summary: `Study material: ${file.name}` }
+                : m
+            )
+          );
 
           toast.warning(`${file.name} uploaded with limited processing.`);
         } finally {

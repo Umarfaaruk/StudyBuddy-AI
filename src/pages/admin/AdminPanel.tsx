@@ -2,13 +2,14 @@ import { useState } from "react";
 import {
   ShieldCheck, Users, Clock, Flame, BookOpen, Search, ChevronDown, ChevronUp,
   Trophy, Upload, BarChart3, Zap, Loader2, MessageSquare, MessageCircleQuestion,
-  Star, AlertTriangle, Target
+  Star, AlertTriangle, Target, Trash2
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { db } from "@/lib/firebase";
-import { collection, getDocs } from "firebase/firestore";
+import { collection, getDocs, deleteDoc, doc, query, where } from "firebase/firestore";
 import { Skeleton } from "@/components/ui/skeleton";
+import { toast } from "sonner";
 
 interface UserRow {
   uid: string;
@@ -25,6 +26,8 @@ interface UserRow {
   avgQuizScore: number;
   materialsCount: number;
   doubtCount: number;
+  flashcardCount: number;
+  studyPlanCount: number;
   lastActive: string;
 }
 
@@ -52,9 +55,12 @@ async function safeFetchCollection(collectionName: string) {
 
 const AdminPanel = () => {
   const { user } = useAuth();
+  const queryClient = useQueryClient();
   const [searchQuery, setSearchQuery] = useState("");
   const [expandedUserId, setExpandedUserId] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<"users" | "feedback">("users");
+  const [activeTab, setActiveTab] = useState<"users" | "feedback" | "analytics">("users");
+  const [confirmDeleteUserId, setConfirmDeleteUserId] = useState<string | null>(null);
+  const [deletingUserId, setDeletingUserId] = useState<string | null>(null);
 
   // Fetch all users and their stats
   const { data: platformStats, isLoading, error: statsError } = useQuery({
@@ -137,6 +143,20 @@ const AdminPanel = () => {
         doubtsByUser[uid] = (doubtsByUser[uid] || 0) + 1;
       });
 
+      const flashcardDocs = await safeFetchCollection("flashcards");
+      const flashcardsByUser: Record<string, number> = {};
+      flashcardDocs.forEach(d => {
+        const uid = d.data().user_id;
+        flashcardsByUser[uid] = (flashcardsByUser[uid] || 0) + 1;
+      });
+
+      const studyPlanDocs = await safeFetchCollection("study_plans");
+      const studyPlansByUser: Record<string, number> = {};
+      studyPlanDocs.forEach(d => {
+        const uid = d.data().user_id;
+        studyPlansByUser[uid] = (studyPlansByUser[uid] || 0) + 1;
+      });
+
       const users: UserRow[] = profiles.map((p: any) => {
         const quizData = quizByUser[p.uid];
         const avgQuizScore = quizData && quizData.totalQuestions > 0
@@ -157,6 +177,8 @@ const AdminPanel = () => {
           avgQuizScore,
           materialsCount: matsByUser[p.uid] || 0,
           doubtCount: doubtsByUser[p.uid] || 0,
+          flashcardCount: flashcardsByUser[p.uid] || 0,
+          studyPlanCount: studyPlansByUser[p.uid] || 0,
           lastActive: studyByUser[p.uid]?.lastActive
             ? new Date(studyByUser[p.uid].lastActive).toLocaleDateString()
             : "Never",
@@ -206,6 +228,78 @@ const AdminPanel = () => {
     retry: 1,
   });
 
+  /* ── Delete user data across all collections ────────── */
+  const handleDeleteUser = async (uid: string) => {
+    setDeletingUserId(uid);
+    try {
+      const collectionsToClean = [
+        { name: "xp_logs", field: "user_id" },
+        { name: "study_sessions", field: "user_id" },
+        { name: "quiz_attempts", field: "user_id" },
+        { name: "materials", field: "user_id" },
+        { name: "doubt_sessions", field: "user_id" },
+        { name: "doubt_messages", field: "user_id" },
+        { name: "flashcards", field: "user_id" },
+        { name: "study_plans", field: "user_id" },
+        { name: "saved_notes", field: "user_id" },
+        { name: "feedback", field: "userId" },
+        { name: "analytics", field: null },          // doc ID = uid
+        { name: "analytics_snapshots", field: "user_id" },
+        { name: "lesson_progress", field: "user_id" },
+        { name: "topic_progress", field: "user_id" },
+        { name: "notifications", field: "user_id" },
+      ];
+
+      let totalDeleted = 0;
+
+      for (const col of collectionsToClean) {
+        try {
+          if (col.field) {
+            const q = query(collection(db, col.name), where(col.field, "==", uid));
+            const snap = await getDocs(q);
+            for (const d of snap.docs) {
+              await deleteDoc(doc(db, col.name, d.id));
+              totalDeleted++;
+            }
+          } else {
+            // Direct doc by uid
+            try {
+              await deleteDoc(doc(db, col.name, uid));
+              totalDeleted++;
+            } catch { /* doc may not exist */ }
+          }
+        } catch (err: any) {
+          console.warn(`[Admin] Could not clean "${col.name}" for ${uid}:`, err?.message);
+        }
+      }
+
+      // Delete user_streaks (doc ID = uid)
+      try { await deleteDoc(doc(db, "user_streaks", uid)); totalDeleted++; } catch { }
+
+      // Delete user_preferences (doc ID = uid)
+      try { await deleteDoc(doc(db, "user_preferences", uid)); totalDeleted++; } catch { }
+
+      // Delete profile (doc ID = uid)
+      try { await deleteDoc(doc(db, "profiles", uid)); totalDeleted++; } catch { }
+
+      // Delete users doc (doc ID = uid)
+      try { await deleteDoc(doc(db, "users", uid)); totalDeleted++; } catch { }
+
+      toast.success(`User data deleted successfully (${totalDeleted} records removed)`);
+
+      // Refresh admin data
+      queryClient.invalidateQueries({ queryKey: ["admin-platform-stats"] });
+      queryClient.invalidateQueries({ queryKey: ["admin-feedback"] });
+    } catch (err: any) {
+      console.error("[Admin] Delete user error:", err);
+      toast.error("Failed to delete user data. Check console for details.");
+    } finally {
+      setDeletingUserId(null);
+      setConfirmDeleteUserId(null);
+      setExpandedUserId(null);
+    }
+  };
+
   const filteredUsers = (platformStats?.users || []).filter((u) => {
     if (!searchQuery.trim()) return true;
     const q = searchQuery.toLowerCase();
@@ -221,6 +315,55 @@ const AdminPanel = () => {
   const avgRating = feedbackList.length > 0
     ? parseFloat((feedbackList.reduce((sum, f) => sum + f.rating, 0) / feedbackList.length).toFixed(1))
     : 0;
+
+  /* ── Analytics data ───────────────────────────────── */
+  const totalUsers = platformStats?.totalUsers || 0;
+  const featureUsageData = totalUsers > 0 ? [
+    {
+      feature: "Study Sessions",
+      activeUsers: platformStats?.users.filter(u => u.studyHours > 0).length || 0,
+      color: "from-emerald-400 to-emerald-600",
+      bgColor: "bg-emerald-500",
+      icon: "📚",
+    },
+    {
+      feature: "Quizzes",
+      activeUsers: platformStats?.users.filter(u => u.quizCount > 0).length || 0,
+      color: "from-blue-400 to-blue-600",
+      bgColor: "bg-blue-500",
+      icon: "🎯",
+    },
+    {
+      feature: "Doubt Sessions",
+      activeUsers: platformStats?.users.filter(u => u.doubtCount > 0).length || 0,
+      color: "from-violet-400 to-violet-600",
+      bgColor: "bg-violet-500",
+      icon: "❓",
+    },
+    {
+      feature: "Materials Upload",
+      activeUsers: platformStats?.users.filter(u => u.materialsCount > 0).length || 0,
+      color: "from-amber-400 to-amber-600",
+      bgColor: "bg-amber-500",
+      icon: "📄",
+    },
+    {
+      feature: "Flashcards",
+      activeUsers: platformStats?.users.filter(u => u.flashcardCount > 0).length || 0,
+      color: "from-pink-400 to-pink-600",
+      bgColor: "bg-pink-500",
+      icon: "🗂️",
+    },
+    {
+      feature: "Study Plans",
+      activeUsers: platformStats?.users.filter(u => u.studyPlanCount > 0).length || 0,
+      color: "from-cyan-400 to-cyan-600",
+      bgColor: "bg-cyan-500",
+      icon: "📋",
+    },
+  ] : [];
+
+  const lowUsageFeatures = featureUsageData.filter(f => totalUsers > 0 && (f.activeUsers / totalUsers) < 0.3);
 
   return (
     <div className="p-4 md:p-8 max-w-7xl mx-auto space-y-6">
@@ -300,19 +443,30 @@ const AdminPanel = () => {
           <MessageSquare className="h-4 w-4 inline mr-1.5 -mt-0.5" />
           Feedback ({feedbackList.length})
         </button>
+        <button
+          onClick={() => { setActiveTab("analytics"); setSearchQuery(""); }}
+          className={`px-4 py-2 rounded-xl text-sm font-semibold transition-all ${
+            activeTab === "analytics" ? "bg-[#0F172A] text-white shadow-md" : "text-gray-400 hover:text-gray-900 hover:bg-gray-100"
+          }`}
+        >
+          <BarChart3 className="h-4 w-4 inline mr-1.5 -mt-0.5" />
+          Analytics
+        </button>
       </div>
 
-      {/* Search */}
-      <div className="relative">
-        <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
-        <input
-          type="text"
-          placeholder={activeTab === "users" ? "Search users by name or email..." : "Search feedback by name or content..."}
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-          className="w-full h-11 pl-10 pr-4 text-sm bg-white border border-gray-200 rounded-xl outline-none focus:border-[#1D4ED8]/40 focus:ring-2 focus:ring-[#1D4ED8]/10 text-gray-900 transition-all shadow-sm placeholder:text-gray-300"
-        />
-      </div>
+      {/* Search — show only for users / feedback tabs */}
+      {activeTab !== "analytics" && (
+        <div className="relative">
+          <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+          <input
+            type="text"
+            placeholder={activeTab === "users" ? "Search users by name or email..." : "Search feedback by name or content..."}
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="w-full h-11 pl-10 pr-4 text-sm bg-white border border-gray-200 rounded-xl outline-none focus:border-[#1D4ED8]/40 focus:ring-2 focus:ring-[#1D4ED8]/10 text-gray-900 transition-all shadow-sm placeholder:text-gray-300"
+          />
+        </div>
+      )}
 
       {/* ── USERS TAB ───────────────────────────────────── */}
       {activeTab === "users" && (
@@ -425,6 +579,46 @@ const AdminPanel = () => {
                         )}
                       </div>
                     )}
+
+                    {/* Delete User Button */}
+                    <div className="mt-4 pt-3 border-t border-gray-200/60">
+                      {confirmDeleteUserId === u.uid ? (
+                        <div className="flex items-center gap-3 bg-red-50 border border-red-200 rounded-xl p-3 animate-in fade-in zoom-in-95 duration-200">
+                          <AlertTriangle className="h-5 w-5 text-red-500 flex-shrink-0" />
+                          <div className="flex-1">
+                            <p className="text-sm font-semibold text-red-800">Delete all data for "{u.name}"?</p>
+                            <p className="text-xs text-red-600 mt-0.5">This will permanently remove their profile, study sessions, quizzes, materials, and all other data. This cannot be undone.</p>
+                          </div>
+                          <div className="flex items-center gap-2 flex-shrink-0">
+                            <button
+                              onClick={(e) => { e.stopPropagation(); setConfirmDeleteUserId(null); }}
+                              className="px-3 py-1.5 text-xs font-semibold text-gray-600 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
+                            >
+                              Cancel
+                            </button>
+                            <button
+                              onClick={(e) => { e.stopPropagation(); handleDeleteUser(u.uid); }}
+                              disabled={deletingUserId === u.uid}
+                              className="px-3 py-1.5 text-xs font-semibold text-white bg-red-500 rounded-lg hover:bg-red-600 transition-colors flex items-center gap-1.5 disabled:opacity-60"
+                            >
+                              {deletingUserId === u.uid ? (
+                                <><Loader2 className="h-3 w-3 animate-spin" /> Deleting...</>
+                              ) : (
+                                <><Trash2 className="h-3 w-3" /> Delete All Data</>
+                              )}
+                            </button>
+                          </div>
+                        </div>
+                      ) : (
+                        <button
+                          onClick={(e) => { e.stopPropagation(); setConfirmDeleteUserId(u.uid); }}
+                          className="flex items-center gap-2 text-xs font-semibold text-red-500 hover:text-red-600 hover:bg-red-50 px-3 py-2 rounded-lg transition-all"
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                          Delete User Data
+                        </button>
+                      )}
+                    </div>
                   </div>
                 )}
               </div>
@@ -488,11 +682,139 @@ const AdminPanel = () => {
         </div>
       )}
 
+      {/* ── ANALYTICS TAB ──────────────────────────────── */}
+      {activeTab === "analytics" && (
+        <div className="space-y-6">
+          {/* Feature Usage Bar Chart */}
+          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5 md:p-6">
+            <div className="flex items-center gap-3 mb-6">
+              <div className="h-9 w-9 rounded-lg bg-[#1D4ED8]/10 flex items-center justify-center">
+                <BarChart3 className="h-4.5 w-4.5 text-[#1D4ED8]" />
+              </div>
+              <div>
+                <h3 className="text-base font-bold text-gray-900">Feature Adoption</h3>
+                <p className="text-xs text-gray-400">How many users are actively using each feature</p>
+              </div>
+            </div>
+
+            {isLoading ? (
+              <div className="space-y-4">
+                {Array.from({ length: 6 }).map((_, i) => (
+                  <div key={i} className="flex items-center gap-4">
+                    <Skeleton className="h-4 w-28" />
+                    <Skeleton className="h-8 flex-1 rounded-lg" />
+                    <Skeleton className="h-4 w-16" />
+                  </div>
+                ))}
+              </div>
+            ) : totalUsers === 0 ? (
+              <div className="text-center py-12">
+                <BarChart3 className="h-10 w-10 text-gray-200 mx-auto mb-3" />
+                <p className="text-sm text-gray-400">No user data available yet</p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {featureUsageData
+                  .sort((a, b) => b.activeUsers - a.activeUsers)
+                  .map((feature) => {
+                    const pct = Math.round((feature.activeUsers / totalUsers) * 100);
+                    const barColor = pct >= 60
+                      ? "bg-gradient-to-r from-emerald-400 to-emerald-500"
+                      : pct >= 30
+                      ? "bg-gradient-to-r from-amber-400 to-amber-500"
+                      : "bg-gradient-to-r from-red-400 to-red-500";
+
+                    return (
+                      <div key={feature.feature} className="group">
+                        <div className="flex items-center gap-4">
+                          {/* Feature label */}
+                          <div className="w-36 flex items-center gap-2 flex-shrink-0">
+                            <span className="text-base">{feature.icon}</span>
+                            <span className="text-sm font-medium text-gray-700 truncate">{feature.feature}</span>
+                          </div>
+
+                          {/* Bar */}
+                          <div className="flex-1 h-9 bg-gray-100 rounded-lg overflow-hidden relative">
+                            <div
+                              className={`h-full ${barColor} rounded-lg transition-all duration-700 ease-out relative`}
+                              style={{ width: `${Math.max(pct, 3)}%` }}
+                            >
+                              {/* Animated shimmer */}
+                              <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+                            </div>
+                            {/* Percentage label inside bar area */}
+                            {pct >= 15 && (
+                              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[11px] font-bold text-white drop-shadow-sm">
+                                {pct}%
+                              </span>
+                            )}
+                          </div>
+
+                          {/* Count */}
+                          <div className="w-24 text-right flex-shrink-0">
+                            <span className="text-sm font-bold text-gray-900">{feature.activeUsers}</span>
+                            <span className="text-xs text-gray-400">/{totalUsers}</span>
+                            {pct < 15 && (
+                              <span className="text-[10px] text-gray-400 ml-1">({pct}%)</span>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+              </div>
+            )}
+          </div>
+
+          {/* Low Usage Insights */}
+          {lowUsageFeatures.length > 0 && (
+            <div className="bg-amber-50 border border-amber-200 rounded-2xl p-5 md:p-6">
+              <div className="flex items-center gap-2 mb-4">
+                <AlertTriangle className="h-5 w-5 text-amber-500" />
+                <h3 className="text-sm font-bold text-amber-800">Low Usage Insights</h3>
+              </div>
+              <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                {lowUsageFeatures.map((feature) => {
+                  const pct = totalUsers > 0 ? Math.round((feature.activeUsers / totalUsers) * 100) : 0;
+                  const unusedCount = totalUsers - feature.activeUsers;
+                  const reasons: Record<string, string> = {
+                    "Study Sessions": "Users may not be aware of the study timer or find manual session tracking cumbersome.",
+                    "Quizzes": "Quiz feature might need more topic variety or users haven't completed enough lessons to take quizzes.",
+                    "Doubt Sessions": "Users may not know they can ask AI for help, or prefer searching online instead.",
+                    "Materials Upload": "File upload limit, supported formats, or the value proposition of uploading materials may be unclear.",
+                    "Flashcards": "Users might not realize flashcards are available, or prefer other study methods.",
+                    "Study Plans": "Creating study plans may feel too structured for casual learners. Consider auto-generating plans.",
+                  };
+
+                  return (
+                    <div key={feature.feature} className="bg-white rounded-xl p-4 border border-amber-200/50 shadow-sm">
+                      <div className="flex items-center gap-2 mb-2">
+                        <span className="text-lg">{feature.icon}</span>
+                        <span className="text-sm font-semibold text-gray-900">{feature.feature}</span>
+                      </div>
+                      <div className="text-xs text-gray-500 mb-2">
+                        Only <span className="font-bold text-amber-600">{pct}%</span> of users ({feature.activeUsers}/{totalUsers}) are using this.
+                        <span className="font-semibold text-gray-700"> {unusedCount} user{unusedCount !== 1 ? 's' : ''}</span> haven't tried it.
+                      </div>
+                      <p className="text-[11px] text-gray-400 leading-relaxed italic">
+                        💡 {reasons[feature.feature] || "Consider improving discoverability and onboarding for this feature."}
+                      </p>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
       {/* Footer */}
       <div className="text-center text-xs text-gray-300 py-2">
         {activeTab === "users"
           ? `Showing ${filteredUsers.length} of ${platformStats?.totalUsers || 0} users`
-          : `Showing ${filteredFeedback.length} of ${feedbackList.length} feedback entries`
+          : activeTab === "feedback"
+          ? `Showing ${filteredFeedback.length} of ${feedbackList.length} feedback entries`
+          : `Analyzing ${totalUsers} users across 6 features`
         }
       </div>
     </div>

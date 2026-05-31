@@ -32,9 +32,11 @@ service cloud.firestore {
     match /users/{userId} {
       allow read: if isUser(userId) || isAdmin();
       allow write: if isUser(userId);
+      allow delete: if isUser(userId) || isAdmin();
       
       match /profile_data/{document=**} {
         allow read, write: if isUser(userId);
+        allow delete: if isUser(userId) || isAdmin();
       }
     }
     
@@ -44,6 +46,7 @@ service cloud.firestore {
     match /profiles/{userId} {
       allow read: if isAuthenticated();
       allow write: if isUser(userId);
+      allow delete: if isAdmin();
     }
     
     // ── /user_preferences collection ──────────────────
@@ -57,20 +60,22 @@ service cloud.firestore {
       allow read: if isOwner() || isAdmin();
       allow create: if isNewOwner();
       allow update: if isOwner();
-      allow delete: if isOwner();
+      allow delete: if isOwner() || isAdmin();
     }
     
     // ── /xp_logs collection ───────────────────────────
     match /xp_logs/{logId} {
       allow read: if isOwner() || isAdmin();
       allow create: if isNewOwner();
-      allow update, delete: if isOwner();
+      allow update: if isOwner();
+      allow delete: if isOwner() || isAdmin();
     }
     
     // ── /user_streaks collection ──────────────────────
     match /user_streaks/{userId} {
       allow read: if isUser(userId) || isAdmin();
       allow write: if isUser(userId);
+      allow delete: if isUser(userId) || isAdmin();
     }
     
     // ── /lesson_progress collection ───────────────────
@@ -86,6 +91,7 @@ service cloud.firestore {
       allow read: if isOwner() || isAdmin();
       allow create: if isNewOwner();
       allow update: if isOwner();
+      allow delete: if isAdmin();
     }
     
     // ── /topics collection (public) ────────────────────
@@ -114,7 +120,8 @@ service cloud.firestore {
     match /doubt_sessions/{sessionId} {
       allow read: if isOwner() || isAdmin();
       allow create: if isNewOwner();
-      allow update, delete: if isOwner();
+      allow update: if isOwner();
+      allow delete: if isOwner() || isAdmin();
     }
     
     // ── /doubt_messages collection ──────────────────
@@ -149,7 +156,7 @@ service cloud.firestore {
       allow read: if isOwner() || isAdmin();
       allow create: if isNewOwner();
       allow update: if isOwner();
-      allow delete: if isOwner();
+      allow delete: if isOwner() || isAdmin();
     }
     
     // ── /analytics_snapshots collection ────────────────
@@ -168,16 +175,18 @@ service cloud.firestore {
 
     // ── /flashcards collection ────────────────────────
     match /flashcards/{cardId} {
-      allow read: if isOwner();
+      allow read: if isOwner() || isAdmin();
       allow create: if isNewOwner();
-      allow update, delete: if isOwner();
+      allow update: if isOwner();
+      allow delete: if isOwner() || isAdmin();
     }
     
     // ── /study_plans collection ───────────────────────
     match /study_plans/{planId} {
-      allow read: if isOwner();
+      allow read: if isOwner() || isAdmin();
       allow create: if isNewOwner();
-      allow update, delete: if isOwner();
+      allow update: if isOwner();
+      allow delete: if isOwner() || isAdmin();
     }
 
     // ── /parent_guidance collection ───────────────────
@@ -189,9 +198,10 @@ service cloud.firestore {
 
     // ── /saved_notes collection ───────────────────────
     match /saved_notes/{noteId} {
-      allow read: if isOwner();
+      allow read: if isOwner() || isAdmin();
       allow create: if isNewOwner();
-      allow update, delete: if isOwner();
+      allow update: if isOwner();
+      allow delete: if isOwner() || isAdmin();
     }
 
     // ── /notifications collection ─────────────────────

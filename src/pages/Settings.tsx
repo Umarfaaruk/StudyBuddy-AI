@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Bell, User, LogOut, Shield, CreditCard, Puzzle, Bot, Camera } from "lucide-react";
+import { Bell, User, LogOut, Shield, CreditCard, Bot, Camera } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
 import { db } from "@/lib/firebase";
@@ -13,7 +13,6 @@ const tabs = [
   { key: "profile", icon: User, label: "Profile" },
   { key: "notifications", icon: Bell, label: "Notifications" },
   { key: "security", icon: Shield, label: "Security" },
-  { key: "integrations", icon: Puzzle, label: "Integrations" },
 ];
 
 const Settings = () => {
@@ -318,12 +317,7 @@ const Settings = () => {
             </div>
           )}
 
-          {activeTab === "integrations" && (
-            <div className="bg-card border border-border rounded-xl p-6 space-y-4">
-              <h3 className="font-bold text-foreground pb-4 border-b border-border">Integrations</h3>
-              <p className="text-sm text-muted-foreground">No integrations configured yet.</p>
-            </div>
-          )}
+
 
           {/* Sign out */}
           <Button
