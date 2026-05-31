@@ -154,8 +154,6 @@ export default defineConfig(() => ({
           ],
           // Animation libraries
           "vendor-animation": ["framer-motion", "gsap", "@gsap/react"],
-          // Flow diagram library
-          "vendor-flow": ["@xyflow/react"],
           // Markdown renderer
           "vendor-markdown": ["react-markdown"],
           // PDF renderer (heavy, only used on materials page)

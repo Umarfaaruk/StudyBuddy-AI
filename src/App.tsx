@@ -9,10 +9,8 @@ import ProtectedRoute from "@/components/ProtectedRoute";
 import AdminRoute from "@/components/AdminRoute";
 import ErrorBoundary from "@/components/ErrorBoundary";
 
-import { isPricingEnabled } from "@/lib/featureFlags";
 import Index from "./pages/Index";
 import About from "./pages/About";
-import Pricing from "./pages/Pricing";
 import NotFound from "./pages/NotFound";
 import Login from "./pages/auth/Login";
 import Signup from "./pages/auth/Signup";
@@ -70,10 +68,7 @@ const App = () => (
               {/* Public */}
               <Route path="/" element={<Index />} />
               <Route path="/about" element={<About />} />
-              <Route
-                path="/pricing"
-                element={isPricingEnabled ? <Pricing /> : <Navigate to="/" replace />}
-              />
+              <Route path="/pricing" element={<Navigate to="/" replace />} />
               <Route path="/login" element={<Login />} />
               <Route path="/signup" element={<Signup />} />
               <Route path="/admin-login" element={<AdminLogin />} />

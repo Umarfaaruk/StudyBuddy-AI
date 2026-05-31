@@ -18,7 +18,7 @@ const missingVars = requiredEnvVars.filter(v => !import.meta.env[v as keyof Impo
 if (missingVars.length > 0) {
   console.error(
     `Missing Firebase environment variables:\n${missingVars.join('\n')}\n\n` +
-    'Add these to your .env.local file. See SETUP_GUIDE.md for details.'
+    'Add these to your .env.local file. See README.md for details.'
   );
 }
 

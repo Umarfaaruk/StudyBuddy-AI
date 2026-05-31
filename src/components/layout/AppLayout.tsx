@@ -19,6 +19,7 @@ const sidebarLinks = [
   { to: "/dashboard", icon: LayoutDashboard, label: "Home" },
   { to: "/lessons", icon: BookOpen, label: "Academy" },
   { to: "/materials/tutor", icon: Bot, label: "AI Tutor" },
+  { to: "/tools", icon: Wrench, label: "Quick Tools" },
   { to: "/progress", icon: BarChart3, label: "Dashboard" },
   { to: "/doubts", icon: MessageCircleQuestion, label: "Ask Doubt" },
   { to: "/leaderboard", icon: Trophy, label: "Leaderboard" },

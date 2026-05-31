@@ -1,5 +1,4 @@
 import { ChatMessage, aiComplete, aiStream } from "./aiService";
-import { toast } from "sonner";
 
 const GEMINI_PROXY_URL = "/api/gemini";
 

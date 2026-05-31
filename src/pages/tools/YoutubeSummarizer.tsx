@@ -1,7 +1,7 @@
-import { useState, useRef, useEffect, useCallback } from "react";
+import { useState, useRef, useEffect } from "react";
 import {
   Youtube, Loader2, Sparkles, Copy, CheckCheck, MessageSquare, Send, X,
-  BookOpen, Clock, HelpCircle, ListChecks, FileText, Upload, Headphones, Play, Zap
+  FileText, Play
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
@@ -26,6 +26,7 @@ export const YoutubeSummarizer = () => {
     title: string;
     channel: string;
     transcript: string;
+    hasCaptions: boolean;
     segments: { start: number; text: string }[];
   } | null>(null);
 
@@ -87,89 +88,163 @@ export const YoutubeSummarizer = () => {
     return `${m}:${s.toString().padStart(2, "0")}`;
   };
 
-  // ── Chunked summarization for long transcripts ──────────────
-  const splitIntoChunks = (text: string, chunkSize = 6000, overlap = 500): string[] => {
+  const FAITHFUL_SUMMARY_SYSTEM = `You are a precise transcript summarizer. Your job is to produce a summary that accurately reflects ONLY what is said in the video transcript.
+
+STRICT RULES:
+- Use ONLY facts, arguments, examples, and terminology from the transcript.
+- Do NOT add external knowledge, opinions, or information not present in the transcript.
+- Preserve the speaker's key terms, names, and examples exactly as stated.
+- Cover topics in the same order they appear in the video when possible.
+- If the transcript is unclear on a point, say so — do not invent details.
+- Write in clear markdown with ## headings and bullet points.`;
+
+  const NO_CAPTIONS_SYSTEM = `You are an honest educational assistant. This video has NO captions/transcript available.
+You only have the title, channel, and description. Clearly state that the summary is based on metadata only, not the full video.
+Do NOT pretend you watched the video. Do NOT invent specific quotes or detailed lecture content.`;
+
+  const formatTranscriptWithTimestamps = (
+    segments: { start: number; text: string }[],
+    maxChars = 120000
+  ): string => {
+    if (segments.length === 0) return "";
+    const lines: string[] = [];
+    let total = 0;
+    for (const seg of segments) {
+      const line = `[${formatTimestamp(seg.start)}] ${seg.text}`;
+      if (total + line.length > maxChars) break;
+      lines.push(line);
+      total += line.length + 1;
+    }
+    return lines.join("\n");
+  };
+
+  const splitIntoChunks = (text: string, chunkSize = 8000, overlap = 400): string[] => {
     if (text.length <= chunkSize) return [text];
     const chunks: string[] = [];
     let start = 0;
     while (start < text.length) {
-      const end = Math.min(start + chunkSize, text.length);
+      let end = Math.min(start + chunkSize, text.length);
+      if (end < text.length) {
+        const slice = text.substring(start, end);
+        const lastBreak = Math.max(slice.lastIndexOf("\n"), slice.lastIndexOf(". "));
+        if (lastBreak > chunkSize * 0.5) {
+          end = start + lastBreak + 1;
+        }
+      }
       chunks.push(text.substring(start, end));
-      start = end - overlap;
-      if (start >= text.length) break;
+      if (end >= text.length) break;
+      start = Math.max(end - overlap, start + 1);
     }
     return chunks;
   };
 
-  const generateAccurateSummary = async (transcript: string, title: string, segments: { start: number; text: string }[]): Promise<string> => {
-    const isFallback = transcript.startsWith("No transcript available");
-    
-    if (isFallback) {
+  const generateAccurateSummary = async (
+    transcript: string,
+    title: string,
+    segments: { start: number; text: string }[],
+    hasCaptions: boolean
+  ): Promise<string> => {
+    if (!hasCaptions) {
       return await geminiComplete({
         messages: [
-          { role: "system", content: `You are an expert educator producing extremely detailed, visually gorgeous summaries for videos. 
-Format your output cleanly using markdown with proper H2 and H3 headings. Do not use plain bold lists.
-Your response MUST include:
-1. **Overview Paragraph**: A 3-4 sentence high-level overview explaining what the video covers, highlighting key names/channels in **bold**.
-2. **Key Core Topics**: Under a "## Core Topics & Scope" heading, list major subject areas discussed.
-3. **Actionable Takeaways**: Under a "## Key Takeaways" heading, provide 4-6 high-impact actionable takeaways from this educational subject.` },
-          { role: "user", content: `Generate a premium video summary for: "${title}"
-          
-Context details:
-${transcript}` }
+          { role: "system", content: NO_CAPTIONS_SYSTEM },
+          {
+            role: "user",
+            content: `Video: "${title}"
+
+Available metadata (NOT a full transcript):
+${transcript}
+
+Provide a brief, honest overview based only on the metadata above. Start with a note that captions were unavailable.`,
+          },
         ],
-        temperature: 0.4
+        temperature: 0.2,
+        maxTokens: 2048,
       });
     }
 
-    const chunks = splitIntoChunks(transcript);
-    const totalMinutes = Math.round(transcript.length / 800);
+    const timestampedTranscript =
+      segments.length > 0
+        ? formatTranscriptWithTimestamps(segments)
+        : transcript;
+
+    const chunks = splitIntoChunks(timestampedTranscript);
+    const durationHint =
+      segments.length > 0
+        ? `~${formatTimestamp(segments[segments.length - 1].start)}`
+        : "unknown length";
 
     if (chunks.length === 1) {
       return await geminiComplete({
         messages: [
-          { role: "system", content: `You are an expert educational content writer. Summarize the video transcript factually using exact information.
-Your summary must read like a premium textbook-quality study document.
-Format strictly in markdown:
-1. **Overview**: Write a 3-4 sentence comprehensive overview. Bold important channels, companies, or guests mentioned.
-2. **Main Highlights**: Under "## Key Highlights", list bullet points with **bold topic labels** and 2-3 sentence summaries.
-3. **Actionable Insights**: Under "## Actionable Lessons", list 4-5 bulleted points explaining how to apply the learnings in practice.` },
-          { role: "user", content: `Generate a premium summary for the video: "${title}" (~${totalMinutes} min)
-          
-Transcript:
-${transcript}` }
+          { role: "system", content: FAITHFUL_SUMMARY_SYSTEM },
+          {
+            role: "user",
+            content: `Summarize this video transcript faithfully. The summary must match what is actually said in the video.
+
+Video title: "${title}"
+Duration: ${durationHint}
+
+Transcript (with timestamps):
+${timestampedTranscript}
+
+Structure your summary as:
+## Overview
+2-4 sentences covering the main topic and purpose as stated in the video.
+
+## Key Points
+Bullet points for each major topic discussed, in chronological order. Include specific examples, names, and arguments from the transcript.
+
+## Conclusion
+What the speaker concludes or emphasizes at the end, based only on the transcript.`,
+          },
         ],
-        temperature: 0.3
+        temperature: 0.1,
+        maxTokens: 8192,
       });
     }
 
-    // Process long transcripts in segments and blend them
     const chunkSummaries: string[] = [];
     for (let i = 0; i < chunks.length; i++) {
-      const startMin = Math.round((i * 6000) / 800);
-      const endMin = Math.round(((i + 1) * 6000) / 800);
-      
       const chunkRes = await geminiComplete({
         messages: [
-          { role: "system", content: "You are a precise transcript analyst. Extract key concepts and topics as descriptive bullet points. Stick strictly to the text." },
-          { role: "user", content: `Extract detailed educational points from this transcript segment (~${startMin}-${endMin} min, Part ${i + 1}/${chunks.length}) from "${title}". Use bullet points with bold key labels.\n\nSegment:\n${chunks[i]}` }
+          {
+            role: "system",
+            content:
+              "Extract a factual bullet-point summary of this transcript segment. Include only what is explicitly stated. Do not add outside knowledge.",
+          },
+          {
+            role: "user",
+            content: `Video: "${title}" — Segment ${i + 1} of ${chunks.length}\n\n${chunks[i]}`,
+          },
         ],
-        temperature: 0.3
+        temperature: 0.1,
+        maxTokens: 4096,
       });
-      chunkSummaries.push(`### Phase ${i + 1} (~${startMin}-${endMin} min)\n${chunkRes}`);
+      chunkSummaries.push(`### Part ${i + 1}\n${chunkRes}`);
     }
 
-    const blended = chunkSummaries.join("\n\n---\n\n");
+    const blended = chunkSummaries.join("\n\n");
     return await geminiComplete({
       messages: [
-        { role: "system", content: `You are a world-class educational writer. Merge segment summaries into a single comprehensive, highly structured master summary.
-Structure rules:
-1. **Introduction**: A high-quality introductory overview paragraph.
-2. **Detailed Segment Chronology**: Under "## Comprehensive Subject Breakdown", merge the segments logically with H3 subheadings, explaining every concept thoroughly.
-3. **Takeaways**: Under "## Key Takeaways", provide 5-6 bulleted actionable insights.` },
-        { role: "user", content: `Combine these ${chunks.length} segment summaries of "${title}" into a seamless master summary:\n\n${blended}` }
+        { role: "system", content: FAITHFUL_SUMMARY_SYSTEM },
+        {
+          role: "user",
+          content: `Combine these segment summaries into one cohesive summary of "${title}" (${durationHint}).
+
+Rules: preserve chronological order, do not add new facts, remove redundancy, keep specific names/examples from the segments.
+
+Segment summaries:
+${blended}
+
+Final structure:
+## Overview
+## Key Points (chronological)
+## Conclusion`,
+        },
       ],
-      temperature: 0.3
+      temperature: 0.1,
+      maxTokens: 8192,
     });
   };
 
@@ -193,13 +268,15 @@ Structure rules:
       if (!resp.ok) throw new Error("Failed to extract YouTube details");
       const data = await resp.json();
 
-      const hasTranscript = !!(data.transcript && data.transcript.trim().length >= 100);
+      const hasCaptions = data.hasTranscript === true && (data.segments?.length ?? 0) > 0;
 
-      if (!hasTranscript) {
-        toast.warning("Captions are disabled on this video. Generating a structured overview of the video's topic instead!");
+      if (!hasCaptions) {
+        toast.warning(
+          "This video has no captions. Summary will be based on title/description only — it may not match the full video content."
+        );
       }
 
-      const transcriptText = hasTranscript
+      const transcriptText = hasCaptions
         ? data.transcript
         : `No transcript available.\nTitle: ${data.title || "YouTube Video"}\nChannel: ${data.channel || "Unknown"}\nDescription: ${data.transcript || "No description provided."}`;
 
@@ -208,6 +285,7 @@ Structure rules:
         title: data.title || "YouTube Video",
         channel: data.channel || "Unknown Channel",
         transcript: transcriptText,
+        hasCaptions,
         segments: data.segments || [],
       };
 
@@ -215,15 +293,19 @@ Structure rules:
       setIsLoading(false);
       setIsGenerating(true);
 
-      // Generate the initial summary
       const result = await generateAccurateSummary(
         transcriptText,
         videoObject.title,
-        videoObject.segments
+        videoObject.segments,
+        hasCaptions
       );
 
       setTabOutputs(prev => ({ ...prev, summary: result }));
-      toast.success(hasTranscript ? "Gemini summary generated from video transcript!" : "Educational summary generated successfully!");
+      toast.success(
+        hasCaptions
+          ? "Summary generated from video captions!"
+          : "Limited summary generated (no captions available)."
+      );
     } catch (err: any) {
       console.error(err);
       toast.error(err.message || "Failed to generate summary");
@@ -239,70 +321,70 @@ Structure rules:
     setGeneratingTab(tab);
 
     try {
-      const transcriptForPrompt = videoData.transcript.length > 12000
-        ? videoData.transcript.substring(0, 12000) + `\n\n[... transcript continues for ${videoData.transcript.length} total characters.]`
-        : videoData.transcript;
+      const transcriptForPrompt =
+        videoData.segments.length > 0
+          ? formatTranscriptWithTimestamps(videoData.segments, 15000)
+          : videoData.transcript.length > 15000
+            ? videoData.transcript.substring(0, 15000) + `\n\n[... transcript truncated at 15000 chars.]`
+            : videoData.transcript;
 
-      const isFallback = videoData.transcript.startsWith("No transcript available");
+      const hasCaptions = videoData.hasCaptions;
       let prompt = "";
       let systemPrompt = "";
 
       if (tab === "timeline") {
-        systemPrompt = "You are a chronology expert who creates structured outlines of video timelines. Stick strictly to the text.";
-        prompt = isFallback
-          ? `Create a hypothetical chronological study agenda showing how a teacher would structure a course on "${videoData.title}". Include 6 major sections and approximate timestamp milestones (e.g., [00:00] Introduction, [05:30] ...).`
-          : `Generate a chronological timeline showing the sequence of topics discussed in this video. Provide approximate timestamps for each transition based on the transcript and write a 1-2 sentence description of what is explained in that segment.
-          
+        systemPrompt =
+          "Create a chronological timeline strictly from the transcript. Use approximate timestamps. Do not invent topics not in the transcript.";
+        prompt = hasCaptions
+          ? `Generate a chronological timeline of topics discussed in this video. For each entry, give a timestamp and 1-2 sentences describing what is explained at that point.
+
 Video: "${videoData.title}"
 Transcript:
-${transcriptForPrompt}`;
+${transcriptForPrompt}`
+          : `This video has no captions. Create a brief hypothetical study outline for "${videoData.title}" based on the title only. Label it clearly as estimated, not from the video.`;
       } else if (tab === "concepts") {
-        systemPrompt = "You are a master teacher. You explain complex technical concepts simply using analogies, definitions, and step-by-step breakdowns.";
-        prompt = isFallback
-          ? `Explain the core concepts, theories, and methodologies associated with the topic: "${videoData.title}". Provide clear definitions and easy-to-understand real-world analogies.`
-          : `Extract the core educational concepts, methodologies, or theories discussed in this video transcript. For each concept:
-1. Provide a clear definition.
-2. Provide a simplified explanation or real-world analogy.
-3. Provide a brief takeaway.
+        systemPrompt =
+          "Extract concepts defined or explained in the transcript. Use only transcript content — no external definitions.";
+        prompt = hasCaptions
+          ? `Extract core concepts from this video transcript. For each: name, definition as given in the video, and any example the speaker uses.
 
 Video: "${videoData.title}"
 Transcript:
-${transcriptForPrompt}`;
+${transcriptForPrompt}`
+          : `List likely core concepts for "${videoData.title}" based on the title only. State that these are inferred, not from the video.`;
       } else if (tab === "study") {
-        systemPrompt = "You are an expert academic tutor. You design comprehensive study guides and quizzes to test and enhance comprehension.";
-        prompt = isFallback
-          ? `Generate a comprehensive "Study Guide" for the topic: "${videoData.title}". Include:
-1. Important Vocabulary & Key Definitions.
-2. 4-5 deep thinking questions to test comprehension with detailed guidance answers.
-3. Recommended self-study roadmap.`
-          : `Create a thorough "Study Guide" based on this video transcript. Include:
-1. Key Definitions & Vocabulary mentioned.
-2. 4-5 comprehension or check-your-understanding questions (with answers).
-3. A short review summary of the main arguments.
+        systemPrompt =
+          "Create a study guide from transcript content only. Questions must be answerable from the transcript.";
+        prompt = hasCaptions
+          ? `Create a study guide from this video transcript:
+1. Key terms and definitions (as stated in the video)
+2. 4-5 comprehension questions with answers (answerable from transcript only)
+3. Brief review of main arguments
 
 Video: "${videoData.title}"
 Transcript:
-${transcriptForPrompt}`;
+${transcriptForPrompt}`
+          : `Create a basic study guide outline for "${videoData.title}" from the title only. Note that captions were unavailable.`;
       } else if (tab === "podcast") {
-        systemPrompt = "You are a professional audio scriptwriter. You turn technical videos into engaging, lively dialogues between two podcast hosts.";
-        prompt = isFallback
-          ? `Write a fun, educational podcast script between two hosts (Alex and Robin) discussing the core principles of the topic: "${videoData.title}". Alex asks curious questions; Robin explains using funny analogies.`
-          : `Convert this video transcript into a lively, educational podcast dialogue script between two hosts:
-- **Alex**: A curious student asking practical, insightful questions.
-- **Robin**: An expert teacher who explains the concepts in plain English using simple analogies.
+        systemPrompt =
+          "Convert the transcript into a dialogue between two hosts. Every fact discussed must come from the transcript.";
+        prompt = hasCaptions
+          ? `Convert this video transcript into a podcast dialogue between Alex (curious student) and Robin (teacher). Cover the same topics and facts as the original video — do not add new content.
 
 Video: "${videoData.title}"
 Transcript:
-${transcriptForPrompt}`;
+${transcriptForPrompt}`
+          : `Write a short podcast dialogue about "${videoData.title}" based on the title only. Note captions were unavailable.`;
       } else if (tab === "faq") {
-        systemPrompt = "You are an academic advisor. You generate extremely detailed, factual FAQs.";
-        prompt = isFallback
-          ? `Generate 6-8 comprehensive educational Frequently Asked Questions (FAQ) regarding the topic: "${videoData.title}" with highly detailed answers.`
-          : `Generate 6-8 comprehensive Frequently Asked Questions (FAQ) that a student would ask about this video's content, with highly detailed answers based strictly on the transcript.
+        systemPrompt =
+          "Generate FAQs with answers strictly from the transcript. If a question cannot be answered from the transcript, omit it.";
+        prompt = hasCaptions
+          ? `Generate 6-8 FAQs about this video with detailed answers based ONLY on the transcript.
 
 Video: "${videoData.title}"
 Transcript:
-${transcriptForPrompt}`;
+${transcriptForPrompt}`
+          : `Generate 4-5 general FAQs about "${videoData.title}" from the title only. Note answers are not from the video.`;
       }
 
       const result = await geminiComplete({
@@ -310,7 +392,8 @@ ${transcriptForPrompt}`;
           { role: "system", content: systemPrompt },
           { role: "user", content: prompt }
         ],
-        temperature: isFallback ? 0.6 : 0.3
+        temperature: hasCaptions ? 0.15 : 0.3,
+        maxTokens: 6144,
       });
 
       setTabOutputs(prev => ({ ...prev, [tab]: result }));
@@ -333,15 +416,20 @@ ${transcriptForPrompt}`;
 
     try {
       const history = chatMessages.map(m => ({ role: m.role as "user" | "assistant", content: m.content }));
-      const isFallback = videoData.transcript.startsWith("No transcript available");
+      const hasCaptions = videoData.hasCaptions;
 
-      const systemPrompt = isFallback
-        ? `You are an expert, patient tutor. Answer the user's questions about the topic: "${videoData.title}" using your broad educational knowledge. Provide clear, step-by-step explanations.`
-        : `You are an expert tutor. Answer the user's questions strictly using the video transcript below. If the answer is not in the transcript, say so honestly.
-        
+      const transcriptContext =
+        videoData.segments.length > 0
+          ? formatTranscriptWithTimestamps(videoData.segments, 18000)
+          : videoData.transcript.substring(0, 18000);
+
+      const systemPrompt = hasCaptions
+        ? `You are a tutor answering questions about a video. Answer ONLY using the transcript below. If the answer is not in the transcript, say "That is not covered in this video's transcript."
+
 Video: "${videoData.title}" by "${videoData.channel}"
 Transcript:
-${videoData.transcript.substring(0, 15000)}`;
+${transcriptContext}`
+        : `This video has no captions. Answer questions about "${videoData.title}" using general knowledge, but clearly state you cannot reference specific video content.`;
 
       const result = await geminiStream(
         {
@@ -350,13 +438,10 @@ ${videoData.transcript.substring(0, 15000)}`;
             ...history,
             { role: "user", content: userMsg }
           ],
-          temperature: isFallback ? 0.6 : 0.4
+          temperature: hasCaptions ? 0.2 : 0.4,
+          maxTokens: 4096,
         },
-        (token) => {
-          // Streaming is handled by the wrapper, but since we accumulate and return full output in geminiStream, 
-          // we can also append tokens progressively if our stream library supported progressive callbacks.
-          // Because we handle fallback gracefully, we'll update the final chunk returned.
-        }
+        () => {}
       );
 
       setChatMessages(prev => [...prev, { role: "assistant", content: result }]);
@@ -432,12 +517,14 @@ ${videoData.transcript.substring(0, 15000)}`;
       {!videoData ? (
         <div className="bg-white border border-gray-100 rounded-3xl p-6 md:p-8 shadow-sm space-y-4 max-w-3xl mx-auto">
           <div className="flex items-center gap-3">
-            <div className="h-10 w-10 rounded-xl bg-orange-500/10 flex items-center justify-center">
-              <Youtube className="h-5 w-5 text-orange-500" />
+            <div className="h-10 w-10 rounded-xl bg-[#0F172A]/5 flex items-center justify-center">
+              <Youtube className="h-5 w-5 text-[#0F172A]" />
             </div>
             <div>
-              <h2 className="font-bold text-lg text-gray-900 tracking-tight">YouTube Summarizer Suite</h2>
-              <p className="text-xs text-gray-400">Extract timelines, key concepts, study guides, and chat directly with videos.</p>
+              <h2 className="font-bold text-lg text-gray-900 tracking-tight">YouTube Summarizer</h2>
+              <p className="text-xs text-gray-500 mt-0.5">
+                Accurate summaries from video captions, with timeline and study tools.
+              </p>
             </div>
           </div>
 
@@ -451,14 +538,14 @@ ${videoData.transcript.substring(0, 15000)}`;
                   value={url}
                   onChange={(e) => setUrl(e.target.value)}
                   disabled={isLoading}
-                  className="w-full h-12 pl-12 pr-4 text-sm bg-gray-50 border border-gray-200 rounded-xl outline-none focus:border-orange-500/50 focus:ring-2 focus:ring-orange-500/10 text-gray-900 transition-all disabled:opacity-50"
+                  className="w-full h-12 pl-12 pr-4 text-sm bg-gray-50 border border-gray-200 rounded-xl outline-none focus:border-[#1D4ED8]/50 focus:ring-2 focus:ring-[#1D4ED8]/10 text-gray-900 transition-all disabled:opacity-50"
                   onKeyDown={(e) => e.key === "Enter" && handleSummarize()}
                 />
               </div>
               <Button
                 onClick={handleSummarize}
                 disabled={isLoading || !url.trim()}
-                className="bg-cta text-cta-foreground hover:bg-cta/90 h-12 gap-2 font-semibold rounded-xl px-6 transition-all shadow-md shadow-orange-500/15"
+                className="bg-[#0F172A] text-white hover:bg-[#0F172A]/90 h-12 gap-2 font-semibold rounded-xl px-6 transition-all shadow-sm"
               >
                 {isLoading ? (
                   <Loader2 className="h-4 w-4 animate-spin" />
@@ -469,7 +556,7 @@ ${videoData.transcript.substring(0, 15000)}`;
               </Button>
             </div>
             <p className="text-[10px] text-gray-400 text-center leading-relaxed">
-              Supports any educational video, tutorials, tech conferences, and lectures. Captions are parsed dynamically for deep indexing.
+              Summaries are generated from video captions when available. Enable captions on the source video for best accuracy.
             </p>
           </div>
         </div>
@@ -510,7 +597,12 @@ ${videoData.transcript.substring(0, 15000)}`;
                     <X className="h-3.5 w-3.5" /> Clear
                   </button>
                 </div>
-                <p className="text-xs text-gray-400 mt-1 font-medium">{videoData.channel}</p>
+                <p className="text-xs text-gray-400 mt-1 font-medium">
+                  {videoData.channel}
+                  {!videoData.hasCaptions && (
+                    <span className="ml-2 text-amber-600">· No captions — summary may be limited</span>
+                  )}
+                </p>
               </div>
             </div>
 
@@ -576,7 +668,7 @@ ${videoData.transcript.substring(0, 15000)}`;
                   onClick={() => handleTabSwitch(tab.key)}
                   className={`px-3 py-1.5 text-xs rounded-lg whitespace-nowrap transition-all font-semibold ${
                     activeTab === tab.key
-                      ? "bg-orange-500/10 text-orange-600 font-bold"
+                      ? "bg-[#0F172A]/8 text-[#0F172A] font-bold"
                       : "text-gray-400 hover:text-gray-900 hover:bg-gray-50"
                   }`}
                 >
@@ -611,8 +703,8 @@ ${videoData.transcript.substring(0, 15000)}`;
             {/* Dynamic Content Window */}
             {isGenerating || generatingTab === activeTab ? (
               <div className="flex-1 flex flex-col items-center justify-center py-12 space-y-3">
-                <Loader2 className="h-8 w-8 animate-spin text-orange-500" />
-                <p className="text-xs text-gray-400 animate-pulse text-center">Gemini is synthesizing transcript...</p>
+                <Loader2 className="h-8 w-8 animate-spin text-[#1D4ED8]" />
+                <p className="text-xs text-gray-500 animate-pulse text-center">Generating summary from transcript…</p>
               </div>
             ) : activeTab === "chat" ? (
               /* Chat Workspace */
