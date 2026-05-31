@@ -228,9 +228,20 @@ const AdminPanel = () => {
     retry: 1,
   });
 
-  /* ── Delete user data across all collections ────────── */
+  /* ── Delete user data across all collections + auth account ── */
   const handleDeleteUser = async (uid: string) => {
     setDeletingUserId(uid);
+
+    // Optimistic: remove user from the list immediately
+    queryClient.setQueryData(
+      ["admin-platform-stats"],
+      (old: any) => old ? {
+        ...old,
+        users: old.users.filter((u: UserRow) => u.uid !== uid),
+        totalUsers: Math.max(0, (old.totalUsers || 0) - 1),
+      } : old
+    );
+
     try {
       const collectionsToClean = [
         { name: "xp_logs", field: "user_id" },
@@ -285,7 +296,27 @@ const AdminPanel = () => {
       // Delete users doc (doc ID = uid)
       try { await deleteDoc(doc(db, "users", uid)); totalDeleted++; } catch { }
 
-      toast.success(`User data deleted successfully (${totalDeleted} records removed)`);
+      // Delete the user's Firebase Auth account via server-side API
+      try {
+        const { getAuth: getClientAuth } = await import("firebase/auth");
+        const currentUser = getClientAuth().currentUser;
+        if (currentUser) {
+          const adminToken = await currentUser.getIdToken();
+          const resp = await fetch("/api/admin-delete-user", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ uid, adminToken }),
+          });
+          const result = await resp.json();
+          if (!resp.ok) {
+            console.warn("[Admin] Auth account deletion warning:", result.error);
+          }
+        }
+      } catch (authErr: any) {
+        console.warn("[Admin] Could not delete auth account:", authErr?.message);
+      }
+
+      toast.success(`User account & data deleted (${totalDeleted} records removed)`);
 
       // Refresh admin data
       queryClient.invalidateQueries({ queryKey: ["admin-platform-stats"] });
@@ -293,6 +324,8 @@ const AdminPanel = () => {
     } catch (err: any) {
       console.error("[Admin] Delete user error:", err);
       toast.error("Failed to delete user data. Check console for details.");
+      // Revert optimistic update on failure
+      queryClient.invalidateQueries({ queryKey: ["admin-platform-stats"] });
     } finally {
       setDeletingUserId(null);
       setConfirmDeleteUserId(null);

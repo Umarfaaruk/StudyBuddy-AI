@@ -241,12 +241,17 @@ const MaterialUpload = () => {
   });
 
   const handleDeleteNote = async (id: string) => {
+    // Optimistic: remove from cache immediately
+    queryClient.setQueryData(
+      ["saved-notes", user?.uid],
+      (old: any[] | undefined) => (old || []).filter((n: any) => n.id !== id)
+    );
     try {
       await deleteDoc(doc(db, "saved_notes", id));
-      queryClient.invalidateQueries({ queryKey: ["saved-notes", user?.uid] });
       toast.success("Note deleted");
     } catch (error) {
       toast.error("Failed to delete note");
+      queryClient.invalidateQueries({ queryKey: ["saved-notes", user?.uid] });
     }
   };
 
@@ -441,12 +446,17 @@ const MaterialUpload = () => {
   };
 
   const handleDelete = async (id: string) => {
+    // Optimistic: remove from cache immediately for instant UI feedback
+    queryClient.setQueryData<MaterialItem[]>(
+      ["materials", user?.uid],
+      (old) => (old || []).filter(m => m.id !== id)
+    );
     try {
       await deleteDoc(doc(db, "materials", id));
-      queryClient.invalidateQueries({ queryKey: ["materials", user?.uid] });
       toast.success("File deleted");
     } catch (error) {
       toast.error("Failed to delete file");
+      queryClient.invalidateQueries({ queryKey: ["materials", user?.uid] });
     }
   };
 
