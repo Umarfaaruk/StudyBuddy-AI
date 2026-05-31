@@ -10,26 +10,8 @@ import { db } from "@/lib/firebase";
 import { collection, getDocs, deleteDoc, doc, query, where } from "firebase/firestore";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
-
-interface UserRow {
-  uid: string;
-  name: string;
-  email: string;
-  avatar_url?: string;
-  grade_level?: string;
-  joined: string;
-  xp: number;
-  streak: number;
-  longestStreak: number;
-  studyHours: number;
-  quizCount: number;
-  avgQuizScore: number;
-  materialsCount: number;
-  doubtCount: number;
-  flashcardCount: number;
-  studyPlanCount: number;
-  lastActive: string;
-}
+import { fetchAdminPlatformStats } from "@/lib/adminUserStats";
+import type { UserStatsRow } from "@/lib/userStats";
 
 interface FeedbackItem {
   id: string;
@@ -62,142 +44,12 @@ const AdminPanel = () => {
   const [confirmDeleteUserId, setConfirmDeleteUserId] = useState<string | null>(null);
   const [deletingUserId, setDeletingUserId] = useState<string | null>(null);
 
-  // Fetch all users and their stats
   const { data: platformStats, isLoading, error: statsError } = useQuery({
     queryKey: ["admin-platform-stats"],
-    queryFn: async () => {
-      const profileDocs = await safeFetchCollection("profiles");
-      const profiles = profileDocs.map(d => ({ uid: d.id, ...d.data() })) as any[];
-
-      const xpDocs = await safeFetchCollection("xp_logs");
-      const xpByUser: Record<string, number> = {};
-      xpDocs.forEach(d => {
-        const data = d.data();
-        xpByUser[data.user_id] = (xpByUser[data.user_id] || 0) + (data.xp_amount || 0);
-      });
-
-      const streakDocs = await safeFetchCollection("user_streaks");
-      const streakByUser: Record<string, { current: number; longest: number }> = {};
-      streakDocs.forEach(d => {
-        const data = d.data();
-        streakByUser[d.id] = {
-          current: data?.current_streak || 0,
-          longest: data?.longest_streak || 0,
-        };
-      });
-
-      const sessionDocs = await safeFetchCollection("study_sessions");
-      const studyByUser: Record<string, { seconds: number; lastActive: string }> = {};
-      const todayKey = new Date().toISOString().slice(0, 10);
-      const activeTodayUsers = new Set<string>();
-      let totalStudySeconds = 0;
-
-      sessionDocs.forEach(d => {
-        const data = d.data();
-        const uid = data.user_id;
-        const duration = data.duration_seconds || 0;
-
-        // Parse date consistently with user-facing pages
-        const dateObj = data.ended_at
-          ? new Date(data.ended_at)
-          : data.created_at?.toDate?.() ?? null;
-        const endedAt = dateObj && !isNaN(dateObj.getTime())
-          ? dateObj.toISOString()
-          : "";
-
-        if (!studyByUser[uid]) studyByUser[uid] = { seconds: 0, lastActive: "" };
-        studyByUser[uid].seconds += duration;
-        totalStudySeconds += duration;
-
-        if (endedAt > studyByUser[uid].lastActive) {
-          studyByUser[uid].lastActive = endedAt;
-        }
-
-        if (endedAt.slice(0, 10) === todayKey) {
-          activeTodayUsers.add(uid);
-        }
-      });
-
-      const quizDocs = await safeFetchCollection("quiz_attempts");
-      const quizByUser: Record<string, { count: number; totalScore: number; totalQuestions: number }> = {};
-      quizDocs.forEach(d => {
-        const data = d.data();
-        const uid = data.user_id;
-        if (!quizByUser[uid]) quizByUser[uid] = { count: 0, totalScore: 0, totalQuestions: 0 };
-        quizByUser[uid].count += 1;
-        quizByUser[uid].totalScore += (data.score || 0);
-        quizByUser[uid].totalQuestions += (data.total_questions || 0);
-      });
-
-      const materialDocs = await safeFetchCollection("materials");
-      const matsByUser: Record<string, number> = {};
-      materialDocs.forEach(d => {
-        const uid = d.data().user_id;
-        matsByUser[uid] = (matsByUser[uid] || 0) + 1;
-      });
-
-      const doubtDocs = await safeFetchCollection("doubt_sessions");
-      const doubtsByUser: Record<string, number> = {};
-      doubtDocs.forEach(d => {
-        const uid = d.data().user_id;
-        doubtsByUser[uid] = (doubtsByUser[uid] || 0) + 1;
-      });
-
-      const flashcardDocs = await safeFetchCollection("flashcards");
-      const flashcardsByUser: Record<string, number> = {};
-      flashcardDocs.forEach(d => {
-        const uid = d.data().user_id;
-        flashcardsByUser[uid] = (flashcardsByUser[uid] || 0) + 1;
-      });
-
-      const studyPlanDocs = await safeFetchCollection("study_plans");
-      const studyPlansByUser: Record<string, number> = {};
-      studyPlanDocs.forEach(d => {
-        const uid = d.data().user_id;
-        studyPlansByUser[uid] = (studyPlansByUser[uid] || 0) + 1;
-      });
-
-      const users: UserRow[] = profiles.map((p: any) => {
-        const quizData = quizByUser[p.uid];
-        const avgQuizScore = quizData && quizData.totalQuestions > 0
-          ? Math.round((quizData.totalScore / quizData.totalQuestions) * 100)
-          : 0;
-        return {
-          uid: p.uid,
-          name: p.full_name || "Unknown",
-          email: p.email || "—",
-          avatar_url: p.avatar_url,
-          grade_level: p.grade_level,
-          joined: p.created_at || "—",
-          xp: xpByUser[p.uid] || 0,
-          streak: streakByUser[p.uid]?.current || 0,
-          longestStreak: streakByUser[p.uid]?.longest || 0,
-          studyHours: parseFloat(((studyByUser[p.uid]?.seconds || 0) / 3600).toFixed(1)),
-          quizCount: quizData?.count || 0,
-          avgQuizScore,
-          materialsCount: matsByUser[p.uid] || 0,
-          doubtCount: doubtsByUser[p.uid] || 0,
-          flashcardCount: flashcardsByUser[p.uid] || 0,
-          studyPlanCount: studyPlansByUser[p.uid] || 0,
-          lastActive: studyByUser[p.uid]?.lastActive
-            ? new Date(studyByUser[p.uid].lastActive).toLocaleDateString()
-            : "Never",
-        };
-      });
-
-      users.sort((a, b) => b.xp - a.xp);
-
-      const totalUsers = profiles.length;
-      const activeToday = activeTodayUsers.size;
-      const totalStudyHours = parseFloat((totalStudySeconds / 3600).toFixed(1));
-      const avgStreak = profiles.length > 0
-        ? parseFloat((Object.values(streakByUser).reduce((a, b) => a + b.current, 0) / profiles.length).toFixed(1))
-        : 0;
-
-      return { users, totalUsers, activeToday, totalStudyHours, avgStreak };
-    },
+    queryFn: fetchAdminPlatformStats,
     enabled: !!user,
     retry: 1,
+    staleTime: 1000 * 60 * 2,
   });
 
   // Fetch all feedback
@@ -237,7 +89,7 @@ const AdminPanel = () => {
       ["admin-platform-stats"],
       (old: any) => old ? {
         ...old,
-        users: old.users.filter((u: UserRow) => u.uid !== uid),
+        users: old.users.filter((u: UserStatsRow) => u.uid !== uid),
         totalUsers: Math.max(0, (old.totalUsers || 0) - 1),
       } : old
     );

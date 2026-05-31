@@ -1,18 +1,18 @@
-import { Link, Outlet, useLocation } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
+import { motion, AnimatePresence } from "framer-motion";
 import {
   LayoutDashboard, BookOpen, MessageCircleQuestion, Trophy,
-  BarChart3, Upload, Settings, User, Flame, Gamepad2, Bot,
-  Timer, Focus, X, ChevronLeft, MessageSquare, Camera, Menu, Wrench,
-  SkipBack, Play, SkipForward, Pause, Bell, ShieldCheck
+  BarChart3, Upload, Settings, User, Gamepad2, Bot,
+  Focus, X, Menu, Wrench, ShieldCheck,
 } from "lucide-react";
 import { useDeepFocus } from "@/hooks/useDeepFocus";
 import GlobalTimer from "@/components/GlobalTimer";
+import PageTransition from "@/components/motion/PageTransition";
 import { useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useQuery } from "@tanstack/react-query";
 import { db } from "@/lib/firebase";
 import { doc, getDoc } from "firebase/firestore";
-
 import eduonxLogoOnDark from "@/assets/eduonx-logo-on-dark.png";
 
 const sidebarLinks = [
@@ -20,7 +20,7 @@ const sidebarLinks = [
   { to: "/lessons", icon: BookOpen, label: "Academy" },
   { to: "/materials/tutor", icon: Bot, label: "AI Tutor" },
   { to: "/tools", icon: Wrench, label: "Quick Tools" },
-  { to: "/progress", icon: BarChart3, label: "Dashboard" },
+  { to: "/progress", icon: BarChart3, label: "Progress" },
   { to: "/doubts", icon: MessageCircleQuestion, label: "Ask Doubt" },
   { to: "/leaderboard", icon: Trophy, label: "Leaderboard" },
   { to: "/quiz", icon: Gamepad2, label: "Practice Arena" },
@@ -31,7 +31,6 @@ const librarySidebarLinks = [
   { to: "/settings", icon: Settings, label: "Settings" },
 ];
 
-// Mobile nav shows only the 5 most important routes
 const mobileNavLinks = [
   { to: "/dashboard", icon: LayoutDashboard, label: "Home" },
   { to: "/lessons", icon: BookOpen, label: "Academy" },
@@ -40,28 +39,44 @@ const mobileNavLinks = [
   { to: "/materials/tutor", icon: Bot, label: "AI Tutor" },
 ];
 
-/* ── Animated waveform bars for the music player ── */
-const WaveformBars = () => (
-  <div className="flex items-end gap-[3px] h-5">
-    {[0.6, 1, 0.4, 0.8, 0.5, 1, 0.7, 0.3, 0.9, 0.5, 0.7, 1, 0.4, 0.8, 0.6].map((h, i) => (
-      <div
-        key={i}
-        className="w-[2px] bg-white/60 rounded-full animate-pulse"
-        style={{
-          height: `${h * 20}px`,
-          animationDelay: `${i * 0.1}s`,
-          animationDuration: `${0.8 + Math.random() * 0.6}s`,
-        }}
-      />
-    ))}
-  </div>
-);
+function NavLink({
+  to,
+  icon: Icon,
+  label,
+  active,
+  onClick,
+}: {
+  to: string;
+  icon: typeof LayoutDashboard;
+  label: string;
+  active: boolean;
+  onClick?: () => void;
+}) {
+  return (
+    <Link
+      to={to}
+      onClick={onClick}
+      className={`relative flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-medium transition-colors duration-200 z-10 ${
+        active ? "text-foreground" : "text-white/55 hover:text-white"
+      }`}
+    >
+      {active && (
+        <motion.div
+          layoutId="sidebar-active-pill"
+          className="absolute inset-0 bg-white rounded-xl shadow-lg shadow-black/10"
+          transition={{ type: "spring", stiffness: 400, damping: 32 }}
+        />
+      )}
+      <Icon className={`h-[18px] w-[18px] flex-shrink-0 relative z-10 ${active ? "text-primary" : ""}`} />
+      <span className={`relative z-10 ${active ? "font-semibold" : ""}`}>{label}</span>
+    </Link>
+  );
+}
 
 const AppLayout = () => {
   const { pathname } = useLocation();
   const { isDeepFocus, disableDeepFocus } = useDeepFocus();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const [isPlaying, setIsPlaying] = useState(false);
   const { user } = useAuth();
 
   const { data: profile } = useQuery({
@@ -75,7 +90,6 @@ const AppLayout = () => {
     staleTime: 1000 * 60 * 5,
   });
 
-  // Check if user is admin for showing admin link
   const { data: isAdmin } = useQuery({
     queryKey: ["is-admin-sidebar", user?.uid],
     queryFn: async () => {
@@ -99,171 +113,135 @@ const AppLayout = () => {
   const displayName = profile?.full_name || user?.displayName || "Student";
   const firstName = displayName.split(" ")[0];
 
+  const isActive = (to: string) =>
+    pathname === to || (to !== "/dashboard" && pathname.startsWith(to + "/"));
+
   return (
     <div className="min-h-screen bg-[#0F172A] flex">
       <GlobalTimer />
 
-      {/* ── Desktop Sidebar ────────────────────────────── */}
+      {/* Desktop Sidebar */}
       {!isDeepFocus && (
-        <aside className="hidden md:flex w-[260px] flex-col fixed inset-y-0 left-0 z-30 bg-[#0F172A]">
-          {/* User Avatar & Greeting */}
-          <div className="px-6 pt-8 pb-6 flex-shrink-0">
-            <div className="flex flex-col items-start">
-              <div className="h-16 w-16 rounded-full bg-[#f4a261] flex items-center justify-center text-2xl font-bold text-white shadow-lg mb-3 border-2 border-[#f4a261]/30">
-                {firstName[0]?.toUpperCase() || "S"}
-              </div>
-              <span className="text-white/50 text-sm">Hi!</span>
-              <h3 className="text-white text-xl font-bold leading-tight">{firstName}</h3>
-            </div>
-          </div>
+        <aside className="hidden md:flex w-[272px] flex-col fixed inset-y-0 left-0 z-30 border-r border-white/[0.06]">
+          <div className="absolute inset-0 bg-[#0F172A]" />
+          <div className="absolute inset-0 bg-gradient-to-b from-primary/[0.08] via-transparent to-transparent pointer-events-none" />
 
-          {/* Navigation links */}
-          <nav className="flex-1 px-4 space-y-1 overflow-y-auto scrollbar-thin">
-            {sidebarLinks.map((link) => {
-              const active =
-                pathname === link.to ||
-                (link.to !== "/dashboard" && pathname.startsWith(link.to + "/"));
-              return (
-                <Link
-                  key={link.to}
-                  to={link.to}
-                  className={`flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 ${active
-                    ? "bg-white text-[#0F172A] shadow-md font-semibold"
-                    : "text-white/60 hover:text-white hover:bg-white/[0.08]"
-                    }`}
-                >
-                  <link.icon className="h-[18px] w-[18px] flex-shrink-0" />
-                  {link.label}
-                </Link>
-              );
-            })}
-
-
-
-            {/* Library Section */}
-            <div className="pt-4 pb-1">
-              <span className="px-4 text-[11px] font-bold text-white/30 uppercase tracking-widest">
-                Library
-              </span>
-            </div>
-            {librarySidebarLinks.map((link) => {
-              const active =
-                pathname === link.to ||
-                (link.to !== "/dashboard" && pathname.startsWith(link.to + "/"));
-              return (
-                <Link
-                  key={link.to}
-                  to={link.to}
-                  className={`flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 ${active
-                    ? "bg-white text-[#0F172A] shadow-md font-semibold"
-                    : "text-white/60 hover:text-white hover:bg-white/[0.08]"
-                    }`}
-                >
-                  <link.icon className="h-[18px] w-[18px] flex-shrink-0" />
-                  {link.label}
-                </Link>
-              );
-            })}
-
-            {/* Admin Section — only for admins */}
-            {isAdmin && (
-              <>
-                <div className="pt-4 pb-1">
-                  <span className="px-4 text-[11px] font-bold text-white/30 uppercase tracking-widest">
-                    Admin
-                  </span>
-                </div>
-                <Link
-                  to="/admin"
-                  className={`flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 ${
-                    pathname === "/admin"
-                      ? "bg-white text-[#0F172A] shadow-md font-semibold"
-                      : "text-white/60 hover:text-white hover:bg-white/[0.08]"
-                  }`}
-                >
-                  <ShieldCheck className="h-[18px] w-[18px] flex-shrink-0" />
-                  Admin Panel
-                </Link>
-              </>
-            )}
-          </nav>
-        </aside>
-      )}
-
-      {/* ── Mobile hamburger menu overlay ──────────────────── */}
-      {!isDeepFocus && mobileMenuOpen && (
-        <div className="md:hidden fixed inset-0 z-50 flex">
-          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setMobileMenuOpen(false)} />
-          <aside className="relative w-72 bg-[#0F172A] flex flex-col h-full animate-in slide-in-from-left duration-200">
-            <div className="px-5 py-5 flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className="h-10 w-10 rounded-full bg-[#f4a261] flex items-center justify-center text-lg font-bold text-white">
+          <div className="relative flex flex-col h-full">
+            <div className="px-6 pt-7 pb-5 flex-shrink-0">
+              <Link to="/dashboard" className="block mb-6">
+                <img src={eduonxLogoOnDark} alt="EduOnx" className="h-8 w-auto object-contain" />
+              </Link>
+              <div className="flex items-center gap-3 p-3 rounded-2xl bg-white/[0.06] border border-white/[0.08]">
+                <div className="h-11 w-11 rounded-xl bg-gradient-to-br from-cta to-cta/80 flex items-center justify-center text-lg font-bold text-white shadow-lg shadow-cta/20">
                   {firstName[0]?.toUpperCase() || "S"}
                 </div>
-                <div>
-                  <div className="text-white/50 text-xs">Hi!</div>
-                  <div className="text-white text-sm font-bold">{firstName}</div>
+                <div className="min-w-0">
+                  <p className="text-white/45 text-xs">Welcome back</p>
+                  <p className="text-white font-semibold truncate">{firstName}</p>
                 </div>
               </div>
-              <button onClick={() => setMobileMenuOpen(false)} className="text-white/40 hover:text-white p-1">
-                <X className="h-5 w-5" />
-              </button>
             </div>
-            <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
-              {[...sidebarLinks, ...librarySidebarLinks].map((link) => {
-                const active =
-                  pathname === link.to ||
-                  (link.to !== "/dashboard" && pathname.startsWith(link.to + "/"));
-                return (
-                  <Link
-                    key={link.to}
-                    to={link.to}
-                    onClick={() => setMobileMenuOpen(false)}
-                    className={`flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all ${active
-                      ? "bg-white text-[#0F172A] font-semibold"
-                      : "text-white/60 hover:text-white hover:bg-white/[0.08]"
-                      }`}
-                  >
-                    <link.icon className="h-5 w-5 flex-shrink-0" />
-                    {link.label}
-                  </Link>
-                );
-              })}
-              {/* Admin link in mobile menu */}
+
+            <nav className="flex-1 px-4 space-y-0.5 overflow-y-auto scrollbar-thin pb-4">
+              {sidebarLinks.map((link) => (
+                <NavLink key={link.to} {...link} active={isActive(link.to)} />
+              ))}
+
+              <div className="pt-5 pb-2">
+                <span className="px-4 text-[10px] font-bold text-white/25 uppercase tracking-[0.15em]">
+                  Library
+                </span>
+              </div>
+              {librarySidebarLinks.map((link) => (
+                <NavLink key={link.to} {...link} active={isActive(link.to)} />
+              ))}
+
               {isAdmin && (
                 <>
-                  <div className="pt-3 pb-1">
-                    <span className="px-4 text-[10px] font-bold text-white/30 uppercase tracking-widest">
+                  <div className="pt-5 pb-2">
+                    <span className="px-4 text-[10px] font-bold text-white/25 uppercase tracking-[0.15em]">
                       Admin
                     </span>
                   </div>
-                  <Link
-                    to="/admin"
-                    onClick={() => setMobileMenuOpen(false)}
-                    className={`flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all ${
-                      pathname === "/admin"
-                        ? "bg-white text-[#0F172A] font-semibold"
-                        : "text-white/60 hover:text-white hover:bg-white/[0.08]"
-                    }`}
-                  >
-                    <ShieldCheck className="h-5 w-5 flex-shrink-0" />
-                    Admin Panel
-                  </Link>
+                  <NavLink to="/admin" icon={ShieldCheck} label="Admin Panel" active={pathname === "/admin"} />
                 </>
               )}
             </nav>
-          </aside>
-        </div>
+
+            <div className="px-4 pb-6 flex-shrink-0">
+              <Link
+                to="/profile"
+                className="flex items-center gap-3 px-4 py-3 rounded-xl text-sm text-white/50 hover:text-white hover:bg-white/[0.06] transition-all duration-200"
+              >
+                <User className="h-4 w-4" />
+                Profile & account
+              </Link>
+            </div>
+          </div>
+        </aside>
       )}
 
-      {/* ── Deep Focus Mode — minimal top bar ──────────────── */}
+      {/* Mobile menu */}
+      <AnimatePresence>
+        {!isDeepFocus && mobileMenuOpen && (
+          <div className="md:hidden fixed inset-0 z-50 flex">
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+              onClick={() => setMobileMenuOpen(false)}
+            />
+            <motion.aside
+              initial={{ x: "-100%" }}
+              animate={{ x: 0 }}
+              exit={{ x: "-100%" }}
+              transition={{ type: "spring", stiffness: 380, damping: 36 }}
+              className="relative w-72 bg-[#0F172A] flex flex-col h-full border-r border-white/10"
+            >
+              <div className="px-5 py-5 flex items-center justify-between border-b border-white/10">
+                <img src={eduonxLogoOnDark} alt="EduOnx" className="h-7 w-auto" />
+                <button
+                  type="button"
+                  onClick={() => setMobileMenuOpen(false)}
+                  className="text-white/40 hover:text-white p-1"
+                >
+                  <X className="h-5 w-5" />
+                </button>
+              </div>
+              <nav className="flex-1 px-3 py-4 space-y-0.5 overflow-y-auto">
+                {[...sidebarLinks, ...librarySidebarLinks].map((link) => (
+                  <NavLink
+                    key={link.to}
+                    {...link}
+                    active={isActive(link.to)}
+                    onClick={() => setMobileMenuOpen(false)}
+                  />
+                ))}
+                {isAdmin && (
+                  <NavLink
+                    to="/admin"
+                    icon={ShieldCheck}
+                    label="Admin Panel"
+                    active={pathname === "/admin"}
+                    onClick={() => setMobileMenuOpen(false)}
+                  />
+                )}
+              </nav>
+            </motion.aside>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* Deep Focus bar */}
       {isDeepFocus && (
         <div className="fixed top-0 left-0 right-0 z-30 h-12 bg-[#0F172A] border-b border-white/10 flex items-center justify-between px-6">
           <div className="flex items-center gap-2 text-sm font-semibold text-white">
-            <Focus className="h-4 w-4" />
+            <Focus className="h-4 w-4 text-primary" />
             Deep Focus Mode
           </div>
           <button
+            type="button"
             onClick={disableDeepFocus}
             className="flex items-center gap-2 text-xs text-white/60 hover:text-white transition-colors border border-white/20 rounded-lg px-3 py-1.5"
           >
@@ -273,56 +251,63 @@ const AppLayout = () => {
         </div>
       )}
 
-      {/* ── Mobile Top Header ───────────────────────────────── */}
+      {/* Mobile header */}
       {!isDeepFocus && (
-        <div className="md:hidden fixed top-0 left-0 right-0 z-20 bg-[#0F172A] border-b border-white/10 flex items-center justify-between px-4 h-14">
-          <button onClick={() => setMobileMenuOpen(true)} className="p-2 -ml-1 text-white/60 hover:text-white">
+        <div className="md:hidden fixed top-0 left-0 right-0 z-20 bg-[#0F172A]/95 backdrop-blur-md border-b border-white/10 flex items-center justify-between px-4 h-14">
+          <button type="button" onClick={() => setMobileMenuOpen(true)} className="p-2 -ml-1 text-white/60 hover:text-white">
             <Menu className="h-5 w-5" />
           </button>
-          <img src={eduonxLogoOnDark} alt="EduOnx" className="block h-[28px] w-auto object-contain" />
+          <img src={eduonxLogoOnDark} alt="EduOnx" className="h-7 w-auto object-contain" />
           <Link to="/profile" className="p-2 -mr-1">
             <User className="h-5 w-5 text-white/60" />
           </Link>
         </div>
       )}
 
-      {/* ── Mobile Bottom Nav ──────────────────────────────── */}
+      {/* Mobile bottom nav */}
       {!isDeepFocus && (
-        <nav className="md:hidden fixed bottom-0 left-0 right-0 z-30 bg-[#0F172A]/95 backdrop-blur-sm border-t border-white/10 flex safe-area-pb">
+        <nav className="md:hidden fixed bottom-0 left-0 right-0 z-30 bg-[#0F172A]/95 backdrop-blur-md border-t border-white/10 flex safe-area-pb">
           {mobileNavLinks.map((link) => {
-            const active =
-              pathname === link.to ||
-              (link.to !== "/dashboard" && pathname.startsWith(link.to + "/"));
+            const active = isActive(link.to);
             return (
               <Link
                 key={link.to}
                 to={link.to}
-                className={`flex-1 flex flex-col items-center gap-1 py-2.5 min-h-[56px] justify-center text-[10px] font-medium transition-colors ${active ? "text-[#1D4ED8]" : "text-white/40"
-                  }`}
+                className={`relative flex-1 flex flex-col items-center gap-0.5 py-2 min-h-[56px] justify-center text-[10px] font-medium transition-all duration-200 ${
+                  active ? "text-primary" : "text-white/40"
+                }`}
               >
-                <link.icon className="h-5 w-5" />
+                <motion.div animate={active ? { scale: 1.1 } : { scale: 1 }} transition={{ duration: 0.2 }}>
+                  <link.icon className="h-5 w-5" />
+                </motion.div>
                 {link.label}
+                {active && (
+                  <motion.div
+                    layoutId="mobile-nav-dot"
+                    className="absolute bottom-1 h-1 w-1 rounded-full bg-primary"
+                  />
+                )}
               </Link>
             );
           })}
         </nav>
       )}
 
-      {/* ── Main Content — Floating White Panel ──────────────── */}
+      {/* Main content */}
       <main
-        className={`flex-1 ${isDeepFocus
-          ? "pt-12 pb-0"
-          : "pt-14 md:pt-0 md:ml-[260px] pb-20 md:pb-0"
-          }`}
+        className={`flex-1 ${
+          isDeepFocus ? "pt-12 pb-0" : "pt-14 md:pt-0 md:ml-[272px] pb-20 md:pb-0"
+        }`}
       >
         <div className={`${isDeepFocus ? "" : "md:p-3 md:h-screen md:flex md:flex-col"}`}>
           <div
-            className={`${isDeepFocus
-              ? ""
-              : "md:bg-[#F3F4F6] md:rounded-[2rem] md:flex-1 md:overflow-y-auto md:shadow-2xl scrollbar-thin"
-              }`}
+            className={`${
+              isDeepFocus
+                ? ""
+                : "main-canvas md:rounded-[1.75rem] md:flex-1 md:overflow-y-auto md:shadow-[0_20px_60px_-15px_rgba(0,0,0,0.35)] md:ring-1 md:ring-white/10 scrollbar-thin"
+            }`}
           >
-            <Outlet />
+            <PageTransition />
           </div>
         </div>
       </main>

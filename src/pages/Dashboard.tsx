@@ -1,7 +1,7 @@
 import { Link } from "react-router-dom";
 import {
   BookOpen, MessageCircleQuestion, Gamepad2, Upload, BarChart3,
-  Trophy, Flame, Lightbulb, AlertTriangle, CalendarDays, User
+  Trophy, Flame, Lightbulb, AlertTriangle, CalendarDays, User, ArrowRight
 } from "lucide-react";
 import { useDashboardData } from "@/hooks/useDashboardData";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -12,6 +12,7 @@ import { doc, getDoc, collection, query, where, getDocs } from "firebase/firesto
 import NotificationPanel from "@/components/NotificationPanel";
 import EduOnxAIChat from "@/components/EduOnxAIChat";
 import FeedbackEnforcer from "@/components/FeedbackEnforcer";
+import { StaggerContainer, StaggerItem } from "@/components/motion/FadeIn";
 
 const Dashboard = () => {
   const { user } = useAuth();
@@ -93,60 +94,56 @@ const Dashboard = () => {
   ];
 
   return (
-    <div className="p-5 md:p-8 space-y-6 max-w-[1400px] mx-auto pb-28 relative">
-
-      {/* ── Page Header ─────────────────────────────────────── */}
-      <div className="flex items-center justify-between gap-4">
-        <div>
-          {isLoading ? (
-            <>
-              <Skeleton className="h-8 w-40 mb-1" />
-              <Skeleton className="h-4 w-32" />
-            </>
-          ) : (
-            <>
-              <h1 className="text-2xl md:text-3xl font-bold text-gray-900 tracking-tight">
-                Home
-              </h1>
-              <p className="text-gray-500 text-sm mt-0.5">
-                Welcome back, {displayName} 👋
-              </p>
-            </>
-          )}
-        </div>
-        <div className="flex items-center gap-3">
-          {/* Notification bell */}
-          <NotificationPanel />
-          {/* Profile button (replaces search bar) */}
-          <Link
-            to="/profile"
-            className="hidden md:flex items-center gap-3 bg-white rounded-xl shadow-sm px-4 py-2 hover:shadow-md transition-all duration-200 border border-gray-100"
-          >
-            {profile?.avatar_url ? (
-              <img src={profile.avatar_url} alt="Avatar" className="h-8 w-8 rounded-full object-cover" />
+    <StaggerContainer className="p-5 md:p-8 space-y-6 max-w-[1400px] mx-auto pb-28 relative">
+      <StaggerItem>
+        <div className="flex items-center justify-between gap-4">
+          <div>
+            {isLoading ? (
+              <>
+                <Skeleton className="h-8 w-40 mb-1" />
+                <Skeleton className="h-4 w-32" />
+              </>
             ) : (
-              <div className="h-8 w-8 rounded-full bg-[#1D4ED8] flex items-center justify-center">
-                <User className="h-4 w-4 text-white" />
-              </div>
+              <>
+                <h1 className="font-display text-2xl md:text-3xl font-bold text-foreground tracking-tight">
+                  Home
+                </h1>
+                <p className="text-muted-foreground text-sm mt-1">
+                  Welcome back, <span className="font-medium text-foreground">{displayName}</span>
+                </p>
+              </>
             )}
-            <div className="text-left">
-              <div className="text-sm font-semibold text-gray-900 leading-tight">{displayName}</div>
-              <div className="text-[10px] text-gray-400">View Profile</div>
-            </div>
-          </Link>
+          </div>
+          <div className="flex items-center gap-3">
+            <NotificationPanel />
+            <Link
+              to="/profile"
+              className="hidden md:flex items-center gap-3 glass-card rounded-xl px-4 py-2 hover-lift"
+            >
+              {profile?.avatar_url ? (
+                <img src={profile.avatar_url} alt="Avatar" className="h-9 w-9 rounded-xl object-cover ring-2 ring-primary/10" />
+              ) : (
+                <div className="h-9 w-9 rounded-xl bg-primary flex items-center justify-center">
+                  <User className="h-4 w-4 text-primary-foreground" />
+                </div>
+              )}
+              <div className="text-left">
+                <div className="text-sm font-semibold text-foreground leading-tight">{displayName}</div>
+                <div className="text-[10px] text-muted-foreground">View profile</div>
+              </div>
+            </Link>
+          </div>
         </div>
-      </div>
+      </StaggerItem>
 
 
 
-      {/* ── Action Cards + Chart Row ────────────────────────── */}
+      <StaggerItem>
       <div className="grid lg:grid-cols-12 gap-5">
-        {/* Left column: New Doc + Focus Timer */}
         <div className="lg:col-span-4 space-y-5">
-          {/* New Doc card */}
           <Link
             to="/materials"
-            className="block relative overflow-hidden rounded-2xl bg-[#F97316] p-5 text-white group hover:shadow-lg transition-all duration-300 min-h-[130px]"
+            className="block relative overflow-hidden rounded-2xl bg-gradient-to-br from-cta to-cta/90 p-5 text-cta-foreground group hover-lift hover-glow min-h-[130px]"
           >
             <div className="absolute -bottom-4 -right-4 opacity-20 group-hover:opacity-30 transition-opacity">
               <Upload className="h-20 w-20" />
@@ -163,12 +160,12 @@ const Dashboard = () => {
           {/* Focus Timer card */}
           <Link
             to="/timer"
-            className="block relative overflow-hidden rounded-2xl bg-[#0F172A] p-5 text-white group hover:shadow-lg transition-all duration-300 min-h-[130px]"
+            className="block relative overflow-hidden rounded-2xl bg-foreground p-5 text-white group hover-lift min-h-[130px]"
           >
             <div className="relative z-10">
               <div className="flex items-center justify-between mb-3">
                 <h3 className="text-base font-bold">Focus Timer</h3>
-                <div className="h-9 w-9 rounded-full bg-[#1D4ED8] flex items-center justify-center group-hover:scale-110 transition-transform">
+                <div className="h-9 w-9 rounded-full bg-primary flex items-center justify-center group-hover:scale-110 transition-transform duration-300">
                   <svg className="h-4 w-4 text-white ml-0.5" fill="currentColor" viewBox="0 0 24 24">
                     <path d="M8 5v14l11-7z" />
                   </svg>
@@ -188,14 +185,13 @@ const Dashboard = () => {
           </Link>
         </div>
 
-        {/* Center: Retention Trajectory */}
-        <div className="lg:col-span-8 bg-white rounded-2xl shadow-sm p-6">
+        <div className="lg:col-span-8 glass-card rounded-2xl p-6 hover-glow">
           <div className="flex items-center justify-between mb-5">
-            <h3 className="text-base font-bold text-gray-900 flex items-center gap-2">
-              <BarChart3 className="h-5 w-5 text-[#1D4ED8]" />
+            <h3 className="text-base font-bold text-foreground flex items-center gap-2">
+              <BarChart3 className="h-5 w-5 text-primary" />
               Retention Trajectory
             </h3>
-            <span className="text-xs text-gray-400 font-medium">This week</span>
+            <span className="text-xs text-muted-foreground font-medium">This week</span>
           </div>
           {/* CSS Bar Chart */}
           <div className="flex items-end gap-2 h-36">
@@ -210,20 +206,21 @@ const Dashboard = () => {
                     }}
                   />
                 </div>
-                <span className="text-[11px] text-gray-400 font-medium">{d.label}</span>
+                <span className="text-[11px] text-muted-foreground font-medium">{d.label}</span>
               </div>
             ))}
           </div>
         </div>
       </div>
+      </StaggerItem>
 
-      {/* ── Streak Bar + Earned Badges ──────────────────────── */}
-      <div className="bg-white rounded-2xl shadow-sm p-5">
+      <StaggerItem>
+      <div className="glass-card rounded-2xl p-5 hover-glow">
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-3">
-            <Flame className="h-5 w-5 text-orange-500" />
-            <span className="font-bold text-gray-900">{currentStreak}-Day Streak</span>
-            <span className="text-xs text-gray-400 bg-gray-100 px-2.5 py-0.5 rounded-full font-medium">
+            <Flame className="h-5 w-5 text-cta" />
+            <span className="font-bold text-foreground">{currentStreak}-Day Streak</span>
+            <span className="text-xs text-muted-foreground bg-muted px-2.5 py-0.5 rounded-full font-medium">
               {totalXp.toLocaleString()} XP · Next: {nextMilestone.toLocaleString()} XP
             </span>
           </div>
@@ -236,8 +233,8 @@ const Dashboard = () => {
                 <div
                   className={`h-10 w-10 rounded-xl flex items-center justify-center text-xs font-bold transition-all duration-300 ${
                     d.active
-                      ? "bg-gradient-to-br from-[#1D4ED8] to-[#2563EB] text-white shadow-md shadow-blue-200"
-                      : "bg-gray-100 text-gray-400"
+                      ? "bg-gradient-to-br from-primary to-primary/80 text-primary-foreground shadow-md shadow-primary/20"
+                      : "bg-muted text-muted-foreground"
                   }`}
                 >
                   {d.label}
@@ -251,11 +248,11 @@ const Dashboard = () => {
             <>
               <div className="h-10 w-px bg-gray-200 hidden sm:block" />
               <div className="flex items-center gap-2">
-                <span className="text-xs font-semibold text-gray-400 mr-1">Badges</span>
+                <span className="text-xs font-semibold text-muted-foreground mr-1">Badges</span>
                 {earnedBadges.map((b) => (
                   <div
                     key={b.label}
-                    className="h-10 w-10 rounded-xl bg-gradient-to-br from-[#1D4ED8]/5 to-[#2563EB]/10 flex items-center justify-center text-lg hover:scale-110 transition-transform cursor-default border border-[#1D4ED8]/10"
+                    className="h-10 w-10 rounded-xl bg-primary/5 flex items-center justify-center text-lg hover:scale-110 transition-transform duration-300 cursor-default border border-primary/10 hover-glow"
                     title={b.label}
                   >
                     {b.emoji}
@@ -266,16 +263,17 @@ const Dashboard = () => {
           )}
         </div>
       </div>
+      </StaggerItem>
 
-      {/* ── Continue Learning ────────────────────────────────── */}
-      <div className="bg-white rounded-2xl shadow-sm p-6">
+      <StaggerItem>
+      <div className="glass-card rounded-2xl p-6 hover-glow">
         <div className="flex items-center justify-between mb-5">
-          <h3 className="text-base font-bold text-gray-900 flex items-center gap-2">
-            <BookOpen className="h-5 w-5 text-[#1D4ED8]" />
+          <h3 className="text-base font-bold text-foreground flex items-center gap-2">
+            <BookOpen className="h-5 w-5 text-primary" />
             Continue Learning
           </h3>
-          <Link to="/lessons" className="text-xs font-semibold text-[#1D4ED8] hover:underline">
-            View all →
+          <Link to="/lessons" className="text-xs font-semibold text-primary hover:underline flex items-center gap-1">
+            View all <ArrowRight className="h-3 w-3" />
           </Link>
         </div>
 
@@ -297,22 +295,22 @@ const Dashboard = () => {
               <Link
                 key={t.id}
                 to={`/lessons/${t.id}`}
-                className="flex items-center gap-4 rounded-xl hover:bg-gray-50 p-4 transition-all duration-200 group border border-gray-100"
+                className="flex items-center gap-4 rounded-xl hover:bg-muted/60 p-4 transition-all duration-200 group border border-border hover-lift"
               >
-                <div className="h-11 w-11 rounded-xl bg-gradient-to-br from-[#1D4ED8] to-[#2563EB] flex items-center justify-center flex-shrink-0 text-white text-sm font-bold shadow-sm">
+                <div className="h-11 w-11 rounded-xl bg-gradient-to-br from-primary to-primary/80 flex items-center justify-center flex-shrink-0 text-primary-foreground text-sm font-bold shadow-sm">
                   {String(idx + 1).padStart(2, "0")}
                 </div>
                 <div className="flex-1 min-w-0">
-                  <div className="text-sm font-semibold text-gray-900 truncate group-hover:text-[#1D4ED8] transition-colors">{t.title}</div>
-                  <div className="text-xs text-gray-400 mt-0.5">
+                  <div className="text-sm font-semibold text-foreground truncate group-hover:text-primary transition-colors">{t.title}</div>
+                  <div className="text-xs text-muted-foreground mt-0.5">
                     {t.subject} · {t.pct}% complete
                   </div>
-                  <div className="h-1.5 bg-gray-100 rounded-full mt-2 overflow-hidden max-w-xs">
-                    <div className="h-full bg-gradient-to-r from-[#1D4ED8] to-[#93C5FD] rounded-full transition-all duration-500" style={{ width: `${t.pct}%` }} />
+                  <div className="h-1.5 bg-muted rounded-full mt-2 overflow-hidden max-w-xs">
+                    <div className="h-full bg-gradient-to-r from-primary to-primary/60 rounded-full transition-all duration-500" style={{ width: `${t.pct}%` }} />
                   </div>
                 </div>
-                <div className="h-9 w-9 rounded-full bg-[#1D4ED8]/10 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0">
-                  <svg className="h-4 w-4 text-[#1D4ED8] ml-0.5" fill="currentColor" viewBox="0 0 24 24">
+                <div className="h-9 w-9 rounded-full bg-primary/10 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0">
+                  <svg className="h-4 w-4 text-primary ml-0.5" fill="currentColor" viewBox="0 0 24 24">
                     <path d="M8 5v14l11-7z" />
                   </svg>
                 </div>
@@ -322,22 +320,23 @@ const Dashboard = () => {
         ) : (
           <div className="text-center py-8">
             <div className="text-4xl mb-3">📖</div>
-            <div className="text-sm text-gray-500">Start a lesson to track your progress</div>
-            <Link to="/materials" className="inline-block mt-3 text-sm font-semibold text-[#1D4ED8] hover:underline">
+            <div className="text-sm text-muted-foreground">Start a lesson to track your progress</div>
+            <Link to="/materials" className="inline-block mt-3 text-sm font-semibold text-primary hover:underline">
               Browse materials →
             </Link>
           </div>
         )}
       </div>
+      </StaggerItem>
 
-      {/* ── Weak Topics / Recommendations ───────────────────── */}
+      <StaggerItem>
       {weakTopics.length > 0 ? (
-        <div className="bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-200/60 rounded-2xl p-6 space-y-4">
+        <div className="bg-gradient-to-r from-cta-light to-cta-light/50 border border-cta/20 rounded-2xl p-6 space-y-4 hover-glow">
           <div className="flex items-center gap-2">
-            <Lightbulb className="h-5 w-5 text-amber-500" />
-            <span className="font-bold text-sm text-gray-900">Recommended Focus Areas</span>
+            <Lightbulb className="h-5 w-5 text-cta" />
+            <span className="font-bold text-sm text-foreground">Recommended Focus Areas</span>
           </div>
-          <p className="text-xs text-gray-500">
+          <p className="text-xs text-muted-foreground">
             Based on your quiz scores, these topics need more practice:
           </p>
           <div className="grid sm:grid-cols-2 gap-3">
@@ -345,35 +344,36 @@ const Dashboard = () => {
               <Link
                 key={t.topic}
                 to="/quiz"
-                className="bg-white rounded-xl px-4 py-3 hover:shadow-md transition-all duration-200 border border-amber-100"
+                className="glass-card rounded-xl px-4 py-3 hover-lift"
               >
-                <div className="text-sm font-semibold text-gray-900">{t.topic}</div>
+                <div className="text-sm font-semibold text-foreground">{t.topic}</div>
                 <div className="flex items-center justify-between mt-2">
-                  <span className="text-xs text-gray-400">Quiz topic</span>
-                  <span className="text-xs font-bold text-red-500">{t.avgScore}% mastery</span>
+                  <span className="text-xs text-muted-foreground">Quiz topic</span>
+                  <span className="text-xs font-bold text-destructive">{t.avgScore}% mastery</span>
                 </div>
               </Link>
             ))}
           </div>
         </div>
       ) : (
-        <div className="flex items-center gap-4 bg-[#1D4ED8]/5 border border-[#1D4ED8]/10 rounded-2xl px-6 py-5">
-          <AlertTriangle className="h-5 w-5 text-[#1D4ED8] flex-shrink-0" />
+        <div className="flex items-center gap-4 bg-primary/5 border border-primary/10 rounded-2xl px-6 py-5 hover-glow">
+          <AlertTriangle className="h-5 w-5 text-primary flex-shrink-0" />
           <div className="flex-1">
-            <div className="text-sm font-bold text-gray-900">
+            <div className="text-sm font-bold text-foreground">
               Complete quizzes to identify weak topics
             </div>
-            <div className="text-xs text-gray-500 mt-1">
+            <div className="text-xs text-muted-foreground mt-1">
               Take a quiz to get personalized recommendations on where to focus.
             </div>
           </div>
-          <Link to="/quiz" className="text-xs font-semibold text-[#1D4ED8] hover:underline whitespace-nowrap">
+          <Link to="/quiz" className="text-xs font-semibold text-primary hover:underline whitespace-nowrap">
             Take quiz →
           </Link>
         </div>
       )}
+      </StaggerItem>
 
-      {/* ── Quick Actions Grid ──────────────────────────────── */}
+      <StaggerItem>
       <div className="grid grid-cols-3 md:grid-cols-6 gap-3">
         {[
           { icon: MessageCircleQuestion, label: "Doubts", to: "/doubts" },
@@ -386,20 +386,18 @@ const Dashboard = () => {
           <Link
             key={a.label}
             to={a.to}
-            className="group bg-white rounded-2xl p-4 hover:shadow-md transition-all duration-200 text-center border border-gray-100 hover:border-[#1D4ED8]/30"
+            className="group glass-card rounded-2xl p-4 hover-lift text-center"
           >
-            <a.icon className="h-5 w-5 text-[#1D4ED8] mx-auto mb-2 group-hover:scale-110 transition-transform" />
-            <div className="text-xs font-semibold text-gray-600 group-hover:text-[#1D4ED8] transition-colors">{a.label}</div>
+            <a.icon className="h-5 w-5 text-primary mx-auto mb-2 group-hover:scale-110 transition-transform duration-300" />
+            <div className="text-xs font-semibold text-muted-foreground group-hover:text-primary transition-colors">{a.label}</div>
           </Link>
         ))}
       </div>
+      </StaggerItem>
 
-      {/* ── EduOnx AI Side Chat ──────────────────────────── */}
       <EduOnxAIChat />
-
-      {/* ── Mandatory Feedback Check ────────────────────── */}
       <FeedbackEnforcer />
-    </div>
+    </StaggerContainer>
   );
 };
 

@@ -2,6 +2,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useQuery } from "@tanstack/react-query";
 import { db } from "@/lib/firebase";
 import { doc, getDoc, collection, query, where, getDocs } from "firebase/firestore";
+import { computeAvgQuizScore } from "@/lib/userStats";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 const shortDay = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
@@ -169,16 +170,11 @@ export const useDashboardData = () => {
       const q = query(collection(db, "quiz_attempts"), where("user_id", "==", user.uid));
       const querySnapshot = await getDocs(q);
       if (querySnapshot.empty) return 0;
-      let totalPct = 0;
-      let count = 0;
-      querySnapshot.forEach((doc) => {
-        const data = doc.data();
-        if (data.total_questions > 0) {
-          totalPct += (data.score / data.total_questions);
-          count++;
-        }
+      const attempts = querySnapshot.docs.map((d) => {
+        const data = d.data();
+        return { score: data.score, total_questions: data.total_questions };
       });
-      return count > 0 ? Math.round((totalPct / count) * 100) : 0;
+      return computeAvgQuizScore(attempts);
     },
     enabled: !!user,
   });

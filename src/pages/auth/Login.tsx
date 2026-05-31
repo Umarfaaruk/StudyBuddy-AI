@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Link, useNavigate, useLocation } from "react-router-dom";
+import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Mail, Lock, ArrowRight, Eye, EyeOff } from "lucide-react";
@@ -103,7 +104,12 @@ const Login = () => {
 
       {/* ── Right form panel ─────────────────────────────────── */}
       <div className="flex-1 flex items-center justify-center p-6 bg-background">
-        <div className="w-full max-w-md space-y-8">
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
+          className="w-full max-w-md space-y-8"
+        >
 
           <div className="lg:hidden flex items-center justify-center mb-8 shrink-0 w-full">
             <img src={eduonxLogo} alt="EduOnx Logo" className="block h-[60px] w-auto max-w-[200px] object-contain" />
@@ -203,7 +209,7 @@ const Login = () => {
               Sign Up Free
             </Link>
           </p>
-        </div>
+        </motion.div>
       </div>
     </div>
   );

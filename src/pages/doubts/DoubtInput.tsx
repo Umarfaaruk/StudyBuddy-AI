@@ -1,67 +1,49 @@
 import { useState, useRef, useEffect } from "react";
 import { useNavigate, Link } from "react-router-dom";
-import { Button } from "@/components/ui/button";
-import { Textarea } from "@/components/ui/textarea";
 import {
-  Send, Sparkles, BookOpen, Calculator, Atom, History, Paperclip,
-  Image, X, FileText, HelpCircle, Clock, MessageSquare, Copy, Loader2,
-  Wrench, Lightbulb, Mic, Share2, Star, MoreVertical, Trash2,
-  FolderOpen, ImageIcon, Upload
+  Send, Paperclip, X, FileText, Mic, Trash2, Wrench, Sparkles,
 } from "lucide-react";
-import { useAuth } from "@/contexts/AuthContext";
-import { useQuery } from "@tanstack/react-query";
-import { db } from "@/lib/firebase";
-import { collection, query, where, orderBy, getDocs, limit } from "firebase/firestore";
 import { toast } from "sonner";
-import ConceptExplorerWorkspace from "../tools/ConceptExplorerWorkspace";
-import YoutubeSummarizer from "../tools/YoutubeSummarizer";
-import { aiComplete } from "@/lib/aiService";
-import ReactMarkdown from "react-markdown";
 
-const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
+const MAX_FILE_SIZE = 10 * 1024 * 1024;
 const ALLOWED_IMAGE_TYPES = ["image/jpeg", "image/png", "image/webp", "image/gif"];
 const ALLOWED_FILE_TYPES = [...ALLOWED_IMAGE_TYPES, "application/pdf", "text/plain"];
 
 const DoubtInput = () => {
   const navigate = useNavigate();
-  const { user } = useAuth();
-  const [activeTab, setActiveTab] = useState<"chat" | "concept" | "youtube">("chat");
   const [question, setQuestion] = useState("");
   const [attachedFile, setAttachedFile] = useState<File | null>(null);
   const [filePreview, setFilePreview] = useState<string | null>(null);
   const [isListening, setIsListening] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const recognitionRef = useRef<any>(null);
+  const recognitionRef = useRef<SpeechRecognition | null>(null);
 
   useEffect(() => {
-    if (typeof window !== "undefined") {
-      const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
-      if (SpeechRecognition) {
-        recognitionRef.current = new SpeechRecognition();
-        recognitionRef.current.continuous = false;
-        recognitionRef.current.interimResults = false;
+    if (typeof window === "undefined") return;
+    const SpeechRecognition =
+      window.SpeechRecognition || (window as unknown as { webkitSpeechRecognition?: typeof window.SpeechRecognition }).webkitSpeechRecognition;
+    if (!SpeechRecognition) return;
 
-        recognitionRef.current.onresult = (event: any) => {
-          const transcript = event.results[0][0].transcript;
-          setQuestion((prev) => prev ? `${prev} ${transcript}` : transcript);
-          setIsListening(false);
-        };
+    recognitionRef.current = new SpeechRecognition();
+    recognitionRef.current.continuous = false;
+    recognitionRef.current.interimResults = false;
 
-        recognitionRef.current.onerror = (event: any) => {
-          console.error("Speech recognition error:", event.error);
-          setIsListening(false);
-          if (event.error === "not-allowed") {
-            toast.error("Microphone access denied. Please check your browser permissions.");
-          } else {
-            toast.error("Failed to recognize speech. Please try again.");
-          }
-        };
+    recognitionRef.current.onresult = (event: SpeechRecognitionEvent) => {
+      const transcript = event.results[0][0].transcript;
+      setQuestion((prev) => (prev ? `${prev} ${transcript}` : transcript));
+      setIsListening(false);
+    };
 
-        recognitionRef.current.onend = () => {
-          setIsListening(false);
-        };
+    recognitionRef.current.onerror = (event: SpeechRecognitionErrorEvent) => {
+      setIsListening(false);
+      if (event.error === "not-allowed") {
+        toast.error("Microphone access denied.");
+      } else {
+        toast.error("Speech recognition failed. Try again.");
       }
-    }
+    };
+
+    recognitionRef.current.onend = () => setIsListening(false);
   }, []);
 
   const toggleListening = () => {
@@ -69,7 +51,6 @@ const DoubtInput = () => {
       toast.error("Voice input is not supported in your browser.");
       return;
     }
-
     if (isListening) {
       recognitionRef.current.stop();
       setIsListening(false);
@@ -77,34 +58,25 @@ const DoubtInput = () => {
       try {
         recognitionRef.current.start();
         setIsListening(true);
-        toast.info("Listening...");
-      } catch (err) {
-        console.error("Failed to start listening:", err);
+        toast.info("Listening…");
+      } catch {
+        toast.error("Could not start microphone.");
       }
     }
   };
 
-
-
-  // Removed history fetch as it's no longer displayed on this screen
-
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-
     if (!ALLOWED_FILE_TYPES.includes(file.type)) {
-      toast.error("Unsupported file type. Use images (JPEG, PNG, WebP) or PDF files.");
+      toast.error("Use images (JPEG, PNG, WebP) or PDF files.");
       return;
     }
-
     if (file.size > MAX_FILE_SIZE) {
       toast.error("File is too large. Maximum size is 10MB.");
       return;
     }
-
     setAttachedFile(file);
-
-    // Generate preview for images
     if (ALLOWED_IMAGE_TYPES.includes(file.type)) {
       const reader = new FileReader();
       reader.onloadend = () => setFilePreview(reader.result as string);
@@ -117,138 +89,108 @@ const DoubtInput = () => {
   const clearAttachment = () => {
     setAttachedFile(null);
     setFilePreview(null);
-    if (fileInputRef.current) {
-      fileInputRef.current.value = "";
-    }
+    if (fileInputRef.current) fileInputRef.current.value = "";
   };
 
   const handleSubmit = () => {
     if (!question.trim() && !attachedFile) return;
 
-    // For image attachments, redirect to camera Q&A flow with the image
     if (attachedFile && ALLOWED_IMAGE_TYPES.includes(attachedFile.type) && filePreview) {
       navigate("/doubts/camera", {
-        state: {
-          preloadedImage: filePreview,
-          preloadedQuestion: question.trim()
-        }
+        state: { preloadedImage: filePreview, preloadedQuestion: question.trim() },
       });
       return;
     }
 
-    // For text questions (with or without PDF context), use the standard solution flow
     if (question.trim()) {
       let fullQuestion = question.trim();
-
-      // If a PDF is attached, note it in the question context
-      if (attachedFile && attachedFile.type === "application/pdf") {
+      if (attachedFile?.type === "application/pdf") {
         fullQuestion = `[Attached file: ${attachedFile.name}]\n\n${fullQuestion}`;
       }
-
-      navigate("/doubts/solution", {
-        state: {
-          question: fullQuestion
-        }
-      });
+      navigate("/doubts/solution", { state: { question: fullQuestion } });
     }
   };
 
   const handleClearChat = () => {
     setQuestion("");
-    setAttachedFile(null);
-    setFilePreview(null);
+    clearAttachment();
   };
 
   return (
-    <div className="flex flex-col h-full min-h-[calc(100vh-24px)] bg-[#FAFAFA] rounded-3xl overflow-hidden shadow-sm border border-gray-200/50 font-sans">
-      
-      {/* ── Tabs Header ── */}
-      <div className="flex items-center justify-center pt-8 pb-4 px-6 border-b border-gray-100 bg-white/50 backdrop-blur-sm">
-        <div className="flex bg-gray-100/80 p-1 rounded-xl gap-1">
-          <button
-            onClick={() => setActiveTab("chat")}
-            className={`px-5 py-2 rounded-lg text-[13px] font-semibold transition-all duration-200 ${activeTab === "chat" ? "bg-white text-gray-900 shadow-sm" : "text-gray-500 hover:text-gray-700 hover:bg-gray-200/50"}`}
-          >
-            Ask Doubt Chat
-          </button>
-          <button
-            onClick={() => setActiveTab("concept")}
-            className={`px-5 py-2 rounded-lg text-[13px] font-semibold transition-all duration-200 ${activeTab === "concept" ? "bg-white text-gray-900 shadow-sm" : "text-gray-500 hover:text-gray-700 hover:bg-gray-200/50"}`}
-          >
-            Concept Explorer
-          </button>
-          <button
-            onClick={() => setActiveTab("youtube")}
-            className={`px-5 py-2 rounded-lg text-[13px] font-semibold transition-all duration-200 ${activeTab === "youtube" ? "bg-white text-gray-900 shadow-sm" : "text-gray-500 hover:text-gray-700 hover:bg-gray-200/50"}`}
-          >
-            YouTube Summarizer
-          </button>
+    <div className="flex flex-col h-full min-h-[calc(100vh-24px)] bg-background rounded-3xl overflow-hidden shadow-sm border border-border font-sans">
+      <div className="flex items-center justify-between px-6 md:px-8 pt-6 pb-3 border-b border-divider bg-card/80">
+        <div>
+          <h1 className="text-base font-bold text-foreground tracking-tight">Ask Doubt</h1>
+          <p className="text-xs text-muted-foreground mt-0.5">Get step-by-step help from EduOnx AI</p>
         </div>
+        <button
+          type="button"
+          onClick={handleClearChat}
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-muted-foreground hover:text-destructive hover:bg-destructive/5 transition-colors"
+        >
+          <Trash2 className="h-3.5 w-3.5" />
+          Clear
+        </button>
       </div>
 
-      {activeTab === "chat" && (
-        <>
-          {/* ── Chat Header ── */}
-          <div className="flex items-center justify-between px-8 pt-6 pb-2">
-            <div className="flex-1" />
-            <h1 className="text-[16px] font-bold text-gray-800 tracking-tight">New Conversation</h1>
-            <div className="flex-1 flex justify-end">
-              <button
-                onClick={handleClearChat}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-gray-400 hover:text-red-600 hover:bg-red-50 transition-colors"
-              >
-                <Trash2 className="h-3.5 w-3.5" />
-                Clear
-              </button>
-            </div>
-          </div>
+      <Link
+        to="/tools"
+        className="mx-6 md:mx-8 mt-4 flex items-center gap-3 rounded-xl border border-primary/20 bg-primary/5 px-4 py-3 hover:bg-primary/10 transition-colors"
+      >
+        <div className="h-9 w-9 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+          <Wrench className="h-4 w-4 text-primary" />
+        </div>
+        <div className="flex-1 min-w-0">
+          <p className="text-sm font-semibold text-foreground">YouTube Summarizer & Concept Explorer</p>
+          <p className="text-xs text-muted-foreground">Available in Quick Tools — not duplicated here</p>
+        </div>
+        <Sparkles className="h-4 w-4 text-primary shrink-0" />
+      </Link>
 
-      {/* ── Chat Messages Area ── */}
-      <div className="flex-1 overflow-y-auto px-4 md:px-8 space-y-8 scrollbar-thin py-6">
-        {/* AI Greeting */}
+      <div className="flex-1 overflow-y-auto px-4 md:px-8 space-y-6 scrollbar-thin py-6">
         <div className="flex items-start gap-4 max-w-2xl mx-auto w-full">
-          <div className="h-10 w-10 rounded-full bg-gradient-to-br from-[#F97316] to-[#EA580C] flex items-center justify-center flex-shrink-0 shadow-sm border border-orange-500/20">
-            <span className="text-white text-lg drop-shadow-sm">🤖</span>
+          <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-cta to-cta/80 flex items-center justify-center flex-shrink-0 shadow-sm">
+            <Sparkles className="h-5 w-5 text-white" />
           </div>
           <div className="pt-0.5 space-y-1">
-            <div className="text-[11px] font-bold text-orange-500 uppercase tracking-widest">AI Tutor</div>
-            <div className="text-2xl font-bold text-gray-900 tracking-tight leading-tight">How can I help you today?</div>
+            <div className="text-[11px] font-bold text-cta uppercase tracking-widest">AI Tutor</div>
+            <div className="text-xl font-bold text-foreground tracking-tight leading-tight">
+              How can I help you today?
+            </div>
           </div>
         </div>
 
-        {/* Empty state explanation */}
         <div className="max-w-2xl mx-auto w-full pl-14">
-          <p className="text-[15px] text-gray-500 leading-relaxed bg-white p-4 rounded-2xl border border-gray-100 shadow-sm">
-            Welcome to the Ask Doubt section! I'm here to help you understand any topic. You can type your questions below, attach images or PDFs for deeper context, or use your microphone to ask directly. Use the tabs above to explore complex concepts or summarize YouTube videos.
+          <p className="text-sm text-muted-foreground leading-relaxed glass-card p-4 rounded-2xl">
+            Type your question below, attach an image or PDF, or use voice input. For YouTube summaries and concept maps, open{" "}
+            <Link to="/tools" className="text-primary font-medium hover:underline">Quick Tools</Link>.
           </p>
         </div>
       </div>
 
-      {/* ── File attachment preview ── */}
       {attachedFile && (
         <div className="px-4 md:px-8 pt-2 max-w-3xl mx-auto w-full">
-          <div className="flex items-center gap-3 bg-white rounded-xl p-2.5 border border-gray-200/60 shadow-sm w-max pr-4">
+          <div className="flex items-center gap-3 glass-card rounded-xl p-2.5 w-max pr-4">
             {filePreview ? (
-              <img src={filePreview} alt="Preview" className="h-10 w-10 rounded-lg object-cover border border-gray-100" />
+              <img src={filePreview} alt="Preview" className="h-10 w-10 rounded-lg object-cover border border-border" />
             ) : (
-              <div className="h-10 w-10 rounded-lg bg-gray-50 flex items-center justify-center border border-gray-100">
-                <FileText className="h-5 w-5 text-gray-400" />
+              <div className="h-10 w-10 rounded-lg bg-muted flex items-center justify-center border border-border">
+                <FileText className="h-5 w-5 text-muted-foreground" />
               </div>
             )}
             <div className="flex-1 min-w-0 pr-2">
-              <p className="text-xs font-semibold text-gray-700 truncate max-w-[200px]">{attachedFile.name}</p>
-              <p className="text-[10px] text-gray-400 font-medium">{(attachedFile.size / 1024).toFixed(1)} KB</p>
+              <p className="text-xs font-semibold text-foreground truncate max-w-[200px]">{attachedFile.name}</p>
+              <p className="text-[10px] text-muted-foreground">{(attachedFile.size / 1024).toFixed(1)} KB</p>
             </div>
-            <button onClick={clearAttachment} className="p-1 rounded-full hover:bg-gray-100 text-gray-400 hover:text-gray-600 transition-colors">
+            <button type="button" onClick={clearAttachment} className="p-1 rounded-full hover:bg-muted text-muted-foreground">
               <X className="h-3.5 w-3.5" />
             </button>
           </div>
         </div>
       )}
 
-      {/* ── Bottom Input Bar ── */}
       <div className="px-4 md:px-8 pb-6 pt-3 flex-shrink-0 w-full max-w-4xl mx-auto">
-        <div className="flex items-center gap-2 bg-white rounded-full border border-gray-200/60 shadow-[0_8px_30px_rgb(0,0,0,0.04)] pl-5 pr-2 py-2 focus-within:shadow-[0_8px_30px_rgb(0,0,0,0.08)] focus-within:border-gray-300 transition-all duration-300">
+        <div className="flex items-center gap-2 glass-card rounded-full pl-5 pr-2 py-2 focus-within:ring-2 focus-within:ring-ring/25 transition-all">
           <input
             ref={fileInputRef}
             type="file"
@@ -256,10 +198,9 @@ const DoubtInput = () => {
             className="hidden"
             onChange={handleFileSelect}
           />
-
           <input
             type="text"
-            placeholder="Ask me anything..."
+            placeholder="Ask me anything…"
             value={question}
             onChange={(e) => setQuestion(e.target.value)}
             onKeyDown={(e) => {
@@ -268,52 +209,38 @@ const DoubtInput = () => {
                 handleSubmit();
               }
             }}
-            className="flex-1 bg-transparent text-[15px] text-gray-800 placeholder:text-gray-400 outline-none py-1.5"
+            className="flex-1 bg-transparent text-[15px] text-foreground placeholder:text-muted-foreground outline-none py-1.5"
           />
-
           <div className="flex items-center gap-1.5">
             <button
+              type="button"
               onClick={toggleListening}
-              className={`p-2 rounded-full transition-all duration-200 ${
-                isListening 
-                  ? "text-red-500 bg-red-50 animate-pulse" 
-                  : "text-gray-400 hover:text-gray-700 hover:bg-gray-100"
+              className={`p-2 rounded-full transition-all ${
+                isListening ? "text-destructive bg-destructive/10 animate-pulse" : "text-muted-foreground hover:bg-muted"
               }`}
               title="Voice input"
             >
               <Mic className="h-4 w-4" />
             </button>
             <button
+              type="button"
               onClick={() => fileInputRef.current?.click()}
-              className="p-2 rounded-full text-gray-400 hover:text-gray-700 hover:bg-gray-100 transition-all duration-200"
+              className="p-2 rounded-full text-muted-foreground hover:bg-muted transition-all"
               title="Attach file"
             >
               <Paperclip className="h-4 w-4" />
             </button>
             <button
+              type="button"
               onClick={handleSubmit}
               disabled={!question.trim() && !attachedFile}
-              className="h-9 w-9 ml-1 rounded-full bg-gray-900 text-white flex items-center justify-center hover:bg-black disabled:opacity-30 disabled:cursor-not-allowed transition-all shadow-sm"
+              className="h-9 w-9 ml-1 rounded-full bg-foreground text-background flex items-center justify-center hover:bg-foreground/90 disabled:opacity-30 disabled:cursor-not-allowed transition-all shadow-sm"
             >
               <Send className="h-3.5 w-3.5 -ml-0.5" />
             </button>
           </div>
         </div>
       </div>
-      </>
-      )}
-
-      {activeTab === "concept" && (
-        <div className="flex-1 p-6 md:p-8 overflow-y-auto">
-          <ConceptExplorerWorkspace />
-        </div>
-      )}
-
-      {activeTab === "youtube" && (
-        <div className="flex-1 p-6 md:p-8 overflow-y-auto">
-          <YoutubeSummarizer />
-        </div>
-      )}
     </div>
   );
 };

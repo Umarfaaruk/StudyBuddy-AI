@@ -13,7 +13,7 @@ import { aiStream } from "@/lib/aiService";
  * AISolution — Doubt Solver using OpenRouter (Gemma 3 27B)
  *
  * Previously used direct Gemini API calls.
- * Now uses centralized aiStream service via OpenRouter.
+ * Now uses centralized aiStream service via Groq.
  *
  * Includes:
  * - AbortController for cancelling streams on unmount

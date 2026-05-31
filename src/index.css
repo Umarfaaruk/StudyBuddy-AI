@@ -149,14 +149,12 @@
     background-color: hsl(var(--deep));
     font-family: 'Inter', sans-serif;
     font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+    scroll-behavior: smooth;
   }
 
-  /* Reading mode typography (Deep Study long-form content) */
-  .reading-mode {
-    font-family: 'IBM Plex Serif', Georgia, serif;
-    font-size: 18px;
-    line-height: 1.8;
-    color: hsl(var(--text-body));
+  h1, h2, h3, h4 {
+    font-family: 'Sora', 'Inter', sans-serif;
+    letter-spacing: -0.02em;
   }
 }
 
@@ -182,6 +180,67 @@
   /* Safe area padding for mobile nav bars */
   .safe-area-pb { padding-bottom: env(safe-area-inset-bottom, 0px); }
   .safe-area-pt { padding-top: env(safe-area-inset-top, 0px); }
+
+  /* ── Professional UI utilities ── */
+  .main-canvas {
+    background:
+      radial-gradient(ellipse 80% 50% at 10% -10%, hsl(var(--primary) / 0.07) 0%, transparent 55%),
+      radial-gradient(ellipse 60% 40% at 95% 100%, hsl(var(--cta) / 0.05) 0%, transparent 50%),
+      hsl(var(--background));
+  }
+
+  .glass-card {
+    @apply bg-card/90 backdrop-blur-md border border-border/80 shadow-sm;
+  }
+
+  .hover-lift {
+    @apply transition-all duration-300 ease-out hover:-translate-y-0.5 hover:shadow-md;
+  }
+
+  .hover-glow {
+    @apply transition-shadow duration-300 hover:shadow-[0_8px_30px_-6px_hsl(var(--primary)/0.18)];
+  }
+
+  .nav-item-active {
+    @apply bg-white text-foreground shadow-md font-semibold;
+  }
+
+  .text-gradient-brand {
+    @apply bg-clip-text text-transparent bg-gradient-to-r from-primary to-[hsl(217,91%,60%)];
+  }
+
+  .shimmer {
+    background: linear-gradient(
+      90deg,
+      hsl(var(--muted)) 0%,
+      hsl(var(--border)) 50%,
+      hsl(var(--muted)) 100%
+    );
+    background-size: 200% 100%;
+    animation: shimmer 1.5s ease-in-out infinite;
+  }
+}
+
+@keyframes shimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+@keyframes float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-4px); }
+}
+
+.animate-float {
+  animation: float 4s ease-in-out infinite;
+}
+
+/* Reading mode typography */
+.reading-mode {
+  font-family: 'IBM Plex Serif', Georgia, serif;
+  font-size: 18px;
+  line-height: 1.8;
+  color: hsl(var(--text-body));
 }
 
 /* ── Mobile Optimizations ──────────────────────────────────────── */

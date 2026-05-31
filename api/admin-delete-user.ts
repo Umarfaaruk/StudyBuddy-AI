@@ -63,8 +63,17 @@ export default async function handler(req: any, res: any) {
     const db = getFirestore(app);
     const callerDoc = await db.collection("users").doc(callerUid).get();
     const callerData = callerDoc.data();
-    
-    if (!callerData || (callerData.is_admin !== true && callerData.role !== "admin")) {
+    let isCallerAdmin =
+      callerData?.is_admin === true || callerData?.role === "admin";
+
+    if (!isCallerAdmin) {
+      const profileDoc = await db.collection("profiles").doc(callerUid).get();
+      const profileData = profileDoc.data();
+      isCallerAdmin =
+        profileData?.is_admin === true || profileData?.role === "admin";
+    }
+
+    if (!isCallerAdmin) {
       return res.status(403).json({ error: "Forbidden: caller is not an admin" });
     }
 

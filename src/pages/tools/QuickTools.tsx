@@ -6,45 +6,34 @@ import ConceptExplorerWorkspace from "./ConceptExplorerWorkspace";
 
 type ToolTab = "youtube" | "concept" | "doubt";
 
-const tabs: { id: ToolTab; label: string; icon: typeof Youtube; description: string }[] = [
-  {
-    id: "youtube",
-    label: "YouTube Summarizer",
-    icon: Youtube,
-    description: "Summarize lectures and tutorials from captions",
-  },
-  {
-    id: "concept",
-    label: "Concept Explorer",
-    icon: Brain,
-    description: "Visualize and break down complex topics",
-  },
-  {
-    id: "doubt",
-    label: "Ask Doubt",
-    icon: MessageCircleQuestion,
-    description: "Get step-by-step help on any question",
-  },
+const tabs: { id: ToolTab; label: string; icon: typeof Youtube }[] = [
+  { id: "youtube", label: "YouTube Summarizer", icon: Youtube },
+  { id: "concept", label: "Concept Explorer", icon: Brain },
+  { id: "doubt", label: "Ask Doubt", icon: MessageCircleQuestion },
 ];
 
 const QuickTools = () => {
   const [activeTab, setActiveTab] = useState<ToolTab>("youtube");
 
   return (
-    <div className="p-6 md:p-8 max-w-6xl mx-auto space-y-8">
-      <div className="flex items-start gap-4">
-        <div className="h-11 w-11 rounded-xl bg-[#0F172A]/5 flex items-center justify-center shrink-0">
-          <Wrench className="h-5 w-5 text-[#0F172A]" />
-        </div>
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900 tracking-tight">Quick Tools</h1>
-          <p className="text-gray-500 text-sm mt-0.5">
-            AI-powered study assistants for faster learning
-          </p>
+    <div className="p-6 md:p-8 max-w-7xl mx-auto space-y-8">
+      <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4">
+        <div className="flex items-start gap-4">
+          <div className="h-12 w-12 rounded-2xl bg-primary/10 flex items-center justify-center shrink-0 ring-1 ring-primary/10">
+            <Wrench className="h-6 w-6 text-primary" />
+          </div>
+          <div>
+            <h1 className="font-display text-2xl md:text-3xl font-bold text-foreground tracking-tight">
+              Quick Tools
+            </h1>
+            <p className="text-muted-foreground text-sm mt-1 max-w-lg">
+              AI study assistants — summarize videos, explore concepts, and resolve doubts in one place.
+            </p>
+          </div>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+      <div className="inline-flex p-1 rounded-xl bg-muted/80 border border-border">
         {tabs.map((tab) => {
           const Icon = tab.icon;
           const isActive = activeTab === tab.id;
@@ -53,25 +42,21 @@ const QuickTools = () => {
               key={tab.id}
               type="button"
               onClick={() => setActiveTab(tab.id)}
-              className={`text-left rounded-2xl border p-4 transition-all duration-200 ${
+              className={`flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 ${
                 isActive
-                  ? "border-[#0F172A] bg-[#0F172A] text-white shadow-md"
-                  : "border-gray-200 bg-white text-gray-700 hover:border-gray-300 hover:shadow-sm"
+                  ? "bg-card text-foreground shadow-sm ring-1 ring-border"
+                  : "text-muted-foreground hover:text-foreground"
               }`}
             >
-              <div className="flex items-center gap-2.5 mb-1.5">
-                <Icon className={`h-4 w-4 ${isActive ? "text-white" : "text-[#1D4ED8]"}`} />
-                <span className="text-sm font-semibold">{tab.label}</span>
-              </div>
-              <p className={`text-xs leading-relaxed ${isActive ? "text-white/70" : "text-gray-500"}`}>
-                {tab.description}
-              </p>
+              <Icon className={`h-4 w-4 ${isActive ? "text-primary" : ""}`} />
+              <span className="hidden sm:inline">{tab.label}</span>
+              <span className="sm:hidden">{tab.label.split(" ")[0]}</span>
             </button>
           );
         })}
       </div>
 
-      <div className="min-h-[600px] rounded-2xl border border-gray-100 bg-white shadow-sm overflow-hidden">
+      <div className="rounded-2xl border border-border bg-card/50 shadow-sm overflow-hidden min-h-[560px]">
         {activeTab === "youtube" && (
           <div className="p-6 md:p-8">
             <YoutubeSummarizer />

@@ -2,6 +2,7 @@ import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react-swc";
 import path from "path";
 import fs from "fs";
+import { pathToFileURL } from "url";
 
 export default defineConfig(() => ({
   root: path.resolve(__dirname),
@@ -48,8 +49,8 @@ export default defineConfig(() => ({
                 return;
               }
 
-              // Import API handler dynamically
-              const { default: handler } = await import(apiPath);
+              // Import API handler dynamically (file:// URL required on Windows ESM)
+              const { default: handler } = await import(pathToFileURL(apiPath).href);
 
               // Parse search query params
               const query: Record<string, string> = {};
