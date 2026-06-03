@@ -1,10 +1,13 @@
-import { defineConfig } from "vite";
+import { defineConfig, loadEnv } from "vite";
 import react from "@vitejs/plugin-react-swc";
 import path from "path";
 import fs from "fs";
 import { pathToFileURL } from "url";
 
-export default defineConfig(() => ({
+export default defineConfig(({ mode }) => {
+  const env = loadEnv(mode, process.cwd(), "");
+
+  return {
   root: path.resolve(__dirname),
   server: {
     host: "0.0.0.0",
@@ -21,6 +24,13 @@ export default defineConfig(() => ({
       configureServer(server) {
         server.middlewares.use(async (req, res, next) => {
           if (req.url?.startsWith("/api/")) {
+            // Expose .env / .env.local to serverless-style API handlers in dev
+            for (const [key, value] of Object.entries(env)) {
+              if (value && !process.env[key]) {
+                process.env[key] = value;
+              }
+            }
+
             try {
               const urlObj = new URL(req.url, `http://${req.headers.host || 'localhost'}`);
               const apiName = urlObj.pathname.slice(5); // Remove "/api/"
@@ -165,4 +175,5 @@ export default defineConfig(() => ({
     // Warn at 600 KB since we have intentional chunking
     chunkSizeWarningLimit: 600,
   },
-}));
+};
+});

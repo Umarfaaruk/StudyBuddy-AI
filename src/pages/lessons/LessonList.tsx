@@ -301,14 +301,15 @@ ${materialContent}`;
       const videoData = await resp.json();
       const videoTitle = videoData.title || "YouTube Video";
       const videoChannel = videoData.channel || "Unknown Channel";
-      const hasTranscript = !!(videoData.transcript && videoData.transcript.trim().length > 100);
+      const hasTranscript =
+        videoData.hasTranscript === true && (videoData.segments?.length ?? 0) > 0;
 
       if (!hasTranscript) {
-        toast.warning("Captions are not available for this video. Generating a high-quality educational course based on its topic instead!");
+        toast.warning("Captions are not available for this video. Course will be based on title/description only.");
       }
 
-      const transcript = hasTranscript 
-        ? videoData.transcript 
+      const transcript = hasTranscript
+        ? videoData.transcript
         : `No transcript available. Topic: ${videoTitle}\nChannel: ${videoChannel}\nDescription: ${videoData.transcript || "No description provided."}`;
 
       // Step 2: Chunked transcript for long videos

@@ -2,9 +2,13 @@
 const GROQ_URL = "https://api.groq.com/openai/v1/chat/completions";
 
 function getApiKey(): string {
-  const key = process.env.GROQ_API_KEY || process.env.VITE_GROQ_API_KEY;
+  const key =
+    process.env.GROQ_API_KEY?.trim() ||
+    process.env.VITE_GROQ_API_KEY?.trim();
   if (!key) {
-    throw new Error("Server is missing GROQ_API_KEY.");
+    throw new Error(
+      "Server is missing GROQ_API_KEY. Set it in Vercel env vars or .env.local."
+    );
   }
   return key;
 }
