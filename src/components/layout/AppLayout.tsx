@@ -23,6 +23,7 @@ const sidebarLinks = [
   { to: "/materials/tutor", icon: Bot, label: "AI Tutor" },
   { to: "/tools", icon: Wrench, label: "Quick Tools" },
   { to: "/progress", icon: BarChart3, label: "Progress" },
+  { to: "/doubts", icon: MessageCircleQuestion, label: "Ask Doubt" },
   { to: "/leaderboard", icon: Trophy, label: "Leaderboard" },
   { to: "/quiz", icon: Gamepad2, label: "Practice Arena" },
 ];
@@ -35,7 +36,7 @@ const librarySidebarLinks = [
 const mobileNavLinks = [
   { to: "/dashboard", icon: LayoutDashboard, label: "Home" },
   { to: "/lessons", icon: BookOpen, label: "Academy" },
-  { to: "/tools", icon: Wrench, label: "Tools" },
+  { to: "/doubts", icon: MessageCircleQuestion, label: "Ask" },
   { to: "/materials", icon: Upload, label: "Resources" },
   { to: "/materials/tutor", icon: Bot, label: "AI Tutor" },
 ];

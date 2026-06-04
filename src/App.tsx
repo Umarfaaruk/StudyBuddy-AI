@@ -17,6 +17,7 @@ import Signup from "./pages/auth/Signup";
 import OnboardingFlow from "./pages/onboarding/OnboardingFlow";
 import AppLayout from "./components/layout/AppLayout";
 import Dashboard from "./pages/Dashboard";
+import DoubtInput from "./pages/doubts/DoubtInput";
 import AISolution from "./pages/doubts/AISolution";
 import DoubtHistory from "./pages/doubts/DoubtHistory";
 import DoubtSession from "./pages/doubts/DoubtSession";
@@ -86,7 +87,7 @@ const App = () => (
                 <Route path="/dashboard" element={<ErrorBoundary><Dashboard /></ErrorBoundary>} />
                 <Route path="/lessons" element={<ErrorBoundary><LessonList /></ErrorBoundary>} />
                 <Route path="/lessons/:id" element={<ErrorBoundary><LessonViewer /></ErrorBoundary>} />
-                <Route path="/doubts" element={<Navigate to="/materials/tutor" replace />} />
+                <Route path="/doubts" element={<ErrorBoundary><DoubtInput /></ErrorBoundary>} />
                 <Route path="/doubts/solution" element={<ErrorBoundary><AISolution /></ErrorBoundary>} />
                 <Route path="/doubts/history" element={<ErrorBoundary><DoubtHistory /></ErrorBoundary>} />
                 <Route path="/doubts/session/:id" element={<ErrorBoundary><DoubtSession /></ErrorBoundary>} />
