@@ -146,7 +146,7 @@
 
   body {
     @apply text-foreground antialiased;
-    background-color: hsl(var(--background));
+    background-color: hsl(var(--deep));
     font-family: 'Inter', sans-serif;
     font-feature-settings: "cv02", "cv03", "cv04", "cv11";
     scroll-behavior: smooth;

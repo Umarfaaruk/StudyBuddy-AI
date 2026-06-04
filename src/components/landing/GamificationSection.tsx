@@ -56,11 +56,11 @@ const GamificationSection = () => (
 
         {/* Right text */}
         <div className="space-y-6">
-          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-accent">Social & Gamified</p>
-          <h2 className="text-3xl md:text-4xl font-bold text-foreground tracking-tight">
+          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-soft">Social & Gamified</p>
+          <h2 className="text-3xl md:text-4xl font-bold text-white tracking-tight">
             Study together. Improve faster.
           </h2>
-          <p className="text-muted-foreground text-lg leading-relaxed">
+          <p className="text-soft text-lg leading-relaxed">
             Learning shouldn't be lonely. Earn XP for every study session, unlock badges for milestones, and compete with friends on weekly leaderboards. Motivation built into every interaction.
           </p>
           <div className="grid grid-cols-2 gap-4 pt-2">
