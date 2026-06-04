@@ -1,6 +1,6 @@
 import { Link } from "react-router-dom";
 import { BackgroundPaths } from "@/components/ui/background-paths";
-import eduonxLogo from "@/assets/eduonx-logo.png";
+import eduonxLogoOnDark from "@/assets/eduonx-logo-on-dark.png";
 
 const footerLinks = {
   Platform: ["AI Tutor", "Quiz Engine", "Progress Tracker", "Study Timer"],
@@ -9,7 +9,7 @@ const footerLinks = {
 };
 
 const Footer = () => (
-  <footer className="bg-slate-50 text-foreground border-t border-border relative overflow-hidden">
+  <footer className="bg-[#0B0F19] text-white border-t border-white/[0.06] relative overflow-hidden">
     {/* Background Paths decoration */}
     <div className="absolute inset-0 opacity-20 pointer-events-none">
       <BackgroundPaths />
@@ -20,9 +20,9 @@ const Footer = () => (
         {/* Brand */}
         <div className="col-span-2 md:col-span-1">
           <Link to="/" className="flex items-center mb-4 w-max shrink-0 max-w-full">
-            <img src={eduonxLogo} alt="EduOnx Logo" className="block h-[60px] md:h-[80px] w-auto max-w-[200px] md:max-w-[300px] object-contain" />
+            <img src={eduonxLogoOnDark} alt="EduOnx Logo" className="block h-[60px] md:h-[80px] w-auto max-w-[200px] md:max-w-[300px] object-contain" />
           </Link>
-          <p className="text-xs text-accent/90 leading-relaxed">
+          <p className="text-xs text-slate-400 leading-relaxed">
             AI-powered learning platform for smarter studying.
           </p>
         </div>
@@ -30,11 +30,11 @@ const Footer = () => (
         {/* Link columns */}
         {Object.entries(footerLinks).map(([title, links]) => (
           <div key={title}>
-            <h4 className="text-xs font-bold uppercase tracking-widest text-foreground mb-4">{title}</h4>
+            <h4 className="text-xs font-bold uppercase tracking-widest text-slate-200 mb-4">{title}</h4>
             <ul className="space-y-2.5">
               {links.map((link) => (
                 <li key={link}>
-                  <span className="text-sm text-accent/80 hover:text-foreground transition-colors cursor-pointer">{link}</span>
+                  <span className="text-sm text-slate-400 hover:text-white transition-colors cursor-pointer">{link}</span>
                 </li>
               ))}
             </ul>
@@ -42,8 +42,8 @@ const Footer = () => (
         ))}
       </div>
 
-      <div className="border-t border-border mt-12 pt-8 text-center">
-        <p className="text-xs text-accent/70">
+      <div className="border-t border-white/[0.06] mt-12 pt-8 text-center">
+        <p className="text-xs text-slate-500">
           © 2026 EduOnx. All rights reserved.
         </p>
       </div>
