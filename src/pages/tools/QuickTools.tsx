@@ -1,15 +1,13 @@
 import { useState } from "react";
-import { Wrench, Youtube, Brain, MessageCircleQuestion } from "lucide-react";
+import { Wrench, Youtube, Brain } from "lucide-react";
 import YoutubeSummarizer from "./YoutubeSummarizer";
-import DoubtInput from "../doubts/DoubtInput";
 import ConceptExplorerWorkspace from "./ConceptExplorerWorkspace";
 
-type ToolTab = "youtube" | "concept" | "doubt";
+type ToolTab = "youtube" | "concept";
 
 const tabs: { id: ToolTab; label: string; icon: typeof Youtube }[] = [
   { id: "youtube", label: "YouTube Summarizer", icon: Youtube },
   { id: "concept", label: "Concept Explorer", icon: Brain },
-  { id: "doubt", label: "Ask Doubt", icon: MessageCircleQuestion },
 ];
 
 const QuickTools = () => {
@@ -27,7 +25,7 @@ const QuickTools = () => {
               Quick Tools
             </h1>
             <p className="text-muted-foreground text-sm mt-1 max-w-lg">
-              AI study assistants — summarize videos, explore concepts, and resolve doubts in one place.
+              AI study assistants — summarize videos and explore concepts in one place.
             </p>
           </div>
         </div>
@@ -67,7 +65,6 @@ const QuickTools = () => {
             <ConceptExplorerWorkspace />
           </div>
         )}
-        {activeTab === "doubt" && <DoubtInput />}
       </div>
     </div>
   );

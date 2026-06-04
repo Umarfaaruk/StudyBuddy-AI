@@ -1,7 +1,7 @@
 import { Link } from "react-router-dom";
 import {
   BookOpen, MessageCircleQuestion, Gamepad2, Upload, BarChart3,
-  Trophy, Flame, Lightbulb, AlertTriangle, CalendarDays, User, ArrowRight, Wrench, Bot, Sparkles
+  Trophy, Flame, Lightbulb, AlertTriangle, CalendarDays, User, ArrowRight, Wrench, Bot, Sparkles, Youtube
 } from "lucide-react";
 import { useDashboardData } from "@/hooks/useDashboardData";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -188,8 +188,8 @@ const Dashboard = () => {
           <div className="grid grid-cols-2 gap-3">
             {[
               { icon: Bot, label: "AI Tutor", desc: "Chat with your study AI", to: "/materials/tutor", color: "from-violet-500 to-violet-600" },
-              { icon: MessageCircleQuestion, label: "Ask Doubt", desc: "Get instant answers", to: "/doubts", color: "from-blue-500 to-blue-600" },
-              { icon: Sparkles, label: "Flashcards", desc: "Generate study cards", to: "/tools/flashcards", color: "from-amber-500 to-orange-500" },
+              { icon: Youtube, label: "Video Summarizer", desc: "Summarize study videos", to: "/tools", color: "from-red-500 to-red-600" },
+              { icon: Sparkles, label: "Flashcards", desc: "Generate study cards", to: "/materials/flashcards", color: "from-amber-500 to-orange-500" },
               { icon: Gamepad2, label: "Quick Quiz", desc: "Test your knowledge", to: "/quiz", color: "from-emerald-500 to-emerald-600" },
             ].map((tool) => (
               <Link
@@ -373,7 +373,7 @@ const Dashboard = () => {
       <StaggerItem>
       <div className="grid grid-cols-3 md:grid-cols-6 gap-3">
         {[
-          { icon: MessageCircleQuestion, label: "Doubts", to: "/doubts" },
+          { icon: Bot, label: "AI Tutor", to: "/materials/tutor" },
           { icon: Gamepad2, label: "Practice", to: "/quiz" },
           { icon: BookOpen, label: "Lessons", to: "/lessons" },
           { icon: Upload, label: "Resources", to: "/materials" },

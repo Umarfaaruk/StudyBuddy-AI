@@ -2,7 +2,7 @@ import { useState, useRef, useEffect, useMemo } from "react";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Bot, Send, Sparkles, Loader2, Copy, Check, Square, Trash2, FileText, X, Upload, Wrench, Youtube, Brain, MessageCircleQuestion } from "lucide-react";
+import { Bot, Send, Sparkles, Loader2, Copy, Check, Square, Trash2, FileText, X, Upload, Wrench, Youtube, Brain, MessageCircleQuestion, Mic, Paperclip } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
 import ReactMarkdown from "react-markdown";
@@ -33,6 +33,18 @@ interface Material {
 
 // Maximum document content to include in the system prompt (avoid token overflow)
 const MAX_DOC_CONTEXT_CHARS = 12_000;
+
+const GENERAL_SYSTEM_PROMPT = `You are an expert, patient tutor helping students solve doubts and understand concepts.
+
+When answering:
+1. Provide a clear, step-by-step explanation
+2. Use analogies and real-world examples
+3. Break down complex topics into simpler parts
+4. Highlight common mistakes students make
+5. Format with markdown: use headers (##), bullet points, numbered lists, and **bold** for emphasis
+6. If math is involved, show each step clearly
+7. End with a brief summary and suggest related topics to explore
+8. Keep responses focused and educational`;
 
 const getFileBasedSystemPrompt = (fileName: string, documentContent: string): string => {
   const truncatedContent = documentContent.length > MAX_DOC_CONTEXT_CHARS
@@ -231,6 +243,55 @@ const AITutor = () => {
   const abortControllerRef = useRef<AbortController | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [isListening, setIsListening] = useState(false);
+  const recognitionRef = useRef<any>(null);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const SpeechRecognition =
+      (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    if (!SpeechRecognition) return;
+
+    recognitionRef.current = new SpeechRecognition();
+    recognitionRef.current.continuous = false;
+    recognitionRef.current.interimResults = false;
+
+    recognitionRef.current.onresult = (event: any) => {
+      const transcript = event.results[0][0].transcript;
+      setQuestion((prev) => (prev ? `${prev} ${transcript}` : transcript));
+      setIsListening(false);
+    };
+
+    recognitionRef.current.onerror = (event: any) => {
+      setIsListening(false);
+      if (event.error === "not-allowed") {
+        toast.error("Microphone access denied.");
+      } else {
+        toast.error("Speech recognition failed. Try again.");
+      }
+    };
+
+    recognitionRef.current.onend = () => setIsListening(false);
+  }, []);
+
+  const toggleListening = () => {
+    if (!recognitionRef.current) {
+      toast.error("Voice input is not supported in your browser.");
+      return;
+    }
+    if (isListening) {
+      recognitionRef.current.stop();
+      setIsListening(false);
+    } else {
+      try {
+        recognitionRef.current.start();
+        setIsListening(true);
+        toast.info("Listening…");
+      } catch {
+        toast.error("Could not start microphone.");
+      }
+    }
+  };
 
   // Fetch user's uploaded materials
   const { data: materials = [] } = useQuery({
@@ -345,16 +406,13 @@ const AITutor = () => {
   };
 
   const streamResponse = async (userMessage: string, history: Message[]) => {
-    if (!selectedMaterial) {
-      toast.error("Please upload or select a file first");
-      return;
-    }
-
     const controller = new AbortController();
     abortControllerRef.current = controller;
     setStreaming(true);
 
-    const systemPrompt = getFileBasedSystemPrompt(selectedMaterial.file_name, selectedMaterial.extracted_text);
+    const systemPrompt = selectedMaterial
+      ? getFileBasedSystemPrompt(selectedMaterial.file_name, selectedMaterial.extracted_text)
+      : GENERAL_SYSTEM_PROMPT;
 
     const apiMessages: { role: "system" | "user" | "assistant"; content: string }[] = [
       { role: "system", content: systemPrompt },
@@ -427,10 +485,6 @@ const AITutor = () => {
 
   const handleSend = () => {
     if (!question.trim() || streaming) return;
-    if (!selectedMaterial) {
-      toast.error("Please upload or select a file first to ask questions.");
-      return;
-    }
     const userMsg: Message = { role: "user", content: question.trim() };
     const newHistory = [...messages, userMsg];
     setMessages(newHistory);
@@ -630,31 +684,66 @@ const AITutor = () => {
                     )}
                   </div>
                 ) : (
-                  /* Upload prompt - drag-and-drop zone */
-                  <div
-                    className={`w-full max-w-md mx-auto rounded-2xl border-2 border-dashed p-8 text-center transition-all duration-200 cursor-pointer bg-white ${
-                      isDragOver
-                        ? "border-[#1D4ED8] bg-[#1D4ED8]/5 scale-[1.02]"
-                        : "border-gray-200 hover:border-[#1D4ED8]/40 hover:shadow-sm"
-                    }`}
-                    onClick={() => fileInputRef.current?.click()}
-                    onDragOver={(e) => { e.preventDefault(); setIsDragOver(true); }}
-                    onDragLeave={() => setIsDragOver(false)}
-                    onDrop={handleDrop}
-                  >
-                    <div className="h-14 w-14 rounded-2xl bg-[#1D4ED8]/10 flex items-center justify-center mx-auto mb-4">
-                      <Upload className="h-7 w-7 text-[#1D4ED8]" />
+                  <div className="text-center space-y-6 max-w-2xl mx-auto w-full px-4">
+                    <div className="space-y-2">
+                      <div className="h-16 w-16 rounded-2xl bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center mx-auto shadow-md">
+                        <Bot className="h-8 w-8 text-white animate-pulse" />
+                      </div>
+                      <h2 className="text-xl font-extrabold text-gray-900 tracking-tight">
+                        How can I help you study today?
+                      </h2>
+                      <p className="text-sm text-gray-500 max-w-md mx-auto">
+                        Ask any academic question, clarify complex concepts, or upload study material to specialize my knowledge.
+                      </p>
                     </div>
-                    <h2 className="text-lg font-bold text-gray-900 mb-1.5">Upload study material</h2>
-                    <p className="text-xs text-gray-400 max-w-xs mx-auto mb-4 leading-relaxed">
-                      Drag &amp; drop a PDF, TXT, or Markdown file here, or click to browse. The AI Tutor will specialize in your content.
-                    </p>
-                    <div className="flex items-center justify-center gap-2 text-[10px] font-medium text-gray-400">
-                      <span className="px-2 py-0.5 rounded bg-gray-100">PDF</span>
-                      <span className="px-2 py-0.5 rounded bg-gray-100">TXT</span>
-                      <span className="px-2 py-0.5 rounded bg-gray-100">MD</span>
-                      <span className="text-gray-300">&bull;</span>
-                      <span>Max 50MB</span>
+
+                    {/* Suggestions Grid */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 w-full max-w-lg mx-auto">
+                      {[
+                        "Explain photosynthesis step by step",
+                        "How do I solve quadratic equations?",
+                        "What is Newton's second law?",
+                        "Explain the water cycle",
+                      ].map((q) => (
+                        <button
+                          key={q}
+                          onClick={() => {
+                            setQuestion(q);
+                            setTimeout(() => inputRef.current?.focus(), 50);
+                          }}
+                          className="text-left px-4 py-3.5 rounded-2xl bg-white border border-gray-100 hover:border-blue-300 hover:bg-blue-50/10 hover:shadow-sm transition-all text-xs font-semibold text-gray-600 hover:text-blue-700"
+                        >
+                          {q}
+                        </button>
+                      ))}
+                    </div>
+
+                    {/* Compact Drag and Drop Upload Zone */}
+                    <div
+                      className={`w-full max-w-lg mx-auto rounded-2xl border-2 border-dashed p-5 text-center transition-all duration-200 cursor-pointer bg-white/50 ${
+                        isDragOver
+                          ? "border-blue-600 bg-blue-50/50 scale-[1.01]"
+                          : "border-gray-200 hover:border-blue-400/60 hover:bg-white"
+                      }`}
+                      onClick={() => fileInputRef.current?.click()}
+                      onDragOver={(e) => {
+                        e.preventDefault();
+                        setIsDragOver(true);
+                      }}
+                      onDragLeave={() => setIsDragOver(false)}
+                      onDrop={handleDrop}
+                    >
+                      <div className="flex items-center justify-center gap-3">
+                        <div className="h-9 w-9 rounded-xl bg-blue-50 flex items-center justify-center text-blue-600 shrink-0">
+                          <Upload className="h-4.5 w-4.5" />
+                        </div>
+                        <div className="text-left">
+                          <p className="text-xs font-bold text-gray-800">Specialize on your own documents</p>
+                          <p className="text-[10px] text-gray-400">
+                            Drag &amp; drop or click to upload PDF, TXT, or MD (max 50MB)
+                          </p>
+                        </div>
+                      </div>
                     </div>
                   </div>
                 )}
@@ -704,12 +793,15 @@ const AITutor = () => {
 
           {/* Input Panel */}
           <div className="px-6 py-4 border-t border-gray-150 bg-gray-50 shrink-0">
-            <div className="flex items-center gap-3">
-              <Input
+            <div className="flex items-center gap-2 bg-white border border-gray-200 focus-within:ring-2 focus-within:ring-[#1D4ED8] focus-within:border-transparent rounded-xl pl-4 pr-1.5 py-1.5 transition-all shadow-sm">
+              <input
                 ref={inputRef}
-                placeholder={selectedMaterial
-                  ? `Ask about "${selectedMaterial.file_name}"...`
-                  : "Upload a file first to start asking questions..."
+                placeholder={
+                  streaming
+                    ? "AI is responding..."
+                    : selectedMaterial
+                    ? `Ask about "${selectedMaterial.file_name}"...`
+                    : "Ask a general doubt, or select/upload a file to specialize..."
                 }
                 value={question}
                 onChange={(e) => setQuestion(e.target.value)}
@@ -719,26 +811,58 @@ const AITutor = () => {
                     handleSend();
                   }
                 }}
-                disabled={streaming || !selectedMaterial}
-                className="flex-1 h-11 bg-white border-gray-200 focus-visible:ring-[#1D4ED8] rounded-xl text-sm"
+                disabled={streaming}
+                className="flex-1 bg-transparent border-none outline-none text-sm text-gray-800 placeholder-gray-400 min-w-0"
                 autoFocus
               />
-              {streaming ? (
-                <Button onClick={handleStop} variant="outline" className="h-11 w-11 p-0 rounded-xl border-gray-200 hover:text-red-500 hover:bg-red-50">
-                  <Square className="h-4 w-4" fill="currentColor" />
-                </Button>
-              ) : (
+              <div className="flex items-center gap-1 shrink-0">
                 <Button
-                  onClick={handleSend}
-                  disabled={!question.trim() || !selectedMaterial}
-                  className="h-11 w-11 p-0 bg-[#1D4ED8] text-white hover:bg-[#2563EB] rounded-xl shadow-sm"
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={toggleListening}
+                  className={`h-8 w-8 p-0 rounded-lg transition-all ${
+                    isListening
+                      ? "text-red-500 bg-red-50 animate-pulse hover:bg-red-100 hover:text-red-600"
+                      : "text-gray-400 hover:text-gray-600 hover:bg-gray-100"
+                  }`}
+                  title="Voice input"
                 >
-                  <Send className="h-4 w-4" />
+                  <Mic className="h-4 w-4" />
                 </Button>
-              )}
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => fileInputRef.current?.click()}
+                  className="h-8 w-8 p-0 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100"
+                  title="Upload study material"
+                >
+                  <Paperclip className="h-4 w-4" />
+                </Button>
+                {streaming ? (
+                  <Button
+                    onClick={handleStop}
+                    variant="outline"
+                    className="h-8 w-8 p-0 rounded-lg border-gray-200 hover:text-red-500 hover:bg-red-50"
+                  >
+                    <Square className="h-3.5 w-3.5" fill="currentColor" />
+                  </Button>
+                ) : (
+                  <Button
+                    onClick={handleSend}
+                    disabled={!question.trim()}
+                    className="h-8 w-8 p-0 bg-[#1D4ED8] text-white hover:bg-[#2563EB] rounded-lg shadow-sm"
+                  >
+                    <Send className="h-3.5 w-3.5" />
+                  </Button>
+                )}
+              </div>
             </div>
             <p className="text-[10px] text-gray-400 text-center mt-2.5">
-              AI Tutor answers questions strictly based on your uploaded document content.
+              {selectedMaterial
+                ? `AI Tutor is specialized on "${selectedMaterial.file_name}".`
+                : "Ask any general doubt, or upload study material to specialize the AI Tutor."}
             </p>
           </div>
         </div>
@@ -746,7 +870,7 @@ const AITutor = () => {
         {/* Right: Quick Tools Sidebar */}
         <div className="w-full lg:w-[340px] h-full bg-gray-50/70 overflow-y-auto p-6 space-y-6 shrink-0 border-t lg:border-t-0 border-gray-150">
           {/* Suggested Questions Section */}
-          {selectedMaterial && selectedMaterial.key_topics.length > 0 && (
+          {selectedMaterial && selectedMaterial.key_topics.length > 0 ? (
             <div className="bg-white border border-gray-150 rounded-2xl p-4 shadow-sm space-y-3">
               <h4 className="text-xs font-bold text-gray-400 uppercase tracking-wider flex items-center gap-1.5">
                 <MessageCircleQuestion className="h-3.5 w-3.5 text-blue-500" /> Suggested Questions
@@ -772,6 +896,30 @@ const AITutor = () => {
                     </button>
                   );
                 })}
+              </div>
+            </div>
+          ) : (
+            <div className="bg-white border border-gray-150 rounded-2xl p-4 shadow-sm space-y-3">
+              <h4 className="text-xs font-bold text-gray-400 uppercase tracking-wider flex items-center gap-1.5">
+                <MessageCircleQuestion className="h-3.5 w-3.5 text-blue-500" /> General Doubts
+              </h4>
+              <div className="flex flex-col gap-2">
+                {[
+                  { q: "What is the theory of relativity?", label: "Theory of Relativity" },
+                  { q: "Explain photosynthesis step-by-step.", label: "Photosynthesis Explained" },
+                  { q: "How do binary search trees work?", label: "Binary Search Trees" },
+                ].map((item, idx) => (
+                  <button
+                    key={idx}
+                    onClick={() => {
+                      setQuestion(item.q);
+                      inputRef.current?.focus();
+                    }}
+                    className="text-left text-xs text-gray-600 hover:text-blue-600 hover:bg-blue-50/50 p-2.5 rounded-xl border border-gray-100 hover:border-blue-200/40 transition-all font-medium"
+                  >
+                    {item.label}
+                  </button>
+                ))}
               </div>
             </div>
           )}
