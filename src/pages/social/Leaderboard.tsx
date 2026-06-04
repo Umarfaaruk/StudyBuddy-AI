@@ -1,16 +1,60 @@
-import { Trophy, Zap, Flame, Users, Crown, Medal, Award, Star } from "lucide-react";
+import { Trophy, Zap, Flame, Users, Crown, Medal, Award, Star, UserPlus, UserCheck } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/contexts/AuthContext";
 import { db } from "@/lib/firebase";
-import { collection, query, where, getDocs, doc, getDoc, orderBy, limit } from "firebase/firestore";
+import { collection, query, where, getDocs, doc, getDoc, orderBy, limit, addDoc, deleteDoc } from "firebase/firestore";
 import { Skeleton } from "@/components/ui/skeleton";
+import { toast } from "sonner";
 
 const Leaderboard = () => {
   const { user } = useAuth();
   const [tab, setTab] = useState<"global" | "friends">("global");
   const [timeFilter, setTimeFilter] = useState<'today' | 'week' | 'all'>('today');
+  const [followingSet, setFollowingSet] = useState<Set<string>>(new Set());
+
+  // Fetch who the user follows
+  const { data: followsData } = useQuery({
+    queryKey: ["follows", user?.uid],
+    queryFn: async () => {
+      if (!user) return [];
+      const q = query(collection(db, "follows"), where("follower_id", "==", user.uid));
+      const snap = await getDocs(q);
+      const follows = snap.docs.map(d => ({ id: d.id, ...d.data() } as any));
+      setFollowingSet(new Set(follows.map((f: any) => f.following_id)));
+      return follows;
+    },
+    enabled: !!user,
+  });
+
+  const handleFollow = async (targetUserId: string, targetName: string) => {
+    if (!user || targetUserId === user.uid) return;
+    try {
+      if (followingSet.has(targetUserId)) {
+        // Unfollow: find and delete the follow doc
+        const q = query(
+          collection(db, "follows"),
+          where("follower_id", "==", user.uid),
+          where("following_id", "==", targetUserId)
+        );
+        const snap = await getDocs(q);
+        for (const d of snap.docs) await deleteDoc(d.ref);
+        setFollowingSet(prev => { const n = new Set(prev); n.delete(targetUserId); return n; });
+        toast.success(`Unfollowed ${targetName}`);
+      } else {
+        await addDoc(collection(db, "follows"), {
+          follower_id: user.uid,
+          following_id: targetUserId,
+          created_at: new Date().toISOString(),
+        });
+        setFollowingSet(prev => new Set([...prev, targetUserId]));
+        toast.success(`Now following ${targetName}`);
+      }
+    } catch {
+      toast.error("Failed to update follow status");
+    }
+  };
 
   const { data: myXp } = useQuery({
     queryKey: ["my-xp", user?.uid],
@@ -58,6 +102,7 @@ const Leaderboard = () => {
           const data = d.data();
           const name = data.full_name || "Student";
           return {
+            uid: d.id,
             name,
             avatar: name.split(" ").map((n: string) => n[0]).join("").slice(0, 2).toUpperCase(),
             xp: data.total_xp || 0,
@@ -83,12 +128,12 @@ const Leaderboard = () => {
     ? (() => {
         const list = globalUsers ?? [];
         if (list.length > 0 && !list.find((u) => u.isYou)) {
-          const withMe = [...list, { name: myName, avatar: myInitials, xp, isYou: true, subject: "Student", rank: list.length + 1 }];
+          const withMe = [...list, { uid: user?.uid || "", name: myName, avatar: myInitials, xp, isYou: true, subject: "Student", rank: list.length + 1 }];
           return withMe.sort((a, b) => b.xp - a.xp).map((u, i) => ({ ...u, rank: i + 1 }));
         }
         return list;
       })()
-    : [{ name: myName, avatar: myInitials, xp, isYou: true, subject: "Student", rank: 1 }];
+    : [{ uid: user?.uid || "", name: myName, avatar: myInitials, xp, isYou: true, subject: "Student", rank: 1 }];
 
   const myRank = displayUsers.find((u) => u.isYou)?.rank ?? 0;
 
@@ -231,10 +276,11 @@ const Leaderboard = () => {
           {/* ───── Ranked List (4+) ───── */}
           <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
             {/* Header */}
-            <div className="grid grid-cols-[50px_1fr_120px] md:grid-cols-[50px_1fr_140px] gap-4 px-5 py-3 bg-gray-50/80 border-b border-gray-100">
+            <div className="grid grid-cols-[50px_1fr_120px_90px] md:grid-cols-[50px_1fr_140px_100px] gap-4 px-5 py-3 bg-gray-50/80 border-b border-gray-100">
               <span className="text-[11px] font-bold text-gray-400 uppercase tracking-wider">Rank</span>
               <span className="text-[11px] font-bold text-gray-400 uppercase tracking-wider">Student</span>
               <span className="text-[11px] font-bold text-gray-400 uppercase tracking-wider text-right">XP Points</span>
+              <span className="text-[11px] font-bold text-gray-400 uppercase tracking-wider text-right">Action</span>
             </div>
 
             <div className="divide-y divide-gray-50">
@@ -248,7 +294,7 @@ const Leaderboard = () => {
                 (rest.length > 0 ? rest : displayUsers).map((u) => (
                   <div
                     key={`row-${u.name}-${u.rank}`}
-                    className={`grid grid-cols-[50px_1fr_120px] md:grid-cols-[50px_1fr_140px] gap-4 items-center px-5 py-3.5 transition-all duration-200 group ${
+                    className={`grid grid-cols-[50px_1fr_120px_90px] md:grid-cols-[50px_1fr_140px_100px] gap-4 items-center px-5 py-3.5 transition-all duration-200 group ${
                       u.isYou
                         ? "bg-[#1D4ED8]/5 border-l-4 border-l-[#1D4ED8]"
                         : "hover:bg-gray-50/80 border-l-4 border-l-transparent"
@@ -286,6 +332,26 @@ const Leaderboard = () => {
                         {u.xp.toLocaleString()}
                       </span>
                       <span className="text-xs text-gray-400 ml-1">XP</span>
+                    </div>
+
+                    {/* Follow/Friends Button */}
+                    <div className="text-right">
+                      {!u.isYou && u.uid && (
+                        <button
+                          onClick={() => handleFollow(u.uid, u.name)}
+                          className={`inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-[11px] font-semibold transition-all ${
+                            followingSet.has(u.uid)
+                              ? "bg-[#1D4ED8]/10 text-[#1D4ED8] hover:bg-red-50 hover:text-red-500"
+                              : "bg-[#1D4ED8] text-white hover:bg-[#2563EB] shadow-sm"
+                          }`}
+                        >
+                          {followingSet.has(u.uid) ? (
+                            <><UserCheck className="h-3 w-3" /> Following</>
+                          ) : (
+                            <><UserPlus className="h-3 w-3" /> Follow</>
+                          )}
+                        </button>
+                      )}
                     </div>
                   </div>
                 ))

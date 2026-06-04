@@ -1,12 +1,12 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { collection, getDocs, query, where, addDoc, updateDoc, doc, getDoc } from "firebase/firestore";
+import { collection, getDocs, query, where, addDoc, updateDoc, doc, getDoc, writeBatch } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { useAuth } from "@/contexts/AuthContext";
 import { aiComplete } from "@/lib/aiService";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Loader2, Calendar, RefreshCw, FileText, CheckCircle2, CalendarDays, Sparkles, Target, Clock, BookOpen, Zap } from "lucide-react";
+import { Loader2, Calendar, RefreshCw, FileText, CheckCircle2, CalendarDays, Sparkles, Target, Clock, BookOpen, Zap, BrainCircuit } from "lucide-react";
 import { toast } from "sonner";
 import { Link } from "react-router-dom";
 
@@ -27,6 +27,8 @@ interface StudyPlan {
   created_at: number;
   subjects?: string[];
   material_id?: string;
+  file_name?: string;
+  topic_id?: string;
 }
 
 export default function StudyPlanner() {
@@ -69,7 +71,7 @@ export default function StudyPlanner() {
       if (!user) return [];
       const q = query(collection(db, "materials"), where("user_id", "==", user.uid));
       const snap = await getDocs(q);
-      return snap.docs.map(d => ({ id: d.id, ...d.data() }));
+      return snap.docs.map(d => ({ id: d.id, ...d.data() } as any));
     },
     enabled: !!user,
   });
@@ -102,7 +104,7 @@ export default function StudyPlanner() {
     const daysDiff = Math.max(1, Math.ceil((examDate.getTime() - today.getTime()) / (1000 * 3600 * 24)));
 
     setGenerating(true);
-    let schedule = null;
+    let scheduleData = null;
     let attempt = 0;
     const maxRetries = 3;
     let lastError = null;
@@ -119,11 +121,12 @@ export default function StudyPlanner() {
       ? selectedMaterial.extracted_text?.substring(0, 6000) || selectedMaterial.summary || ""
       : "";
 
-    while (attempt < maxRetries && !schedule) {
+    while (attempt < maxRetries && !scheduleData) {
       try {
         attempt++;
         const maxDailyMinutes = hoursPerDay * 60;
-        const prompt = `You are an expert study planner. Create a ${daysDiff}-day personalized study roadmap.
+        const prompt = `You are an expert study planner and curriculum developer. Create a ${daysDiff}-day personalized study roadmap.
+Based on the student's profile and learning goal, generate BOTH a daily schedule and detailed lesson content (concepts, terminology, and explanations) for each day, so they can study the lesson directly on the platform.
 
 ## Student Profile
 - Identity: ${learnerType}
@@ -134,7 +137,7 @@ export default function StudyPlanner() {
 - Daily Study Budget: ${studyTimeLabel} (hard cap: ${maxDailyMinutes} minutes/day)
 - Pain Points: ${painPoints || "None specified"}
 - Days Available: ${daysDiff}
-${materialContent ? `\n## Material to Cover\n${materialContent}` : ""}
+${materialContent ? `\n## Material to Cover (CRITICAL: write the lessons specifically covering the text below, do not make it generic)\n${materialContent}` : ""}
 
 ## Difficulty Curve (MANDATORY)
 Follow this progression strictly:
@@ -150,23 +153,34 @@ Follow this progression strictly:
 - Tasks must be concrete (e.g., "Solve 10 quadratic equations" not "Practice math")
 - Vary task types: reading, practice, note-making, revision, self-testing
 
-Return ONLY a valid JSON array (no markdown, no commentary):
-[
-  {
-    "day": 1,
-    "title": "Orientation & Foundations",
-    "tasks": ["Read Chapter 1 introduction (20 min)", "Create a mind-map of key terms (15 min)", "Attempt 5 basic practice problems (25 min)"],
-    "estimated_minutes": 60,
-    "completed": false
-  }
-]
+Return ONLY a valid JSON object (no markdown wrappers, no commentary):
+{
+  "topic_title": "Course Title based on material",
+  "subject": "e.g., Science, History, Mathematics",
+  "description": "A brief overview of the course",
+  "schedule": [
+    {
+      "day": 1,
+      "title": "Orientation & Foundations",
+      "tasks": ["Read Chapter 1 introduction (20 min)", "Create a mind-map of key terms (15 min)", "Attempt 5 basic practice problems (25 min)"],
+      "estimated_minutes": 60
+    }
+  ],
+  "lessons": [
+    {
+      "day": 1,
+      "title": "Orientation & Foundations",
+      "content": "## Introduction to [Day 1 Topic]\\nHere write the full detailed lesson content (150-300 words). Use **bold** key terms and bullet points. Make it extremely informative and educational."
+    }
+  ]
+}
 
-Limit to max 14 entries. If the plan spans more than 14 days, group days into weekly milestone blocks. Each milestone must still contain specific tasks.`;
+Limit the response to match the number of days (${daysDiff} days), max 14 entries. If the plan spans more than 14 days, group days into weekly milestone blocks. Each milestone/day must still contain specific tasks and a corresponding lesson content.`;
 
         const res = await aiComplete({
           messages: [{ role: "user", content: prompt }],
-          temperature: 0.7,
-          maxTokens: 3000,
+          temperature: 0.5,
+          maxTokens: 4000,
         });
 
         let jsonString = res;
@@ -175,24 +189,21 @@ Limit to max 14 entries. If the plan spans more than 14 days, group days into we
           jsonString = match[1];
         }
 
-        const startIdx = jsonString.search(/\[\s*\{/);
-        const endIdx = jsonString.lastIndexOf(']');
+        const startIdx = jsonString.indexOf('{');
+        const endIdx = jsonString.lastIndexOf('}');
         
         if (startIdx === -1 || endIdx === -1) {
-          throw new Error("Failed to locate JSON array in AI output");
+          throw new Error("Failed to locate JSON object in AI output");
         }
 
         jsonString = jsonString.substring(startIdx, endIdx + 1);
-        const parsed = JSON.parse(jsonString) as StudyPlanDay[];
+        const parsed = JSON.parse(jsonString.trim());
 
-        // Validate & sanitize: enforce day ordering, cap minutes, ensure tasks
-        schedule = parsed.map((d, i) => ({
-          day: d.day ?? i + 1,
-          title: d.title || `Day ${i + 1}`,
-          tasks: Array.isArray(d.tasks) && d.tasks.length > 0 ? d.tasks.slice(0, 5) : ["Review previous material", "Practice key concepts"],
-          estimated_minutes: Math.max(15, Math.min(d.estimated_minutes ?? maxDailyMinutes, maxDailyMinutes)),
-          completed: false,
-        })).sort((a, b) => a.day - b.day).slice(0, 14);
+        if (!parsed.topic_title || !parsed.schedule || !parsed.lessons) {
+          throw new Error("Missing required fields in generated plan JSON");
+        }
+
+        scheduleData = parsed;
       } catch (err) {
         lastError = err;
         console.warn(`Retry ${attempt} failed:`, err);
@@ -200,17 +211,58 @@ Limit to max 14 entries. If the plan spans more than 14 days, group days into we
     }
 
     try {
-      if (!schedule) throw lastError || new Error("Failed to generate schedule after multiple attempts.");
+      if (!scheduleData) throw lastError || new Error("Failed to generate study plan after multiple attempts.");
 
-      await addDoc(collection(db, "study_plans"), {
+      const batch = writeBatch(db);
+      const newTopicRef = doc(collection(db, "topics"));
+      
+      batch.set(newTopicRef, {
+        title: scheduleData.topic_title,
+        subject: scheduleData.subject || "General",
+        subjectName: scheduleData.subject || "General",
+        subjectIcon: "file-text",
+        description: scheduleData.description || "",
+        lesson_count: scheduleData.lessons.length,
+        is_custom: true,
+        material_id: selectedMaterial?.id || null,
+        user_id: user.uid,
+        created_at: new Date()
+      });
+
+      scheduleData.lessons.forEach((lesson: any, i: number) => {
+        const lessonRef = doc(collection(db, "lessons"));
+        batch.set(lessonRef, {
+          topic_id: newTopicRef.id,
+          title: lesson.title,
+          content: lesson.content,
+          order: lesson.day || i + 1,
+          created_at: new Date()
+        });
+      });
+
+      const maxDailyMinutes = hoursPerDay * 60;
+      const sanitizedSchedule = scheduleData.schedule.map((d: any, i: number) => ({
+        day: d.day ?? i + 1,
+        title: d.title || `Day ${i + 1}`,
+        tasks: Array.isArray(d.tasks) && d.tasks.length > 0 ? d.tasks.slice(0, 5) : ["Review previous material", "Practice key concepts"],
+        estimated_minutes: Math.max(15, Math.min(d.estimated_minutes ?? maxDailyMinutes, maxDailyMinutes)),
+        completed: false,
+      })).sort((a: any, b: any) => a.day - b.day).slice(0, 14);
+
+      const newPlanRef = doc(collection(db, "study_plans"));
+      batch.set(newPlanRef, {
         user_id: user.uid,
         plan_type: planMode,
         material_id: selectedMaterial?.id || null,
+        file_name: selectedMaterial?.file_name || null,
         target_date: examDate.toISOString(),
         subjects: preferences?.subjects || [],
-        schedule,
+        schedule: sanitizedSchedule,
+        topic_id: newTopicRef.id,
         created_at: Date.now()
       });
+
+      await batch.commit();
 
       toast.success("🎯 Smart Study Plan generated!");
       setShowCreationForm(false);
@@ -320,6 +372,36 @@ Limit to max 14 entries. If the plan spans more than 14 days, group days into we
                       <li key={tIdx}>{task}</li>
                     ))}
                   </ul>
+                  {activePlan.topic_id && (
+                    <div className="mt-4 pt-3 border-t border-border flex flex-wrap gap-2">
+                      <Link
+                        to={`/lessons/${activePlan.topic_id}`}
+                        className="inline-flex items-center gap-1.5 text-xs font-semibold text-primary hover:text-primary/80 bg-primary/10 hover:bg-primary/20 px-3 py-1.5 rounded-lg transition-all"
+                      >
+                        <BookOpen className="h-3.5 w-3.5" /> Study Day Lesson
+                      </Link>
+                      {activePlan.material_id && (
+                        <Link
+                          to="/materials/flashcards"
+                          state={{ preselectedMaterial: { id: activePlan.material_id, file_name: activePlan.file_name } }}
+                          className="inline-flex items-center gap-1.5 text-xs font-semibold text-cta hover:text-cta/80 bg-cta/10 hover:bg-cta/20 px-3 py-1.5 rounded-lg transition-all"
+                        >
+                          <BrainCircuit className="h-3.5 w-3.5" /> Review Flashcards
+                        </Link>
+                      )}
+                      <Link
+                        to={`/quiz/${activePlan.topic_id}`}
+                        state={{
+                          topicTitle: dayObj.title,
+                          materialContext: materials?.find((m: any) => m.id === activePlan.material_id)?.extracted_text || materials?.find((m: any) => m.id === activePlan.material_id)?.summary || "",
+                          difficulty: "Medium"
+                        }}
+                        className="inline-flex items-center gap-1.5 text-xs font-semibold text-success hover:text-success/80 bg-success/10 hover:bg-success/20 px-3 py-1.5 rounded-lg transition-all"
+                      >
+                        <Zap className="h-3.5 w-3.5" /> Take Daily Quiz
+                      </Link>
+                    </div>
+                  )}
                 </div>
               </div>
             ))}

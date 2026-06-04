@@ -1,11 +1,12 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useMemo } from "react";
+import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Bot, Send, Sparkles, Loader2, Copy, Check, Square, Trash2, FileText, X, Upload } from "lucide-react";
+import { Bot, Send, Sparkles, Loader2, Copy, Check, Square, Trash2, FileText, X, Upload, Wrench, Youtube, Brain, MessageCircleQuestion } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
 import ReactMarkdown from "react-markdown";
-import { aiStream } from "@/lib/aiService";
+import { aiStream, aiComplete } from "@/lib/aiService";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { collection, query, where, getDocs, addDoc, doc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
@@ -64,12 +65,109 @@ Guidelines for responses:
 };
 
 /**
+ * Generate simple key topics from extracted text
+ */
+function extractSimpleTopics(text: string, fileName: string): string[] {
+  const topics: Set<string> = new Set();
+  const nameBase = fileName.replace(/\.[^.]+$/, "").replace(/[_-]/g, " ");
+  if (nameBase.length > 2) topics.add(nameBase);
+
+  const sentences = text.split(/[.!?\n]+/).slice(0, 30);
+  for (const s of sentences) {
+    const matches = s.match(/\b[A-Z][a-z]+(?:\s+[A-Z][a-z]+){0,3}\b/g);
+    if (matches) {
+      for (const m of matches) {
+        if (m.length > 3 && !["The", "This", "What", "When", "Where", "How", "Why"].includes(m)) {
+          topics.add(m);
+        }
+      }
+    }
+  }
+  return Array.from(topics).slice(0, 8);
+}
+
+/**
+ * Generate a simple summary from text
+ */
+function generateSimpleSummary(text: string): string {
+  const sentences = text.split(/[.!?]+/).filter(s => s.trim().length > 15);
+  if (sentences.length === 0) return "Study material uploaded for AI-assisted learning.";
+
+  const summary: string[] = [];
+  if (sentences[0]) summary.push(sentences[0].trim());
+  if (sentences.length > 2) summary.push(sentences[Math.floor(sentences.length / 2)].trim());
+  if (sentences.length > 1) summary.push(sentences[sentences.length - 1].trim());
+
+  return summary.map(s => s + ".").join(" ").substring(0, 500);
+}
+
+/**
+ * AI-powered analysis
+ */
+async function analyzeWithAI(
+  text: string,
+  fileName: string
+): Promise<{ summary: string; keyTopics: string[] }> {
+  const fallback = {
+    summary: generateSimpleSummary(text),
+    keyTopics: extractSimpleTopics(text, fileName),
+  };
+
+  if (text.length < 50) return fallback;
+
+  try {
+    const truncated = text.substring(0, 15000);
+    const prompt = `Analyze this study material and return a JSON object with:
+1. "summary": A comprehensive 3-5 sentence summary
+2. "keyTopics": An array of 5-10 key topics/concepts covered
+
+Material (from file "${fileName}"):
+"""
+${truncated}
+"""
+
+Return ONLY valid JSON, no markdown or other text.`;
+
+    const raw = await aiComplete({
+      messages: [
+        { role: "system", content: "You are a document analysis assistant. Return ONLY valid JSON, no other text." },
+        { role: "user", content: prompt },
+      ],
+      temperature: 0.3,
+      maxTokens: 1024,
+    });
+
+    const jsonMatch = raw.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) throw new Error("No JSON in response");
+
+    const parsed = JSON.parse(jsonMatch[0]);
+    return {
+      summary: parsed.summary || fallback.summary,
+      keyTopics: Array.isArray(parsed.keyTopics) ? parsed.keyTopics : fallback.keyTopics,
+    };
+  } catch (e) {
+    console.warn("[AITutor] AI analysis fallback:", e);
+    return fallback;
+  }
+}
+
+/**
  * Extract text from uploaded PDF using pdfjs-dist
  */
 async function extractTextFromPDF(file: File): Promise<string> {
+  let blobUrl = "";
   try {
     const pdfjsLib = await import("pdfjs-dist");
-    pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.mjs`;
+
+    // Load worker via blob to bypass browser CORS restrictions for web workers
+    const workerUrl = `https://unpkg.com/pdfjs-dist@${pdfjsLib.version}/build/pdf.worker.min.mjs`;
+    console.log(`[PDF] Fetching worker from ${workerUrl}`);
+    const response = await fetch(workerUrl);
+    if (!response.ok) throw new Error(`Failed to fetch PDF worker from CDN: ${response.statusText}`);
+    const blob = await response.blob();
+    blobUrl = URL.createObjectURL(blob);
+    
+    pdfjsLib.GlobalWorkerOptions.workerSrc = blobUrl;
 
     const arrayBuffer = await file.arrayBuffer();
     const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
@@ -95,12 +193,13 @@ async function extractTextFromPDF(file: File): Promise<string> {
   } catch (err) {
     console.error("[AITutor] PDF extraction failed:", err);
     return `[PDF: ${file.name}] Unable to extract text.`;
+  } finally {
+    if (blobUrl) {
+      URL.revokeObjectURL(blobUrl);
+    }
   }
 }
 
-/**
- * Extract text from any supported file type
- */
 async function extractTextFromFile(file: File): Promise<string> {
   if (file.type === "text/plain" || file.name.endsWith(".txt") || file.name.endsWith(".md")) {
     return await file.text();
@@ -163,6 +262,13 @@ const AITutor = () => {
     enabled: !!user,
   });
 
+  // Auto-select most recently uploaded material if none is selected
+  useEffect(() => {
+    if (!selectedMaterialId && materials.length > 0) {
+      setSelectedMaterialId(materials[0].id);
+    }
+  }, [materials, selectedMaterialId]);
+
   // Update selected material when ID changes
   useEffect(() => {
     if (selectedMaterialId) {
@@ -200,8 +306,10 @@ const AITutor = () => {
     try {
       toast.info(`Processing ${file.name}...`);
       const extractedText = await extractTextFromFile(file);
-      const nameBase = file.name.replace(/\.[^.]+$/, "").replace(/[_-]/g, " ");
-      const keyTopics = [nameBase];
+      
+      toast.info("Analyzing content with AI...");
+      const analysis = await analyzeWithAI(extractedText, file.name);
+      const { summary, keyTopics } = analysis;
 
       const materialRef = await addDoc(collection(db, "materials"), {
         user_id: user.uid,
@@ -210,7 +318,7 @@ const AITutor = () => {
         file_size: file.size,
         processing_status: "completed",
         extracted_text: extractedText.substring(0, 100000),
-        summary: extractedText.substring(0, 200) + "...",
+        summary,
         key_topics: keyTopics,
         content_length: extractedText.length,
         uploaded_at: new Date().toISOString(),
@@ -351,243 +459,377 @@ const AITutor = () => {
   };
 
   return (
-    <div className="flex flex-col h-[calc(100vh-80px)] max-w-3xl mx-auto">
-      {/* Header */}
-      <div className="px-6 pt-6 pb-4 flex items-center justify-between">
-        <div className="space-y-1">
-          <h1 className="text-2xl font-bold text-gray-900 tracking-tight flex items-center gap-2">
-            <Bot className="h-6 w-6 text-[#1D4ED8]" /> AI Tutor
-          </h1>
-          <p className="text-gray-500 text-sm">
-            {selectedMaterial
-              ? `Learning from: ${selectedMaterial.file_name}`
-              : "Upload a file to start asking questions about it."
-            }
-          </p>
-        </div>
-        <div className="flex items-center gap-2">
-          {messages.length > 0 && (
-            <Button variant="outline" size="sm" onClick={handleClear} className="gap-2 text-xs">
-              <Trash2 className="h-3.5 w-3.5" /> Clear Chat
-            </Button>
-          )}
+    <div className="flex flex-col h-[calc(100vh-80px)] w-full overflow-hidden bg-white">
+      {/* Premium Revamped Header */}
+      <div className="relative overflow-hidden bg-gradient-to-r from-blue-600 via-blue-700 to-indigo-800 text-white px-6 py-6 shadow-sm shrink-0">
+        <div className="absolute top-0 right-0 w-64 h-64 bg-white/5 rounded-full -translate-y-16 translate-x-16" />
+        <div className="absolute bottom-0 left-0 w-32 h-32 bg-white/5 rounded-full translate-y-8 -translate-x-8" />
+        
+        <div className="relative flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div className="space-y-1.5">
+            <div className="inline-flex items-center gap-1.5 bg-white/10 px-2.5 py-1 rounded-full text-[10px] font-semibold uppercase tracking-wider text-blue-200 backdrop-blur-sm">
+              <Sparkles className="h-3 w-3" /> AI Study Assistant
+            </div>
+            <h1 className="text-2xl md:text-3xl font-extrabold tracking-tight flex items-center gap-2">
+              AI Study Tutor
+            </h1>
+            <p className="text-blue-100/90 text-xs md:text-sm max-w-xl">
+              {selectedMaterial
+                ? `Ask questions about "${selectedMaterial.file_name}" to unlock concepts, summarize details, or clarify doubts.`
+                : "Upload study materials or select a file to receive personalized tutoring based on your content."}
+            </p>
+          </div>
+          <div className="flex items-center gap-2 self-start md:self-auto shrink-0">
+            {messages.length > 0 && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleClear}
+                className="bg-white/10 hover:bg-white/20 border-white/20 hover:border-white/30 text-white gap-2 rounded-xl text-xs"
+              >
+                <Trash2 className="h-3.5 w-3.5" /> Clear Chat
+              </Button>
+            )}
+          </div>
         </div>
       </div>
 
-      {/* File Selector & Upload */}
-      <div className="px-6 pb-3 border-b border-gray-200">
-        <div className="flex items-center gap-3">
-          <FileText className="h-4 w-4 text-gray-400 flex-shrink-0" />
-
-          {materials.length > 0 ? (
-            <Select
-              value={selectedMaterialId || "__none__"}
-              onValueChange={(value) => {
-                if (value === "__none__") {
-                  setSelectedMaterialId(null);
-                  setMessages([]);
-                } else {
-                  setSelectedMaterialId(value);
-                  setMessages([]);
-                }
-              }}
-            >
-              <SelectTrigger className="w-full h-9 text-sm">
-                <SelectValue placeholder="Select a file to ask questions about it" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="__none__">
-                  <span className="text-gray-400">Choose a document...</span>
-                </SelectItem>
-                {materials.map((m) => (
-                  <SelectItem key={m.id} value={m.id}>
-                    {m.file_name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          ) : (
-            <span className="text-sm text-gray-400 flex-1">
-              No files uploaded yet. Upload a PDF, TXT, or MD file to get started.
-            </span>
-          )}
-
-          {selectedMaterialId && (
-            <Button
-              variant="ghost"
-              size="sm"
+      {/* Recent Files Quick-Select Bar */}
+      {materials.length > 0 && (
+        <div className="px-6 py-2.5 bg-gray-50 border-b border-gray-150 flex items-center gap-2 overflow-x-auto select-none shrink-0 scrollbar-none">
+          <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider shrink-0 mr-1">Recent Files:</span>
+          {materials.slice(0, 4).map((m) => (
+            <button
+              key={m.id}
               onClick={() => {
-                setSelectedMaterialId(null);
+                setSelectedMaterialId(m.id);
                 setMessages([]);
               }}
-              className="h-9 w-9 p-0 flex-shrink-0"
+              className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium transition-all ${
+                selectedMaterialId === m.id
+                  ? "bg-[#1D4ED8] text-white shadow-sm"
+                  : "bg-white border border-gray-200 text-gray-600 hover:border-[#1D4ED8]/30 hover:bg-[#1D4ED8]/5"
+              }`}
             >
-              <X className="h-4 w-4" />
-            </Button>
-          )}
-
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => fileInputRef.current?.click()}
-            disabled={uploading}
-            className="h-9 gap-1.5 text-xs flex-shrink-0"
-          >
-            {uploading ? (
-              <Loader2 className="h-3.5 w-3.5 animate-spin" />
-            ) : (
-              <Upload className="h-3.5 w-3.5" />
-            )}
-            {uploading ? "Processing..." : "Upload"}
-          </Button>
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept=".pdf,.txt,.md"
-            className="hidden"
-            aria-label="Upload study material file"
-            onChange={(e) => handleFileUpload(e.target.files)}
-          />
+              <FileText className="h-3 w-3 shrink-0" />
+              <span className="truncate max-w-[120px]">{m.file_name}</span>
+            </button>
+          ))}
         </div>
-      </div>
+      )}
 
-      {/* Chat Area */}
-      <div className="flex-1 overflow-y-auto px-6 space-y-4 pb-4">
-        {messages.length === 0 ? (
-          /* Empty state */
-          <div className="flex flex-col items-center justify-center h-full space-y-6 py-12">
-            {selectedMaterial ? (
-              <div className="text-center space-y-3">
-                <div className="h-16 w-16 rounded-2xl bg-[#1D4ED8]/10 flex items-center justify-center mx-auto">
-                  <FileText className="h-8 w-8 text-[#1D4ED8]" />
-                </div>
-                <h2 className="text-xl font-bold text-gray-900">{selectedMaterial.file_name}</h2>
-                <p className="text-sm text-gray-500 max-w-md">
-                  Ask me any questions about this document. I'll answer strictly based on the content.
-                </p>
-                {selectedMaterial.key_topics.length > 0 && (
-                  <div className="mt-4 space-y-2">
-                    <p className="text-xs font-semibold text-gray-400 uppercase">Key Topics:</p>
-                    <div className="flex flex-wrap gap-2 justify-center">
-                      {selectedMaterial.key_topics.slice(0, 5).map((topic, idx) => (
-                        <span key={idx} className="px-3 py-1 rounded-full bg-[#1D4ED8]/10 text-xs text-[#1D4ED8]">
-                          {topic}
-                        </span>
-                      ))}
+      {/* Main Split Layout */}
+      <div className="flex-1 flex flex-col lg:flex-row overflow-hidden w-full">
+        {/* Left: Chat Container */}
+        <div className="flex-1 flex flex-col h-full min-w-0 border-r border-gray-150 bg-white">
+          {/* File Selector & Upload Bar */}
+          <div className="px-6 py-3 border-b border-gray-150 bg-gray-50/50 shrink-0">
+            <div className="flex items-center gap-3">
+              <FileText className="h-4 w-4 text-gray-400 flex-shrink-0" />
+
+              {materials.length > 0 ? (
+                <Select
+                  value={selectedMaterialId || "__none__"}
+                  onValueChange={(value) => {
+                    if (value === "__none__") {
+                      setSelectedMaterialId(null);
+                      setMessages([]);
+                    } else {
+                      setSelectedMaterialId(value);
+                      setMessages([]);
+                    }
+                  }}
+                >
+                  <SelectTrigger className="w-full h-9 text-sm bg-white border-gray-200">
+                    <SelectValue placeholder="Select a file to ask questions about it" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="__none__">
+                      <span className="text-gray-400">Choose a document...</span>
+                    </SelectItem>
+                    {materials.map((m) => (
+                      <SelectItem key={m.id} value={m.id}>
+                        {m.file_name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              ) : (
+                <span className="text-sm text-gray-400 flex-1">
+                  No files uploaded yet. Upload a PDF, TXT, or MD file to get started.
+                </span>
+              )}
+
+              {selectedMaterialId && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => {
+                    setSelectedMaterialId(null);
+                    setMessages([]);
+                  }}
+                  className="h-9 w-9 p-0 flex-shrink-0"
+                >
+                  <X className="h-4 w-4" />
+                </Button>
+              )}
+
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => fileInputRef.current?.click()}
+                disabled={uploading}
+                className="h-9 gap-1.5 text-xs flex-shrink-0 border-gray-200 bg-white"
+              >
+                {uploading ? (
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                ) : (
+                  <Upload className="h-3.5 w-3.5" />
+                )}
+                {uploading ? "Processing..." : "Upload"}
+              </Button>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept=".pdf,.txt,.md"
+                className="hidden"
+                aria-label="Upload study material file"
+                onChange={(e) => handleFileUpload(e.target.files)}
+              />
+            </div>
+          </div>
+
+          {/* Chat Messages Area */}
+          <div className="flex-1 overflow-y-auto px-6 py-4 space-y-4 bg-gray-50/20">
+            {messages.length === 0 ? (
+              /* Empty state / Onboarding guidance */
+              <div className="flex flex-col items-center justify-center h-full space-y-6 py-12">
+                {selectedMaterial ? (
+                  <div className="text-center space-y-4 max-w-md mx-auto">
+                    <div className="h-16 w-16 rounded-2xl bg-[#1D4ED8]/10 flex items-center justify-center mx-auto shadow-sm">
+                      <Bot className="h-8 w-8 text-[#1D4ED8]" />
+                    </div>
+                    <div className="space-y-1.5">
+                      <h2 className="text-xl font-bold text-gray-900">{selectedMaterial.file_name}</h2>
+                      <p className="text-sm text-gray-500">
+                        Ask any specific question, summarize pages, or request clarifications on terminology.
+                      </p>
+                    </div>
+                    
+                    {selectedMaterial.key_topics.length > 0 && (
+                      <div className="space-y-2 pt-2 border-t border-gray-100">
+                        <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Key Topics Detected:</p>
+                        <div className="flex flex-wrap gap-1.5 justify-center">
+                          {selectedMaterial.key_topics.slice(0, 4).map((topic, idx) => (
+                            <span key={idx} className="px-2.5 py-1 rounded-full bg-[#1D4ED8]/5 border border-[#1D4ED8]/10 text-[11px] font-medium text-[#1D4ED8]">
+                              {topic}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  /* Upload prompt - drag-and-drop zone */
+                  <div
+                    className={`w-full max-w-md mx-auto rounded-2xl border-2 border-dashed p-8 text-center transition-all duration-200 cursor-pointer bg-white ${
+                      isDragOver
+                        ? "border-[#1D4ED8] bg-[#1D4ED8]/5 scale-[1.02]"
+                        : "border-gray-200 hover:border-[#1D4ED8]/40 hover:shadow-sm"
+                    }`}
+                    onClick={() => fileInputRef.current?.click()}
+                    onDragOver={(e) => { e.preventDefault(); setIsDragOver(true); }}
+                    onDragLeave={() => setIsDragOver(false)}
+                    onDrop={handleDrop}
+                  >
+                    <div className="h-14 w-14 rounded-2xl bg-[#1D4ED8]/10 flex items-center justify-center mx-auto mb-4">
+                      <Upload className="h-7 w-7 text-[#1D4ED8]" />
+                    </div>
+                    <h2 className="text-lg font-bold text-gray-900 mb-1.5">Upload study material</h2>
+                    <p className="text-xs text-gray-400 max-w-xs mx-auto mb-4 leading-relaxed">
+                      Drag &amp; drop a PDF, TXT, or Markdown file here, or click to browse. The AI Tutor will specialize in your content.
+                    </p>
+                    <div className="flex items-center justify-center gap-2 text-[10px] font-medium text-gray-400">
+                      <span className="px-2 py-0.5 rounded bg-gray-100">PDF</span>
+                      <span className="px-2 py-0.5 rounded bg-gray-100">TXT</span>
+                      <span className="px-2 py-0.5 rounded bg-gray-100">MD</span>
+                      <span className="text-gray-300">&bull;</span>
+                      <span>Max 50MB</span>
                     </div>
                   </div>
                 )}
               </div>
             ) : (
-              /* Upload prompt - large drag-and-drop zone */
-              <div
-                className={`w-full max-w-lg mx-auto rounded-2xl border-2 border-dashed p-10 text-center transition-all duration-200 cursor-pointer ${
-                  isDragOver
-                    ? "border-[#1D4ED8] bg-[#1D4ED8]/5 scale-[1.02]"
-                    : "border-gray-200 hover:border-[#1D4ED8]/40 hover:bg-gray-50"
-                }`}
-                onClick={() => fileInputRef.current?.click()}
-                onDragOver={(e) => { e.preventDefault(); setIsDragOver(true); }}
-                onDragLeave={() => setIsDragOver(false)}
-                onDrop={handleDrop}
-              >
-                <div className="h-16 w-16 rounded-2xl bg-[#1D4ED8]/10 flex items-center justify-center mx-auto mb-4">
-                  <Upload className="h-8 w-8 text-[#1D4ED8]" />
-                </div>
-                <h2 className="text-xl font-bold text-gray-900 mb-2">Upload your study material</h2>
-                <p className="text-sm text-gray-500 max-w-sm mx-auto mb-4">
-                  Drop a PDF, TXT, or Markdown file here, or click to browse. The AI Tutor will answer questions based on your uploaded content.
-                </p>
-                <div className="flex items-center justify-center gap-3 text-xs text-gray-400">
-                  <span className="px-2 py-1 rounded-lg bg-gray-100">PDF</span>
-                  <span className="px-2 py-1 rounded-lg bg-gray-100">TXT</span>
-                  <span className="px-2 py-1 rounded-lg bg-gray-100">MD</span>
-                  <span className="text-gray-300">•</span>
-                  <span>Max 50MB</span>
-                </div>
-              </div>
-            )}
-          </div>
-        ) : (
-          /* Messages */
-          messages.map((msg, idx) => (
-            <div key={idx} className={`flex gap-3 ${msg.role === "user" ? "justify-end" : ""}`}>
-              {msg.role === "assistant" && (
-                <div className="h-8 w-8 rounded-lg bg-[#1D4ED8]/10 flex items-center justify-center flex-shrink-0 mt-1">
-                  <Sparkles className="h-4 w-4 text-[#1D4ED8]" />
-                </div>
-              )}
-              <div
-                className={`max-w-[85%] rounded-xl px-4 py-3 ${msg.role === "user"
-                  ? "bg-[#1D4ED8] text-white"
-                  : "bg-white border border-gray-100 shadow-sm"
-                  }`}
-              >
-                {msg.role === "user" ? (
-                  <p className="text-sm whitespace-pre-wrap">{msg.content}</p>
-                ) : msg.content ? (
-                  <div className="relative group">
-                    <div className="prose prose-sm max-w-none [&>*:first-child]:mt-0 [&>*:last-child]:mb-0">
-                      <ReactMarkdown>{msg.content}</ReactMarkdown>
+              /* Chat Message List */
+              messages.map((msg, idx) => (
+                <div key={idx} className={`flex gap-3 ${msg.role === "user" ? "justify-end" : ""}`}>
+                  {msg.role === "assistant" && (
+                    <div className="h-8 w-8 rounded-lg bg-[#1D4ED8]/10 flex items-center justify-center flex-shrink-0 mt-1 shadow-sm">
+                      <Sparkles className="h-4 w-4 text-[#1D4ED8]" />
                     </div>
+                  )}
+                  <div
+                    className={`max-w-[85%] rounded-xl px-4 py-3 text-sm ${
+                      msg.role === "user"
+                        ? "bg-[#1D4ED8] text-white shadow-sm"
+                        : "bg-white border border-gray-100 shadow-[0_1px_2px_rgba(0,0,0,0.02)] text-gray-800"
+                    }`}
+                  >
+                    {msg.role === "user" ? (
+                      <p className="whitespace-pre-wrap">{msg.content}</p>
+                    ) : msg.content ? (
+                      <div className="relative group pr-4">
+                        <div className="prose prose-sm max-w-none text-gray-800 leading-relaxed [&>*:first-child]:mt-0 [&>*:last-child]:mb-0">
+                          <ReactMarkdown>{msg.content}</ReactMarkdown>
+                        </div>
+                        <button
+                          onClick={() => handleCopy(msg.content, idx)}
+                          className="absolute top-0 right-0 opacity-0 group-hover:opacity-100 transition-opacity p-1 rounded bg-gray-100 hover:bg-gray-200"
+                          title="Copy response"
+                        >
+                          {copiedIdx === idx ? <Check className="h-3.5 w-3.5 text-green-500" /> : <Copy className="h-3.5 w-3.5 text-gray-400" />}
+                        </button>
+                      </div>
+                    ) : streaming && idx === messages.length - 1 ? (
+                      <div className="flex items-center gap-2 text-gray-400">
+                        <Loader2 className="h-4 w-4 animate-spin text-[#1D4ED8]" /> Synthesizing answer...
+                      </div>
+                    ) : null}
+                  </div>
+                </div>
+              ))
+            )}
+            <div ref={chatEndRef} />
+          </div>
+
+          {/* Input Panel */}
+          <div className="px-6 py-4 border-t border-gray-150 bg-gray-50 shrink-0">
+            <div className="flex items-center gap-3">
+              <Input
+                ref={inputRef}
+                placeholder={selectedMaterial
+                  ? `Ask about "${selectedMaterial.file_name}"...`
+                  : "Upload a file first to start asking questions..."
+                }
+                value={question}
+                onChange={(e) => setQuestion(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && !e.shiftKey) {
+                    e.preventDefault();
+                    handleSend();
+                  }
+                }}
+                disabled={streaming || !selectedMaterial}
+                className="flex-1 h-11 bg-white border-gray-200 focus-visible:ring-[#1D4ED8] rounded-xl text-sm"
+                autoFocus
+              />
+              {streaming ? (
+                <Button onClick={handleStop} variant="outline" className="h-11 w-11 p-0 rounded-xl border-gray-200 hover:text-red-500 hover:bg-red-50">
+                  <Square className="h-4 w-4" fill="currentColor" />
+                </Button>
+              ) : (
+                <Button
+                  onClick={handleSend}
+                  disabled={!question.trim() || !selectedMaterial}
+                  className="h-11 w-11 p-0 bg-[#1D4ED8] text-white hover:bg-[#2563EB] rounded-xl shadow-sm"
+                >
+                  <Send className="h-4 w-4" />
+                </Button>
+              )}
+            </div>
+            <p className="text-[10px] text-gray-400 text-center mt-2.5">
+              AI Tutor answers questions strictly based on your uploaded document content.
+            </p>
+          </div>
+        </div>
+
+        {/* Right: Quick Tools Sidebar */}
+        <div className="w-full lg:w-[340px] h-full bg-gray-50/70 overflow-y-auto p-6 space-y-6 shrink-0 border-t lg:border-t-0 border-gray-150">
+          {/* Suggested Questions Section */}
+          {selectedMaterial && selectedMaterial.key_topics.length > 0 && (
+            <div className="bg-white border border-gray-150 rounded-2xl p-4 shadow-sm space-y-3">
+              <h4 className="text-xs font-bold text-gray-400 uppercase tracking-wider flex items-center gap-1.5">
+                <MessageCircleQuestion className="h-3.5 w-3.5 text-blue-500" /> Suggested Questions
+              </h4>
+              <div className="flex flex-col gap-2">
+                {selectedMaterial.key_topics.slice(0, 3).map((topic, idx) => {
+                  const questionsList = [
+                    `What are the key concepts of ${topic}?`,
+                    `Can you summarize the main findings of ${topic}?`,
+                    `Explain the core theory of ${topic} step-by-step.`,
+                  ];
+                  const q = questionsList[idx % questionsList.length];
+                  return (
                     <button
-                      onClick={() => handleCopy(msg.content, idx)}
-                      className="absolute top-0 right-0 opacity-0 group-hover:opacity-100 transition-opacity p-1 rounded bg-gray-100"
-                      title="Copy response"
+                      key={idx}
+                      onClick={() => {
+                        setQuestion(q);
+                        inputRef.current?.focus();
+                      }}
+                      className="text-left text-xs text-gray-600 hover:text-blue-600 hover:bg-blue-50/50 p-2.5 rounded-xl border border-gray-100 hover:border-blue-200/40 transition-all font-medium"
                     >
-                      {copiedIdx === idx ? <Check className="h-3.5 w-3.5 text-green-500" /> : <Copy className="h-3.5 w-3.5 text-gray-400" />}
+                      {q}
                     </button>
-                  </div>
-                ) : streaming && idx === messages.length - 1 ? (
-                  <div className="flex items-center gap-2 text-sm text-gray-400">
-                    <Loader2 className="h-4 w-4 animate-spin" /> Thinking...
-                  </div>
-                ) : null}
+                  );
+                })}
               </div>
             </div>
-          ))
-        )}
-        <div ref={chatEndRef} />
-      </div>
-
-      {/* Input Bar */}
-      <div className="px-6 pb-6 pt-2 border-t border-gray-200 bg-[#F3F4F6]">
-        <div className="flex items-center gap-3">
-          <Input
-            ref={inputRef}
-            placeholder={selectedMaterial
-              ? `Ask about ${selectedMaterial.file_name}...`
-              : "Upload a file first to start asking questions..."
-            }
-            value={question}
-            onChange={(e) => setQuestion(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter" && !e.shiftKey) {
-                e.preventDefault();
-                handleSend();
-              }
-            }}
-            disabled={streaming || !selectedMaterial}
-            className="flex-1 h-11"
-            autoFocus
-          />
-          {streaming ? (
-            <Button onClick={handleStop} variant="outline" className="h-11 w-11 p-0">
-              <Square className="h-4 w-4" />
-            </Button>
-          ) : (
-            <Button
-              onClick={handleSend}
-              disabled={!question.trim() || !selectedMaterial}
-              className="h-11 w-11 p-0 bg-[#1D4ED8] text-white hover:bg-[#2563EB]"
-            >
-              <Send className="h-4 w-4" />
-            </Button>
           )}
+
+          {/* Quick Study Tools Sidebar Widget */}
+          <div className="bg-white border border-gray-150 rounded-2xl p-4 shadow-sm space-y-4">
+            <h4 className="text-xs font-bold text-gray-400 uppercase tracking-wider flex items-center gap-1.5">
+              <Wrench className="h-3.5 w-3.5 text-blue-500" /> Quick Study Tools
+            </h4>
+            
+            <div className="space-y-3">
+              {/* YouTube Summarizer */}
+              <div className="group border border-gray-100 rounded-xl p-3 hover:border-blue-200 hover:bg-blue-50/20 transition-all">
+                <div className="flex items-start gap-2.5">
+                  <div className="h-8 w-8 rounded-lg bg-red-50 text-red-500 flex items-center justify-center shrink-0">
+                    <Youtube className="h-4.5 w-4.5" />
+                  </div>
+                  <div>
+                    <h5 className="text-xs font-bold text-gray-800">YouTube Video Summarizer</h5>
+                    <p className="text-[10px] text-gray-400 mt-0.5">Generate notes instantly from study videos.</p>
+                    <Link to="/tools" className="text-[10px] font-semibold text-[#1D4ED8] hover:underline inline-flex items-center gap-0.5 mt-1.5">
+                      Open Summarizer &rarr;
+                    </Link>
+                  </div>
+                </div>
+              </div>
+
+              {/* Concept Explorer */}
+              <div className="group border border-gray-100 rounded-xl p-3 hover:border-blue-200 hover:bg-blue-50/20 transition-all">
+                <div className="flex items-start gap-2.5">
+                  <div className="h-8 w-8 rounded-lg bg-purple-50 text-purple-500 flex items-center justify-center shrink-0">
+                    <Brain className="h-4.5 w-4.5" />
+                  </div>
+                  <div>
+                    <h5 className="text-xs font-bold text-gray-800">Concept Explorer</h5>
+                    <p className="text-[10px] text-gray-400 mt-0.5">Drill down and visualize topics with AI maps.</p>
+                    <Link to="/tools" className="text-[10px] font-semibold text-[#1D4ED8] hover:underline inline-flex items-center gap-0.5 mt-1.5">
+                      Explore Concepts &rarr;
+                    </Link>
+                  </div>
+                </div>
+              </div>
+
+              {/* Snap Enhance */}
+              <div className="group border border-gray-100 rounded-xl p-3 hover:border-blue-200 hover:bg-blue-50/20 transition-all">
+                <div className="flex items-start gap-2.5">
+                  <div className="h-8 w-8 rounded-lg bg-amber-50 text-amber-500 flex items-center justify-center shrink-0">
+                    <Sparkles className="h-4.5 w-4.5" />
+                  </div>
+                  <div>
+                    <h5 className="text-xs font-bold text-gray-800">Snap Enhance</h5>
+                    <p className="text-[10px] text-gray-400 mt-0.5">Select any text on any page in the app to enhance or simplify it using our global AI toolkit.</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
-        <p className="text-[10px] text-gray-400 text-center mt-2">
-          Powered by Llama 3 via Groq · Answers based on your uploaded document
-        </p>
       </div>
     </div>
   );

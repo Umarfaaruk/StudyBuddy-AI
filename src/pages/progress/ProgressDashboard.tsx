@@ -1,51 +1,162 @@
-import { Clock, TrendingUp, TrendingDown, AlertTriangle, Lightbulb, Calendar, FileText, Flame, BarChart3, Target, Users, Send, BookOpen, MessageCircleQuestion, Gamepad2, ChevronDown, ChevronUp } from "lucide-react";
+import { Clock, TrendingUp, TrendingDown, AlertTriangle, Lightbulb, Calendar, FileText, Flame, BarChart3, Target, Share2, Send, BookOpen, MessageCircleQuestion, Gamepad2, ChevronDown, ChevronUp, Copy, Check, ArrowUpRight, ArrowDownRight, Sparkles } from "lucide-react";
 import { Link } from "react-router-dom";
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { useDashboardData } from "@/hooks/useDashboardData";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { useQuery } from "@tanstack/react-query";
 import { db } from "@/lib/firebase";
-import { collection, query, where, orderBy, getDocs, addDoc } from "firebase/firestore";
+import { collection, query, where, orderBy, getDocs } from "firebase/firestore";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
 
 const ProgressDashboard = () => {
   const { user } = useAuth();
   const { streak, avgScore, progressAnalytics, weakTopics, isLoading } = useDashboardData();
-  const [isParentMode, setIsParentMode] = useState(false);
-  const [guidanceText, setGuidanceText] = useState("");
   const [expandedDate, setExpandedDate] = useState<string | null>(null);
   const [dayDetails, setDayDetails] = useState<any>(null);
   const [loadingDetails, setLoadingDetails] = useState(false);
+  const [copiedShare, setCopiedShare] = useState(false);
+  const shareRef = useRef<HTMLDivElement>(null);
 
-  const { data: guidanceNotes, refetch: refetchNotes } = useQuery({
-    queryKey: ["parent-guidance", user?.uid],
+  const [expandedSubjects, setExpandedSubjects] = useState<Record<string, boolean>>({});
+
+  // Subject-wise progress from quiz attempts, study sessions, and lesson progress
+  const { data: subjectProgress = [] } = useQuery({
+    queryKey: ["detailed-subject-progress", user?.uid],
     queryFn: async () => {
-       if (!user) return [];
-       const q = query(collection(db, "parent_guidance"), where("student_id", "==", user.uid), orderBy("created_at", "desc"));
-       const snap = await getDocs(q);
-       return snap.docs.map(d => ({id: d.id, ...d.data()} as any));
+      if (!user) return [];
+      
+      // 1. Fetch topics mapping
+      const topicsSnap = await getDocs(collection(db, "topics"));
+      const topicMap = new Map<string, { subject: string; title: string }>();
+      topicsSnap.forEach(d => {
+        const data = d.data();
+        topicMap.set(d.id, {
+          subject: data.subject || data.subjectName || "General",
+          title: data.title || "General",
+        });
+      });
+
+      // 2. Fetch quiz attempts
+      const quizSnap = await getDocs(query(collection(db, "quiz_attempts"), where("user_id", "==", user.uid)));
+      
+      // 3. Fetch study sessions
+      const sessionsSnap = await getDocs(query(collection(db, "study_sessions"), where("user_id", "==", user.uid)));
+      
+      // 4. Fetch lesson progress
+      const progressSnap = await getDocs(query(collection(db, "lesson_progress"), where("user_id", "==", user.uid)));
+
+      const subjectMap: Record<string, { 
+        totalScore: number; 
+        totalQuestions: number; 
+        attempts: number; 
+        scores: number[];
+        timeSeconds: number;
+        completedLessons: number;
+      }> = {};
+
+      // Initialize unique subjects from topics if any
+      const uniqueSubjects = new Set<string>();
+      topicMap.forEach(t => uniqueSubjects.add(t.subject));
+
+      uniqueSubjects.forEach(s => {
+        subjectMap[s] = {
+          totalScore: 0,
+          totalQuestions: 0,
+          attempts: 0,
+          scores: [],
+          timeSeconds: 0,
+          completedLessons: 0,
+        };
+      });
+
+      // Support default "General" if not already there
+      if (!subjectMap["General"]) {
+        subjectMap["General"] = {
+          totalScore: 0,
+          totalQuestions: 0,
+          attempts: 0,
+          scores: [],
+          timeSeconds: 0,
+          completedLessons: 0,
+        };
+      }
+
+      // Group quizzes
+      quizSnap.forEach((d) => {
+        const data = d.data();
+        let subject = "General";
+        if (data.topic_id && topicMap.has(data.topic_id)) {
+          subject = topicMap.get(data.topic_id)!.subject;
+        } else if (data.topic_title || data.topic) {
+          subject = data.topic_title || data.topic;
+        }
+
+        if (!subjectMap[subject]) {
+          subjectMap[subject] = { totalScore: 0, totalQuestions: 0, attempts: 0, scores: [], timeSeconds: 0, completedLessons: 0 };
+        }
+        subjectMap[subject].totalScore += data.score || 0;
+        subjectMap[subject].totalQuestions += data.total_questions || 0;
+        subjectMap[subject].attempts += 1;
+        const pct = data.total_questions > 0 ? Math.round((data.score / data.total_questions) * 100) : 0;
+        subjectMap[subject].scores.push(pct);
+      });
+
+      // Group study sessions time
+      sessionsSnap.forEach((d) => {
+        const data = d.data();
+        const dur = data.duration_seconds || 0;
+        const topicId = data.topic_id;
+        const subject = topicId && topicMap.has(topicId) ? topicMap.get(topicId)!.subject : "General";
+
+        if (!subjectMap[subject]) {
+          subjectMap[subject] = { totalScore: 0, totalQuestions: 0, attempts: 0, scores: [], timeSeconds: 0, completedLessons: 0 };
+        }
+        subjectMap[subject].timeSeconds += dur;
+      });
+
+      // Group completed lessons
+      progressSnap.forEach((d) => {
+        const data = d.data();
+        const completedCount = data.completed_lessons?.length || 0;
+        const topicId = data.topic_id || d.id.split("_")[1];
+        const subject = topicId && topicMap.has(topicId) ? topicMap.get(topicId)!.subject : "General";
+
+        if (!subjectMap[subject]) {
+          subjectMap[subject] = { totalScore: 0, totalQuestions: 0, attempts: 0, scores: [], timeSeconds: 0, completedLessons: 0 };
+        }
+        subjectMap[subject].completedLessons += completedCount;
+      });
+
+      return Object.entries(subjectMap).map(([subject, data]) => {
+        const avgPct = data.totalQuestions > 0 ? Math.round((data.totalScore / data.totalQuestions) * 100) : 0;
+        const mid = Math.floor(data.scores.length / 2);
+        const firstHalf = data.scores.slice(0, Math.max(1, mid));
+        const secondHalf = data.scores.slice(Math.max(1, mid));
+        const firstAvg = firstHalf.length > 0 ? firstHalf.reduce((a, b) => a + b, 0) / firstHalf.length : 0;
+        const secondAvg = secondHalf.length > 0 ? secondHalf.reduce((a, b) => a + b, 0) / secondHalf.length : 0;
+        const trend = data.scores.length >= 2 ? secondAvg - firstAvg : 0;
+
+        return { 
+          subject, 
+          avgPct, 
+          attempts: data.attempts, 
+          trend,
+          studyMinutes: Math.round(data.timeSeconds / 60),
+          completedLessons: data.completedLessons,
+        };
+      })
+      .filter(s => s.attempts > 0 || s.studyMinutes > 0 || s.completedLessons > 0)
+      .sort((a, b) => b.studyMinutes - a.studyMinutes);
     },
-    enabled: !!user
+    enabled: !!user,
   });
 
-  const handleAddGuidance = async () => {
-    if (!guidanceText.trim() || !user) return;
-    try {
-      await addDoc(collection(db, "parent_guidance"), {
-        student_id: user.uid,
-        text: guidanceText.trim(),
-        created_at: Date.now()
-      });
-      setGuidanceText("");
-      refetchNotes();
-      toast.success("Guidance note added successfully!");
-    } catch (e) {
-      toast.error("Failed to add guidance");
-    }
-  };
+  // Performance insights: strong and weak areas
+  const strongTopics = subjectProgress.filter(s => s.avgPct >= 80);
+  const strugglingTopics = subjectProgress.filter(s => s.avgPct < 50);
+  const improvingTopics = subjectProgress.filter(s => s.trend > 10);
 
   const totalHours = (progressAnalytics.monthSeconds / 3600).toFixed(1);
   const weekHours = (progressAnalytics.weekSeconds / 3600).toFixed(1);
@@ -65,11 +176,27 @@ const ProgressDashboard = () => {
 
   const maxHours = Math.max(...(chartData?.map((d: any) => d.hours) ?? [1]), 0.5);
 
-  // Derived values for the new dashboard
   const retentionPct = avgScore ?? 0;
   const completionPct = Math.min(100, Math.round((sessionCount / Math.max(sessionCount, 30)) * 100));
   const totalXP = sessionCount * 50 + (avgScore ?? 0) * 10 + currentStreak * 25;
   const weekBarData = (chartData ?? Array.from({ length: 7 }, (_, i) => ({ day: ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"][i], hours: 0 })));
+
+  const handleShare = async () => {
+    const summary = `📊 My EduOnx Progress\n\n🔥 Streak: ${currentStreak} days\n📚 Study Time: ${totalHours}h this month\n🎯 Avg Score: ${retentionPct}%\n⚡ Total XP: ${totalXP.toLocaleString()}\n📈 Week Growth: ${weekChange >= 0 ? "+" : ""}${weekChange}%\n\n${strongTopics.length > 0 ? `💪 Strong Areas: ${strongTopics.map(s => s.subject).join(", ")}\n` : ""}${strugglingTopics.length > 0 ? `📝 Working on: ${strugglingTopics.map(s => s.subject).join(", ")}\n` : ""}\n#EduOnx #Learning`;
+
+    if (navigator.share) {
+      try {
+        await navigator.share({ title: "My EduOnx Progress", text: summary });
+        toast.success("Shared successfully!");
+        return;
+      } catch { /* fallback to copy */ }
+    }
+
+    await navigator.clipboard.writeText(summary);
+    setCopiedShare(true);
+    setTimeout(() => setCopiedShare(false), 2000);
+    toast.success("Progress summary copied to clipboard!");
+  };
 
   return (
     <div className="p-6 md:p-8 max-w-6xl mx-auto space-y-8">
@@ -93,11 +220,11 @@ const ProgressDashboard = () => {
           <Button
             variant="outline"
             size="sm"
-            className={`gap-2 rounded-xl border-gray-200 ${isParentMode ? 'border-[#1D4ED8] text-[#1D4ED8] bg-[#1D4ED8]/10' : 'text-gray-500'}`}
-            onClick={() => setIsParentMode(!isParentMode)}
+            className="gap-2 rounded-xl border-gray-200 text-gray-500 hover:border-[#1D4ED8] hover:text-[#1D4ED8]"
+            onClick={handleShare}
           >
-            <Users className="h-4 w-4" />
-            {isParentMode ? "Exit Parent Mode" : "Parent View"}
+            {copiedShare ? <Check className="h-4 w-4 text-green-500" /> : <Share2 className="h-4 w-4" />}
+            {copiedShare ? "Copied!" : "Share Progress"}
           </Button>
           <span className="text-[11px] text-gray-400 bg-gray-100 px-3 py-1.5 rounded-full font-medium">Last 30 Days</span>
         </div>
@@ -265,6 +392,129 @@ const ProgressDashboard = () => {
         </div>
       </div>
 
+      {/* ───── Performance Insights ───── */}
+      {subjectProgress.length > 0 && (
+        <div className="grid md:grid-cols-3 gap-4">
+          {/* Strong Areas */}
+          <div className="bg-emerald-50/50 border border-emerald-200/50 rounded-2xl p-5 space-y-3">
+            <div className="flex items-center gap-2">
+              <div className="h-8 w-8 rounded-xl bg-emerald-500/10 flex items-center justify-center">
+                <ArrowUpRight className="h-4 w-4 text-emerald-600" />
+              </div>
+              <div>
+                <h4 className="text-sm font-bold text-gray-900">Strong Areas</h4>
+                <p className="text-[10px] text-gray-400">Score ≥ 80%</p>
+              </div>
+            </div>
+            {strongTopics.length > 0 ? (
+              <div className="space-y-2">
+                {strongTopics.slice(0, 3).map((t) => (
+                  <div key={t.subject} className="flex items-center justify-between bg-white rounded-xl px-3 py-2 border border-emerald-100">
+                    <span className="text-xs font-semibold text-gray-700 truncate">{t.subject}</span>
+                    <span className="text-xs font-bold text-emerald-600">{t.avgPct}%</span>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-xs text-gray-400">Keep practicing to identify your strengths!</p>
+            )}
+          </div>
+
+          {/* Needs Improvement */}
+          <div className="bg-red-50/50 border border-red-200/50 rounded-2xl p-5 space-y-3">
+            <div className="flex items-center gap-2">
+              <div className="h-8 w-8 rounded-xl bg-red-500/10 flex items-center justify-center">
+                <ArrowDownRight className="h-4 w-4 text-red-600" />
+              </div>
+              <div>
+                <h4 className="text-sm font-bold text-gray-900">Needs Work</h4>
+                <p className="text-[10px] text-gray-400">Score &lt; 50%</p>
+              </div>
+            </div>
+            {strugglingTopics.length > 0 ? (
+              <div className="space-y-2">
+                {strugglingTopics.slice(0, 3).map((t) => (
+                  <Link key={t.subject} to="/quiz" className="flex items-center justify-between bg-white rounded-xl px-3 py-2 border border-red-100 hover:border-red-200 transition-colors">
+                    <span className="text-xs font-semibold text-gray-700 truncate">{t.subject}</span>
+                    <span className="text-xs font-bold text-red-500">{t.avgPct}%</span>
+                  </Link>
+                ))}
+              </div>
+            ) : (
+              <p className="text-xs text-gray-400">No struggling areas detected. Great job!</p>
+            )}
+          </div>
+
+          {/* Improving */}
+          <div className="bg-blue-50/50 border border-blue-200/50 rounded-2xl p-5 space-y-3">
+            <div className="flex items-center gap-2">
+              <div className="h-8 w-8 rounded-xl bg-blue-500/10 flex items-center justify-center">
+                <TrendingUp className="h-4 w-4 text-blue-600" />
+              </div>
+              <div>
+                <h4 className="text-sm font-bold text-gray-900">Improving</h4>
+                <p className="text-[10px] text-gray-400">Positive trend</p>
+              </div>
+            </div>
+            {improvingTopics.length > 0 ? (
+              <div className="space-y-2">
+                {improvingTopics.slice(0, 3).map((t) => (
+                  <div key={t.subject} className="flex items-center justify-between bg-white rounded-xl px-3 py-2 border border-blue-100">
+                    <span className="text-xs font-semibold text-gray-700 truncate">{t.subject}</span>
+                    <span className="text-xs font-bold text-blue-600">+{Math.round(t.trend)}%</span>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-xs text-gray-400">Take more quizzes to track improvement trends.</p>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* ───── Subject-wise Progress ───── */}
+      {subjectProgress.length > 0 && (
+        <div className="bg-white rounded-2xl p-6 shadow-[0_1px_3px_rgba(0,0,0,0.04)] border border-gray-100">
+          <div className="flex items-center justify-between mb-5">
+            <div>
+              <h3 className="font-bold text-gray-900 text-lg">Subject Progress</h3>
+              <p className="text-xs text-gray-400 mt-0.5">Detailed breakdown by subject</p>
+            </div>
+            <Link to="/lessons" className="text-xs text-[#1D4ED8] hover:underline font-medium">View Courses →</Link>
+          </div>
+          <div className="space-y-4">
+            {subjectProgress.map((s) => (
+              <div key={s.subject} className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <span className="text-sm font-semibold text-gray-700">{s.subject}</span>
+                    <span className="text-[10px] text-gray-400 bg-gray-100 px-2 py-0.5 rounded-full">
+                      {s.attempts} quiz{s.attempts !== 1 ? "zes" : ""}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    {s.trend > 5 && <ArrowUpRight className="h-3.5 w-3.5 text-emerald-500" />}
+                    {s.trend < -5 && <ArrowDownRight className="h-3.5 w-3.5 text-red-400" />}
+                    <span className={`text-sm font-bold ${s.avgPct >= 80 ? "text-emerald-600" : s.avgPct >= 50 ? "text-amber-500" : "text-red-500"}`}>
+                      {s.avgPct}%
+                    </span>
+                  </div>
+                </div>
+                <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
+                  <div
+                    className="h-full rounded-full transition-all duration-500"
+                    style={{
+                      width: `${s.avgPct}%`,
+                      background: s.avgPct >= 80 ? 'linear-gradient(90deg, #059669, #10b981)' : s.avgPct >= 50 ? 'linear-gradient(90deg, #f59e0b, #d97706)' : 'linear-gradient(90deg, #ef4444, #dc2626)'
+                    }}
+                  />
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* ───── Bottom Row — 3 cards ───── */}
       <div className="grid md:grid-cols-3 gap-6">
 
@@ -372,6 +622,229 @@ const ProgressDashboard = () => {
             </div>
           </div>
         </div>
+      </div>
+
+      {/* ───── Performance Insights Section ───── */}
+      <div className="space-y-4">
+        <h3 className="font-bold text-gray-900 text-lg flex items-center gap-2">
+          <Lightbulb className="h-5 w-5 text-[#1D4ED8]" /> Performance Insights
+        </h3>
+        
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+          {/* Strong Areas Card */}
+          <div className="bg-emerald-50/60 border border-emerald-100 rounded-2xl p-5 shadow-[0_1px_2px_rgba(0,0,0,0.02)]">
+            <div className="flex items-center gap-2 text-emerald-700 font-semibold mb-3">
+              <TrendingUp className="h-4.5 w-4.5 text-emerald-500" />
+              <span>Strong Areas (Score &ge; 80%)</span>
+            </div>
+            {strongTopics.length > 0 ? (
+              <div className="space-y-2">
+                {strongTopics.map((s: any) => (
+                  <div key={s.subject} className="flex justify-between items-center bg-white px-3 py-2 rounded-xl border border-emerald-100/50 shadow-sm">
+                    <span className="text-sm font-medium text-gray-700">{s.subject}</span>
+                    <span className="text-sm font-bold text-emerald-600">{s.avgPct}%</span>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-xs text-gray-400 italic">No strong subjects found yet. Keep studying!</p>
+            )}
+          </div>
+
+          {/* Struggling Areas Card */}
+          <div className="bg-rose-50/60 border border-rose-100 rounded-2xl p-5 shadow-[0_1px_2px_rgba(0,0,0,0.02)]">
+            <div className="flex items-center gap-2 text-rose-700 font-semibold mb-3">
+              <AlertTriangle className="h-4.5 w-4.5 text-rose-500" />
+              <span>Needs Attention (&lt; 50%)</span>
+            </div>
+            {strugglingTopics.length > 0 ? (
+              <div className="space-y-2">
+                {strugglingTopics.map((s: any) => (
+                  <div key={s.subject} className="flex justify-between items-center bg-white px-3 py-2 rounded-xl border border-rose-100/50 shadow-sm">
+                    <span className="text-sm font-medium text-gray-700">{s.subject}</span>
+                    <span className="text-sm font-bold text-rose-600">{s.avgPct}%</span>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-xs text-gray-400 italic">Excellent! No struggling subjects found.</p>
+            )}
+          </div>
+
+          {/* Improving Trajectory Card */}
+          <div className="bg-blue-50/60 border border-blue-100 rounded-2xl p-5 shadow-[0_1px_2px_rgba(0,0,0,0.02)]">
+            <div className="flex items-center gap-2 text-blue-700 font-semibold mb-3">
+              <TrendingUp className="h-4.5 w-4.5 text-blue-500" />
+              <span>On the Rise (Trend &gt; 10%)</span>
+            </div>
+            {improvingTopics.length > 0 ? (
+              <div className="space-y-2">
+                {improvingTopics.map((s: any) => (
+                  <div key={s.subject} className="flex justify-between items-center bg-white px-3 py-2 rounded-xl border border-blue-100/50 shadow-sm">
+                    <span className="text-sm font-medium text-gray-700">{s.subject}</span>
+                    <span className="text-xs font-semibold text-blue-600 flex items-center gap-0.5">
+                      <ArrowUpRight className="h-3 w-3" /> +{Math.round(s.trend)}%
+                    </span>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-xs text-gray-400 italic">No significant improvement trends found recently.</p>
+            )}
+          </div>
+        </div>
+
+        {/* AI Recommendations */}
+        <div className="bg-white border border-gray-100 rounded-2xl p-5 shadow-[0_1px_3px_rgba(0,0,0,0.04)] space-y-3">
+          <div className="flex items-center gap-2 text-sm font-bold text-gray-900">
+            <Sparkles className="h-4 w-4 text-[#1D4ED8]" />
+            <span>AI Study Advisor Recommendations</span>
+          </div>
+          <div className="grid sm:grid-cols-2 gap-3">
+            {strugglingTopics.length > 0 ? (
+              strugglingTopics.map((s: any) => (
+                <div key={s.subject} className="bg-rose-50/30 border border-rose-100/40 rounded-xl px-4 py-3 text-xs text-gray-600 leading-relaxed">
+                  <span className="font-bold text-gray-800 block mb-1">Focus Plan: {s.subject}</span>
+                  Review the concept summary in the materials section or ask the AI Tutor specifically about {s.subject} to build foundational understanding before retaking quizzes.
+                </div>
+              ))
+            ) : (
+              <div className="col-span-2 bg-emerald-50/20 border border-emerald-100/30 rounded-xl px-4 py-3 text-xs text-gray-600">
+                🎉 Great job! You have no subjects in the danger zone. Continue reviewing your active subjects periodically to keep your knowledge fresh.
+              </div>
+            )}
+            {improvingTopics.map((s: any) => (
+              <div key={s.subject} className="bg-blue-50/30 border border-blue-100/40 rounded-xl px-4 py-3 text-xs text-gray-600 leading-relaxed">
+                <span className="font-bold text-gray-800 block mb-1">Keep Momentum: {s.subject}</span>
+                Your scores in {s.subject} are trending upwards (+{Math.round(s.trend)}%). Consolidate your gains by attempting a harder quiz or creating flashcards for final retention.
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* ───── Subject Progress (Expandable Cards with Mini-Charts) ───── */}
+      <div className="space-y-4">
+        <h3 className="font-bold text-gray-900 text-lg flex items-center gap-2">
+          <BarChart3 className="h-5 w-5 text-[#1D4ED8]" /> Subject-wise Progress
+        </h3>
+        
+        {subjectProgress.length > 0 ? (
+          <div className="grid md:grid-cols-2 gap-5">
+            {subjectProgress.map((s: any) => {
+              const isExpanded = !!expandedSubjects[s.subject];
+              const studyHours = (s.studyMinutes / 60).toFixed(1);
+              return (
+                <div key={s.subject} className="bg-white border border-gray-150 rounded-2xl overflow-hidden shadow-[0_1px_3px_rgba(0,0,0,0.03)] hover:shadow-md transition-shadow">
+                  {/* Header Row */}
+                  <button
+                    onClick={() => setExpandedSubjects(prev => ({ ...prev, [s.subject]: !isExpanded }))}
+                    className="flex items-center justify-between w-full px-5 py-4 text-left hover:bg-gray-50/50 transition-colors"
+                  >
+                    <div>
+                      <h4 className="font-bold text-gray-900 text-base">{s.subject}</h4>
+                      <p className="text-xs text-gray-400 mt-0.5">
+                        {studyHours}h studied &bull; {s.completedLessons} lessons &bull; {s.attempts} quizzes
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <span className={`text-sm font-extrabold ${s.avgPct >= 80 ? "text-emerald-600" : s.avgPct >= 50 ? "text-amber-500" : "text-rose-500"}`}>
+                        {s.avgPct}% Mastery
+                      </span>
+                      {isExpanded ? (
+                        <ChevronUp className="h-4 w-4 text-gray-400" />
+                      ) : (
+                        <ChevronDown className="h-4 w-4 text-gray-400" />
+                      )}
+                    </div>
+                  </button>
+
+                  {/* Main Progress Bar (Mastery) */}
+                  <div className="px-5 pb-4">
+                    <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
+                      <div
+                        className="h-full rounded-full transition-all duration-500"
+                        style={{
+                          width: `${s.avgPct}%`,
+                          background: s.avgPct >= 80 ? 'linear-gradient(90deg, #10b981, #34d399)' : s.avgPct >= 50 ? 'linear-gradient(90deg, #f59e0b, #fbbf24)' : 'linear-gradient(90deg, #ef4444, #f87171)'
+                        }}
+                      />
+                    </div>
+                  </div>
+
+                  {/* Expandable Mini Bar Chart Details */}
+                  {isExpanded && (
+                    <div className="px-5 pb-5 pt-3 border-t border-gray-50 bg-gray-50/40 space-y-4 animate-in fade-in slide-in-from-top-2 duration-200">
+                      <div className="grid grid-cols-3 gap-3 text-center">
+                        <div className="bg-white p-3 rounded-xl border border-gray-100 shadow-sm">
+                          <span className="text-[10px] text-gray-400 font-bold uppercase block mb-1">Study Time</span>
+                          <span className="text-sm font-extrabold text-gray-800">{s.studyMinutes} min</span>
+                        </div>
+                        <div className="bg-white p-3 rounded-xl border border-gray-100 shadow-sm">
+                          <span className="text-[10px] text-gray-400 font-bold uppercase block mb-1">Quiz Score</span>
+                          <span className="text-sm font-extrabold text-gray-800">{s.avgPct}%</span>
+                        </div>
+                        <div className="bg-white p-3 rounded-xl border border-gray-100 shadow-sm">
+                          <span className="text-[10px] text-gray-400 font-bold uppercase block mb-1">Lessons</span>
+                          <span className="text-sm font-extrabold text-gray-800">{s.completedLessons}</span>
+                        </div>
+                      </div>
+
+                      {/* CSS Mini Bar Chart representing metric relative levels */}
+                      <div className="space-y-2.5">
+                        <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block">Metric Distribution</span>
+                        
+                        {/* Study Time Bar */}
+                        <div className="space-y-1">
+                          <div className="flex justify-between text-xs font-semibold text-gray-600">
+                            <span>Study Volume</span>
+                            <span>{s.studyMinutes} mins</span>
+                          </div>
+                          <div className="h-3 bg-gray-100 rounded-lg overflow-hidden">
+                            <div
+                              className="h-full bg-blue-500 rounded-lg animate-all duration-300"
+                              style={{ width: `${Math.min(100, (s.studyMinutes / 300) * 100)}%` }}
+                            />
+                          </div>
+                        </div>
+
+                        {/* Quiz Score Bar */}
+                        <div className="space-y-1">
+                          <div className="flex justify-between text-xs font-semibold text-gray-600">
+                            <span>Quiz Performance</span>
+                            <span>{s.avgPct}%</span>
+                          </div>
+                          <div className="h-3 bg-gray-100 rounded-lg overflow-hidden">
+                            <div
+                              className="h-full bg-emerald-500 rounded-lg animate-all duration-300"
+                              style={{ width: `${s.avgPct}%` }}
+                            />
+                          </div>
+                        </div>
+
+                        {/* Lesson Volume Bar */}
+                        <div className="space-y-1">
+                          <div className="flex justify-between text-xs font-semibold text-gray-600">
+                            <span>Lessons Completed</span>
+                            <span>{s.completedLessons} / 15</span>
+                          </div>
+                          <div className="h-3 bg-gray-100 rounded-lg overflow-hidden">
+                            <div
+                              className="h-full bg-purple-500 rounded-lg animate-all duration-300"
+                              style={{ width: `${Math.min(100, (s.completedLessons / 15) * 100)}%` }}
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        ) : (
+          <p className="text-sm text-gray-400 italic">No subject data available. Study or take quizzes to show progress.</p>
+        )}
       </div>
 
       {/* ───── Day-wise Records (expandable) ───── */}
@@ -586,7 +1059,6 @@ const ProgressDashboard = () => {
               <AlertTriangle className="h-4 w-4 text-amber-500" />
               <span className="font-bold text-sm text-gray-900">Needs Attention</span>
             </div>
-            {isParentMode && <span className="text-xs text-[#1D4ED8] font-semibold">Monitor & Guide</span>}
           </div>
           <div className="grid sm:grid-cols-2 gap-3">
             {weakTopics?.map((t: any) => (
@@ -597,47 +1069,6 @@ const ProgressDashboard = () => {
           </div>
         </div>
       )}
-
-      {/* ───── Parent Guidance ───── */}
-      <div className="bg-white rounded-2xl p-6 shadow-[0_1px_3px_rgba(0,0,0,0.04)] border border-gray-100 space-y-4">
-        <div className="flex items-center gap-2 mb-4">
-          <div className="h-8 w-8 rounded-xl bg-[#1D4ED8]/10 flex items-center justify-center">
-            <Users className="h-4 w-4 text-[#1D4ED8]" />
-          </div>
-          <h3 className="font-bold text-gray-900">Parental Guidance & Feedback</h3>
-        </div>
-
-        {isParentMode && (
-          <div className="flex gap-2 mb-6">
-            <Input
-              placeholder="Add a note of encouragement or study advice for your child..."
-              value={guidanceText}
-              onChange={(e) => setGuidanceText(e.target.value)}
-              className="flex-1 rounded-xl border-gray-200"
-            />
-            <Button onClick={handleAddGuidance} className="bg-[#1D4ED8] text-white hover:bg-[#2563EB] gap-2 rounded-xl">
-              <Send className="h-4 w-4" /> Post Note
-            </Button>
-          </div>
-        )}
-
-        {guidanceNotes && guidanceNotes.length > 0 ? (
-          <div className="space-y-3">
-            {guidanceNotes.map((note: any) => (
-              <div key={note.id} className="bg-gray-50 border border-gray-100 rounded-xl p-4 relative">
-                <div className="text-sm text-gray-700 whitespace-pre-wrap">{note.text}</div>
-                <div className="text-[10px] text-gray-400 mt-2">
-                  {new Date(note.created_at).toLocaleString()}
-                </div>
-              </div>
-            ))}
-          </div>
-        ) : (
-           <p className="text-sm text-gray-400 italic">
-             No guidance notes added yet. {isParentMode ? "Use the input above to provide guidance." : "Parents can leave feedback and study tips here."}
-           </p>
-        )}
-      </div>
     </div>
   );
 };

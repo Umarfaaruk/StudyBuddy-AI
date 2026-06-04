@@ -73,30 +73,51 @@ Then bullet points in this exact format:
 
 Use 5-10 bullet points covering the full video chronologically. Timestamps must match the transcript timestamps.`;
 
-const NO_CAPTIONS_SYSTEM = `This video has no captions. You only have title, channel, and description.
-Clearly state that captions were unavailable. Give a brief metadata-only overview.
-Do NOT invent lecture content, quotes, or detailed explanations.`;
+const NO_CAPTIONS_SYSTEM = `You are analysing a YouTube video that has NO captions or transcript available.
+You only know the video title, channel name, and possibly a short description.
 
-const TAKEAWAYS_SYSTEM = `Extract 5-8 key takeaways from this video transcript. 
-Format as numbered list. Each takeaway should be 1-2 sentences, actionable and specific.
-Use ONLY content from the transcript.`;
+RULES:
+- Clearly tell the user that captions are unavailable for this video.
+- Do NOT invent, fabricate, or guess any lecture content, code examples, or explanations.
+- Give a brief 2-3 sentence overview based ONLY on the title/channel/description.
+- Suggest the user watches the video directly and returns to chat any specific questions.`;
 
-const MINDMAP_SYSTEM = `Create a structured mind map outline from this transcript.
+// Used when a transcript IS available
+const TAKEAWAYS_SYSTEM_WITH_TRANSCRIPT = `Extract 5-8 key takeaways from this video transcript.
+Format as a numbered list. Each takeaway: 1-2 sentences, specific and actionable.
+Use ONLY content explicitly stated in the transcript provided.`;
+
+// Used when NO transcript is available
+const TAKEAWAYS_SYSTEM_NO_TRANSCRIPT = `This video has no captions or transcript available.
+Tell the user that key takeaways cannot be extracted without a transcript.
+Briefly suggest what the video likely covers based on its title, and invite them to ask questions after watching.
+Do NOT invent any content.`;
+
+const MINDMAP_SYSTEM_WITH_TRANSCRIPT = `Create a structured mind map outline from this video transcript.
 Format with markdown:
 # [Main Topic]
 ## [Branch 1]
 - Sub-point
-- Sub-point
 ## [Branch 2]
 - Sub-point
-Use 4-6 main branches with 2-4 sub-points each. ONLY use content from the transcript.`;
+Use 4-6 main branches with 2-4 sub-points each. Use ONLY content from the transcript.`;
 
-const QUIZ_SYSTEM = `Generate 5 comprehension questions based on this video transcript.
+const MINDMAP_SYSTEM_NO_TRANSCRIPT = `This video has no captions or transcript available.
+Tell the user a mind map cannot be created without transcript content.
+Offer a brief topic outline based only on the video title if possible.
+Do NOT invent any content.`;
+
+const QUIZ_SYSTEM_WITH_TRANSCRIPT = `Generate 5 comprehension questions based on this video transcript.
 Format each as:
 **Q[N]: [Question]**
 > Answer: [Answer]
 
-Make questions test genuine understanding of the video content. ONLY use content from the transcript.`;
+Make questions test genuine understanding. Use ONLY content from the transcript.`;
+
+const QUIZ_SYSTEM_NO_TRANSCRIPT = `This video has no captions or transcript available.
+Tell the user that quiz questions cannot be generated without a transcript.
+Suggest they watch the video and then ask specific questions in the chat tab.
+Do NOT invent any content.`;
 
 /* ─── Utility functions ─────────────────────────────────── */
 function formatTimestamp(seconds: number): string {
@@ -437,12 +458,15 @@ export const YoutubeSummarizer = () => {
         ? formatTranscriptWithTimestamps(videoData.segments, 20000)
         : videoData.transcript.substring(0, 20000);
 
-    const context = `Video: "${videoData.title}" by ${videoData.channel}\n\nTranscript:\n${transcriptContext}`;
+    const context = hasCaps
+      ? `Video: "${videoData.title}" by ${videoData.channel}\n\nTranscript:\n${transcriptContext}`
+      : `Video Title: "${videoData.title}"\nChannel: ${videoData.channel}\n${videoData.transcript ? `\nDescription:\n${videoData.transcript.slice(0, 1000)}` : "\nNo description available."}`;
 
+    const hasCaps = videoData.hasCaptions && videoData.transcript.trim().length > 50;
     const systemMap: Record<Exclude<ActionId, "chat" | "summarise">, string> = {
-      takeaways: TAKEAWAYS_SYSTEM,
-      mindmap: MINDMAP_SYSTEM,
-      quiz: QUIZ_SYSTEM,
+      takeaways: hasCaps ? TAKEAWAYS_SYSTEM_WITH_TRANSCRIPT : TAKEAWAYS_SYSTEM_NO_TRANSCRIPT,
+      mindmap:   hasCaps ? MINDMAP_SYSTEM_WITH_TRANSCRIPT   : MINDMAP_SYSTEM_NO_TRANSCRIPT,
+      quiz:      hasCaps ? QUIZ_SYSTEM_WITH_TRANSCRIPT      : QUIZ_SYSTEM_NO_TRANSCRIPT,
     };
 
     if (actionId === "summarise") {

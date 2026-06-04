@@ -1,6 +1,6 @@
 import { useState, lazy, Suspense } from "react";
 import { Link } from "react-router-dom";
-import { BookOpen, ChevronRight, Search, Calculator, Atom, FlaskConical, Leaf, FileText, Loader2, Sparkles, Plus, CalendarDays, Trash2, AlertTriangle, Youtube, Link2 } from "lucide-react";
+import { BookOpen, ChevronRight, Search, Calculator, Atom, FlaskConical, Leaf, FileText, Loader2, Sparkles, Plus, CalendarDays, Trash2, AlertTriangle, Youtube, Link2, Trophy, Award, Printer, X, RotateCcw } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
@@ -30,6 +30,7 @@ const LessonList = () => {
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [youtubeUrl, setYoutubeUrl] = useState("");
   const [youtubeGenerating, setYoutubeGenerating] = useState(false);
+  const [selectedCert, setSelectedCert] = useState<any>(null);
   const queryClient = useQueryClient();
 
   // Fetch user materials
@@ -67,6 +68,17 @@ const LessonList = () => {
           progressSnap.docs.map(doc => [doc.id.split("_")[1], doc.data()])
         );
 
+        // Fetch topic quiz progress
+        const topicProgressSnap = await getDocs(
+          query(
+            collection(db, "topic_progress"),
+            where("user_id", "==", user.uid)
+          )
+        );
+        const topicProgressMap = new Map(
+          topicProgressSnap.docs.map(doc => [doc.data().topic_id, doc.data()])
+        );
+
         const filteredTopicsData = topicsData.filter(topic => {
           if (topic.is_custom) {
             return topic.user_id === user.uid;
@@ -78,11 +90,14 @@ const LessonList = () => {
           const progress = progressMap.get(topic.id);
           const completed = progress?.completed_lessons?.length ?? 0;
           const total = topic.lesson_count ?? 0;
+          const topicProg = topicProgressMap.get(topic.id);
           return {
             ...topic,
             pct: total > 0 ? Math.round((completed / total) * 100) : 0,
             completedLessons: completed,
-            totalLessons: total
+            totalLessons: total,
+            avgQuizScore: topicProg?.avg_quiz_score ?? null,
+            completionDate: progress?.updated_at?.toDate() || progress?.created_at?.toDate() || null
           };
         });
       } catch (error) {
@@ -483,6 +498,83 @@ ${condensedContent.substring(0, 15000)}`;
         </div>
       )}
 
+
+      {/* Completed Courses Section */}
+      {(() => {
+        const completedTopics = topics.filter((t: any) => t.pct === 100);
+        if (completedTopics.length === 0) return null;
+        return (
+          <div className="space-y-4 animate-in fade-in duration-300">
+            <div className="flex items-center justify-between">
+              <h2 className="text-xl font-bold text-gray-900 tracking-tight flex items-center gap-2">
+                <Award className="h-5 w-5 text-amber-500" />
+                Completed Courses
+              </h2>
+              <span className="text-xs font-semibold bg-emerald-50 text-emerald-700 px-2.5 py-1 rounded-full">
+                {completedTopics.length} Course{completedTopics.length > 1 ? 's' : ''} Completed
+              </span>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {completedTopics.map((t: any) => (
+                <div
+                  key={t.id}
+                  className="bg-gradient-to-r from-emerald-50/50 to-teal-50/20 border border-emerald-100 rounded-2xl p-5 shadow-sm relative overflow-hidden flex flex-col justify-between min-h-[150px]"
+                >
+                  <Award className="absolute -right-6 -bottom-6 h-28 w-28 text-emerald-500/5 pointer-events-none" />
+
+                  <div className="flex items-start gap-4 mb-4">
+                    <div className="h-12 w-12 rounded-xl bg-emerald-100 flex items-center justify-center flex-shrink-0 text-emerald-600">
+                      <Trophy className="h-6 w-6" />
+                    </div>
+                    <div className="flex-1 min-w-0 pr-6">
+                      <span className="text-[9px] font-extrabold tracking-widest uppercase text-emerald-600 block mb-1">
+                        {t.subjectName || t.subject || "General"}
+                      </span>
+                      <h3 className="text-base font-bold text-gray-900 leading-snug line-clamp-1">{t.title}</h3>
+                      <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-1 text-xs text-gray-500 font-medium">
+                        <span>Completed: {t.completionDate ? new Date(t.completionDate).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' }) : "Recently"}</span>
+                        {t.avgQuizScore !== null && (
+                          <>
+                            <span className="text-gray-300">•</span>
+                            <span className="text-emerald-700 font-bold bg-emerald-100/50 px-2 py-0.5 rounded-full">
+                              Quiz Score: {t.avgQuizScore}%
+                            </span>
+                          </>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="flex flex-wrap items-center justify-between gap-3 mt-2 border-t border-emerald-100/60 pt-3 z-10">
+                    <button
+                      onClick={() => setSelectedCert({ title: t.title, date: t.completionDate })}
+                      className="inline-flex items-center gap-1.5 text-xs font-bold text-emerald-700 hover:text-emerald-800 transition-colors"
+                    >
+                      <Award className="h-3.5 w-3.5" /> View Certificate
+                    </button>
+                    <div className="flex gap-2">
+                      <Link
+                        to={`/lessons/${t.id}`}
+                        className="inline-flex items-center gap-1 text-xs font-semibold text-gray-600 hover:text-gray-900 bg-gray-100 hover:bg-gray-200 px-3 py-1.5 rounded-xl transition-all"
+                      >
+                        <BookOpen className="h-3 w-3" /> Review Course
+                      </Link>
+                      <Link
+                        to={`/quiz`}
+                        className="inline-flex items-center gap-1 text-xs font-semibold text-[#1D4ED8] hover:text-white hover:bg-[#1D4ED8] bg-[#DBEAFE] px-3 py-1.5 rounded-xl transition-all"
+                      >
+                        <RotateCcw className="h-3 w-3" /> Retake Quiz
+                      </Link>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        );
+      })()}
+
       {/* Search + Filter */}
       <div className="flex flex-col sm:flex-row gap-4">
         <div className="relative flex-1">
@@ -734,6 +826,64 @@ ${condensedContent.substring(0, 15000)}`;
               <Plus className="h-8 w-8" />
               <span className="text-sm font-semibold">Upload Material</span>
             </Link>
+          </div>
+        </div>
+      )}
+      {/* ── Certificate Modal ── */}
+      {selectedCert && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+          <div className="bg-white rounded-3xl p-6 md:p-8 max-w-2xl w-full shadow-2xl relative border-8 border-amber-100 overflow-hidden">
+            {/* Close Button */}
+            <button
+              onClick={() => setSelectedCert(null)}
+              className="absolute top-4 right-4 p-2 rounded-xl text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors"
+            >
+              <X className="h-5 w-5" />
+            </button>
+
+            {/* Certificate Frame/Layout */}
+            <div className="border-2 border-double border-amber-600 p-8 text-center space-y-6 bg-gradient-to-b from-amber-50/20 to-white">
+              <div className="flex justify-center">
+                <div className="relative">
+                  <Award className="h-16 w-16 text-amber-500 animate-pulse" />
+                  <Trophy className="h-6 w-6 text-amber-600 absolute bottom-1 right-1" />
+                </div>
+              </div>
+              <div className="space-y-1">
+                <span className="text-[10px] font-extrabold tracking-[0.2em] uppercase text-amber-700 block">Certificate of Achievement</span>
+                <div className="h-0.5 w-24 bg-amber-600 mx-auto"></div>
+              </div>
+              <p className="text-sm italic text-gray-500">This is proudly presented to</p>
+              <h2 className="text-2xl md:text-3xl font-bold font-serif text-gray-900 border-b border-gray-200 pb-2 max-w-md mx-auto">
+                {user?.displayName || "EduOnx Scholar"}
+              </h2>
+              <p className="text-sm text-gray-600 max-w-md mx-auto leading-relaxed">
+                for successfully completing the custom curriculum and mastering all course materials for the topic:
+              </p>
+              <h3 className="text-lg md:text-xl font-bold text-amber-800">{selectedCert.title}</h3>
+              <div className="flex justify-between items-center pt-8 max-w-md mx-auto">
+                <div className="text-center space-y-0.5">
+                  <span className="text-xs text-gray-500 font-mono block">Date Issued</span>
+                  <span className="text-sm font-semibold text-gray-900">
+                    {selectedCert.date ? new Date(selectedCert.date).toLocaleDateString(undefined, { month: 'long', day: 'numeric', year: 'numeric' }) : new Date().toLocaleDateString(undefined, { month: 'long', day: 'numeric', year: 'numeric' })}
+                  </span>
+                </div>
+                <div className="text-center space-y-0.5">
+                  <span className="text-xs text-gray-500 font-mono block">Authorized By</span>
+                  <span className="text-sm font-serif italic font-bold text-gray-800 block">EduOnx Academy</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Print button */}
+            <div className="flex justify-end gap-3 mt-6">
+              <Button variant="outline" onClick={() => setSelectedCert(null)} className="rounded-xl">
+                Close
+              </Button>
+              <Button onClick={() => window.print()} className="bg-amber-600 hover:bg-amber-700 text-white rounded-xl gap-2 shadow-md">
+                <Printer className="h-4 w-4" /> Print Certificate
+              </Button>
+            </div>
           </div>
         </div>
       )}

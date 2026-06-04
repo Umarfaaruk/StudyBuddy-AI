@@ -221,28 +221,72 @@ export const useDashboardData = () => {
     enabled: !!user,
   });
 
-  // Get continue learning (incomplete lessons or recent quiz topics)
+  // Get continue learning (topics with lesson progress that are incomplete)
   const { data: continueLearning = [] } = useQuery({
     queryKey: ["continueLearning", user?.uid],
     queryFn: async () => {
       if (!user) return [];
       try {
-        const q = query(
+        // First try lesson_progress for accurate topic IDs
+        const progressQ = query(
+          collection(db, "lesson_progress"),
+          where("user_id", "==", user.uid),
+        );
+        const progressSnap = await getDocs(progressQ);
+        
+        if (progressSnap.size > 0) {
+          const items: { id: string; title: string; subject: string; pct: number }[] = [];
+          
+          for (const progressDoc of progressSnap.docs) {
+            const data = progressDoc.data();
+            const topicId = data.topic_id || progressDoc.id.split("_")[1];
+            if (!topicId) continue;
+            
+            // Fetch the actual topic to get title/subject
+            try {
+              const topicSnap = await getDoc(doc(db, "topics", topicId));
+              if (topicSnap.exists()) {
+                const topicData = topicSnap.data();
+                const completed = data.completed_lessons?.length ?? 0;
+                const total = topicData.lesson_count ?? 0;
+                const pct = total > 0 ? Math.round((completed / total) * 100) : 0;
+                
+                // Only show incomplete topics
+                if (pct < 100) {
+                  items.push({
+                    id: topicId,
+                    title: topicData.title || "Untitled",
+                    subject: topicData.subject || topicData.subjectName || "General",
+                    pct,
+                  });
+                }
+              }
+            } catch {
+              // Skip if topic doesn't exist
+            }
+          }
+          
+          if (items.length > 0) {
+            return items.sort((a, b) => b.pct - a.pct).slice(0, 3);
+          }
+        }
+        
+        // Fallback: use quiz_attempts but verify topic IDs exist
+        const quizQ = query(
           collection(db, "quiz_attempts"),
           where("user_id", "==", user.uid),
         );
-        const querySnapshot = await getDocs(q);
-        const topics = new Set<string>();
-        const topicMap: Record<string, any> = {};
+        const quizSnap = await getDocs(quizQ);
+        const topicMap: Record<string, { id: string; title: string; subject: string; pct: number }> = {};
 
-        querySnapshot.forEach((doc) => {
-          const data = doc.data();
+        quizSnap.forEach((quizDoc) => {
+          const data = quizDoc.data();
           const topicTitle = data.topic_title || data.topic;
-          if (topicTitle && !topics.has(topicTitle)) {
-            topics.add(topicTitle);
+          const topicId = data.topic_id;
+          if (topicTitle && topicId && !topicMap[topicTitle]) {
             const pct = data.total_questions > 0 ? Math.round((data.score / data.total_questions) * 100) : 0;
             topicMap[topicTitle] = {
-              id: data.topic_id || doc.id,
+              id: topicId,
               title: topicTitle,
               subject: topicTitle,
               pct,

@@ -22,12 +22,19 @@ import { aiComplete } from "@/lib/aiService";
  * Loads the worker from CDN to avoid bundling issues.
  */
 async function extractTextFromPDF(file: File): Promise<string> {
+  let blobUrl = "";
   try {
-    // Dynamic import of pdfjs-dist
     const pdfjsLib = await import("pdfjs-dist");
 
-    // Set worker source to CDN (must match the installed version)
-    pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.mjs`;
+    // Load worker via blob to bypass browser CORS restrictions for web workers
+    const workerUrl = `https://unpkg.com/pdfjs-dist@${pdfjsLib.version}/build/pdf.worker.min.mjs`;
+    console.log(`[PDF] Fetching worker from ${workerUrl}`);
+    const response = await fetch(workerUrl);
+    if (!response.ok) throw new Error(`Failed to fetch PDF worker from CDN: ${response.statusText}`);
+    const blob = await response.blob();
+    blobUrl = URL.createObjectURL(blob);
+    
+    pdfjsLib.GlobalWorkerOptions.workerSrc = blobUrl;
 
     const arrayBuffer = await file.arrayBuffer();
     const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
@@ -42,7 +49,6 @@ async function extractTextFromPDF(file: File): Promise<string> {
         const content = await page.getTextContent();
         const pageText = content.items
           .map((item: any) => {
-            // Handle text items (they have a 'str' property)
             if ('str' in item) {
               return item.str;
             }
@@ -67,8 +73,6 @@ async function extractTextFromPDF(file: File): Promise<string> {
       return fullText;
     }
 
-    // If PDF.js couldn't extract meaningful text (e.g., scanned images),
-    // return a descriptive fallback
     return `[PDF Document: ${file.name}] This PDF appears to contain scanned images or non-selectable text. ` +
       `The document has ${totalPages} pages. The AI tutor can help with questions about topics described in the filename.`;
   } catch (err) {
@@ -76,6 +80,10 @@ async function extractTextFromPDF(file: File): Promise<string> {
     return `[PDF Document: ${file.name}] Unable to extract text. ` +
       `Please ensure the PDF is not password-protected. ` +
       `The AI tutor can still help with general questions.`;
+  } finally {
+    if (blobUrl) {
+      URL.revokeObjectURL(blobUrl);
+    }
   }
 }
 

@@ -70,6 +70,7 @@ interface QueuedSession {
   endedAt: string;
   durationSeconds: number;
   queuedAt: number;
+  topicId?: string | null;
 }
 
 function getRetryQueue(): QueuedSession[] {
@@ -115,6 +116,7 @@ export async function processRetryQueue(userId: string): Promise<number> {
           started_at: session.startedAt,
           ended_at: session.endedAt,
           duration_seconds: session.durationSeconds,
+          topic_id: session.topicId || null,
           created_at: serverTimestamp(),
           recovered: true,
         }),
@@ -142,7 +144,8 @@ export async function saveStudySession(
   userId: string,
   startedAt: string,
   durationSeconds: number,
-  currentStreak: StreakData | null
+  currentStreak: StreakData | null,
+  topicId?: string | null
 ): Promise<SaveSessionResult> {
   const xp = Math.floor(durationSeconds / 60) * 5;
   const now = new Date();
@@ -156,11 +159,12 @@ export async function saveStudySession(
         started_at: startedAt,
         ended_at: now.toISOString(),
         duration_seconds: durationSeconds,
+        topic_id: topicId || null,
         created_at: serverTimestamp(),
       }),
       15_000, "write study_sessions"
     );
-    console.log(`[StudySession] ✅ Session saved: ${durationSeconds}s`);
+    console.log(`[StudySession] ✅ Session saved: ${durationSeconds}s, topic_id: ${topicId}`);
   } catch (sessionErr) {
     // Session write failed — queue for retry and throw
     console.error("[StudySession] ❌ Failed to save session to Firestore:", sessionErr);
@@ -170,6 +174,7 @@ export async function saveStudySession(
       endedAt: now.toISOString(),
       durationSeconds,
       queuedAt: Date.now(),
+      topicId: topicId || null,
     });
     // Re-throw with a clearer message
     throw new Error(

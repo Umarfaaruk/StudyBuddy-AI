@@ -258,7 +258,7 @@ export async function calculateProductivityScore(
 
   // Get quiz results
   const quizQ = query(
-    collection(db, "quiz_results"),
+    collection(db, "quiz_attempts"),
     where("user_id", "==", userId),
     orderBy("completed_at", "desc"),
     limit(10)

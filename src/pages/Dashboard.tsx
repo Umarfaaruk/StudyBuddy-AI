@@ -1,7 +1,7 @@
 import { Link } from "react-router-dom";
 import {
   BookOpen, MessageCircleQuestion, Gamepad2, Upload, BarChart3,
-  Trophy, Flame, Lightbulb, AlertTriangle, CalendarDays, User, ArrowRight
+  Trophy, Flame, Lightbulb, AlertTriangle, CalendarDays, User, ArrowRight, Wrench, Bot, Sparkles
 } from "lucide-react";
 import { useDashboardData } from "@/hooks/useDashboardData";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -10,7 +10,6 @@ import { useQuery } from "@tanstack/react-query";
 import { db } from "@/lib/firebase";
 import { doc, getDoc, collection, query, where, getDocs } from "firebase/firestore";
 import NotificationPanel from "@/components/NotificationPanel";
-import EduOnxAIChat from "@/components/EduOnxAIChat";
 import FeedbackEnforcer from "@/components/FeedbackEnforcer";
 import { StaggerContainer, StaggerItem } from "@/components/motion/FadeIn";
 
@@ -82,16 +81,7 @@ const Dashboard = () => {
     return { label: dayNames[i], active: isActive };
   });
 
-  // Mock retention data for bar chart
-  const retentionData = [
-    { label: "Mon", value: 65 },
-    { label: "Tue", value: 80 },
-    { label: "Wed", value: 45 },
-    { label: "Thu", value: 90 },
-    { label: "Fri", value: 70 },
-    { label: "Sat", value: 55 },
-    { label: "Sun", value: 85 },
-  ];
+
 
   return (
     <StaggerContainer className="p-5 md:p-8 space-y-6 max-w-[1400px] mx-auto pb-28 relative">
@@ -188,26 +178,33 @@ const Dashboard = () => {
         <div className="lg:col-span-8 glass-card rounded-2xl p-6 hover-glow">
           <div className="flex items-center justify-between mb-5">
             <h3 className="text-base font-bold text-foreground flex items-center gap-2">
-              <BarChart3 className="h-5 w-5 text-primary" />
-              Retention Trajectory
+              <Wrench className="h-5 w-5 text-primary" />
+              Quick Tools
             </h3>
-            <span className="text-xs text-muted-foreground font-medium">This week</span>
+            <Link to="/tools" className="text-xs font-semibold text-primary hover:underline flex items-center gap-1">
+              View all <ArrowRight className="h-3 w-3" />
+            </Link>
           </div>
-          {/* CSS Bar Chart */}
-          <div className="flex items-end gap-2 h-36">
-            {retentionData.map((d, idx) => (
-              <div key={d.label} className="flex-1 flex flex-col items-center gap-2">
-                <div className="w-full relative flex items-end justify-center" style={{ height: "120px" }}>
-                  <div
-                    className="w-full max-w-[32px] rounded-t-lg transition-all duration-500 ease-out"
-                    style={{
-                      height: `${d.value}%`,
-                      background: idx === 3 ? "linear-gradient(to top, #1D4ED8, #93C5FD)" : "#e5e7eb",
-                    }}
-                  />
+          <div className="grid grid-cols-2 gap-3">
+            {[
+              { icon: Bot, label: "AI Tutor", desc: "Chat with your study AI", to: "/materials/tutor", color: "from-violet-500 to-violet-600" },
+              { icon: MessageCircleQuestion, label: "Ask Doubt", desc: "Get instant answers", to: "/doubts", color: "from-blue-500 to-blue-600" },
+              { icon: Sparkles, label: "Flashcards", desc: "Generate study cards", to: "/tools/flashcards", color: "from-amber-500 to-orange-500" },
+              { icon: Gamepad2, label: "Quick Quiz", desc: "Test your knowledge", to: "/quiz", color: "from-emerald-500 to-emerald-600" },
+            ].map((tool) => (
+              <Link
+                key={tool.label}
+                to={tool.to}
+                className="group relative flex items-center gap-3 rounded-xl border border-border hover:border-primary/20 p-3.5 transition-all hover-lift bg-card"
+              >
+                <div className={`h-10 w-10 rounded-xl bg-gradient-to-br ${tool.color} flex items-center justify-center flex-shrink-0 shadow-sm group-hover:shadow-md transition-shadow`}>
+                  <tool.icon className="h-5 w-5 text-white" />
                 </div>
-                <span className="text-[11px] text-muted-foreground font-medium">{d.label}</span>
-              </div>
+                <div className="min-w-0">
+                  <div className="text-sm font-semibold text-foreground">{tool.label}</div>
+                  <div className="text-[11px] text-muted-foreground">{tool.desc}</div>
+                </div>
+              </Link>
             ))}
           </div>
         </div>
@@ -395,7 +392,6 @@ const Dashboard = () => {
       </div>
       </StaggerItem>
 
-      <EduOnxAIChat />
       <FeedbackEnforcer />
     </StaggerContainer>
   );

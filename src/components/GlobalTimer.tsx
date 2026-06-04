@@ -133,6 +133,13 @@ const GlobalTimer = () => {
                       pathname.startsWith("/planner") ||
                       pathname.startsWith("/timer");
 
+  const currentTopicId = useMemo(() => {
+    const lessonMatch = pathname.match(/^\/lessons\/([^/]+)/);
+    const quizMatch = pathname.match(/^\/quiz\/([^/]+)/);
+    const materialMatch = pathname.match(/^\/materials\/learn\/([^/]+)/);
+    return lessonMatch?.[1] || quizMatch?.[1] || materialMatch?.[1] || null;
+  }, [pathname]);
+
   // ── Process retry queue on mount ──────────────
   useEffect(() => {
     if (user && recovered) {
@@ -178,6 +185,7 @@ const GlobalTimer = () => {
           seconds: secondsRef.current,
           startedAt: startedAtRef.current,
           timestamp: Date.now(),
+          topicId: currentTopicId,
         }));
       } catch (e) {
         // Quota exceeded — try cleanup
@@ -233,7 +241,7 @@ const GlobalTimer = () => {
       console.log(`[Timer] 💾 Saving ${cappedDuration}s session`);
 
       const { xp, newStreak } = await saveStudySession(
-        user.uid, startedAtRef.current, cappedDuration, streak
+        user.uid, startedAtRef.current, cappedDuration, streak, currentTopicId
       );
 
       toast.success(`Session saved! +${xp} XP · ${newStreak}-day streak 🔥`);
@@ -316,6 +324,7 @@ const GlobalTimer = () => {
                 seconds: secondsRef.current,
                 startedAt: startedAtRef.current,
                 timestamp: Date.now(),
+                topicId: currentTopicId,
               }));
             } catch {}
           }
@@ -354,6 +363,7 @@ const GlobalTimer = () => {
               seconds: secondsRef.current,
               startedAt: startedAtRef.current,
               timestamp: Date.now(),
+              topicId: currentTopicId,
             }));
           } catch {}
         }
@@ -429,6 +439,7 @@ const GlobalTimer = () => {
           startedAt: startedAtRef.current,
           timestamp: Date.now(),
           pendingSave: true,
+          topicId: currentTopicId,
         };
 
         // Primary: save to localStorage for recovery on next visit
@@ -473,7 +484,7 @@ const GlobalTimer = () => {
         if (parsed.pendingSave && parsed.seconds >= MIN_SAVE_DURATION) {
           console.log(`[Timer] 📦 Saving pending session from previous load: ${parsed.seconds}s`);
           // Save async, then clear
-          saveStudySession(user.uid, parsed.startedAt, parsed.seconds, streak)
+          saveStudySession(user.uid, parsed.startedAt, parsed.seconds, streak, parsed.topicId)
             .then(({ xp, newStreak }) => {
               toast.success(`Recovered session saved! +${xp} XP · ${newStreak}-day streak 🔥`);
               localStorage.removeItem(sessionKey);

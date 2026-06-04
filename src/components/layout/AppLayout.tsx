@@ -8,6 +8,8 @@ import {
 import { useDeepFocus } from "@/hooks/useDeepFocus";
 import GlobalTimer from "@/components/GlobalTimer";
 import PageTransition from "@/components/motion/PageTransition";
+import EduOnxAIChat from "@/components/EduOnxAIChat";
+import SnapEnhance from "@/components/SnapEnhance";
 import { useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useQuery } from "@tanstack/react-query";
@@ -310,6 +312,8 @@ const AppLayout = () => {
             <PageTransition />
           </div>
         </div>
+        <EduOnxAIChat />
+        <SnapEnhance />
       </main>
     </div>
   );
