@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Wrench, Youtube, Brain, Bot } from "lucide-react";
 import YoutubeSummarizer from "./YoutubeSummarizer";
 import ConceptExplorerWorkspace from "./ConceptExplorerWorkspace";
+import AITutor from "../materials/AITutor";
 
 type ToolTab = "youtube" | "concept";
 
@@ -14,7 +15,7 @@ const QuickTools = () => {
   const [activeTab, setActiveTab] = useState<ToolTab>("concept");
 
   return (
-    <div className="p-6 md:p-8 max-w-7xl mx-auto space-y-8">
+    <div className="p-6 md:p-8 max-w-[1600px] mx-auto space-y-8">
       <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4">
         <div className="flex items-start gap-4">
           <div className="h-12 w-12 rounded-2xl bg-primary/10 flex items-center justify-center shrink-0 ring-1 ring-primary/10">
@@ -56,13 +57,14 @@ const QuickTools = () => {
 
       <div className="rounded-2xl border border-border bg-card/50 shadow-sm overflow-hidden min-h-[560px]">
         {activeTab === "youtube" && (
-          <div className="p-6 md:p-8">
+          <div className="p-6 md:p-8 grid grid-cols-1 xl:grid-cols-2 gap-8 items-start">
             <YoutubeSummarizer />
+            <ConceptExplorerWorkspace />
           </div>
         )}
         {activeTab === "concept" && (
-          <div className="p-6 md:p-8">
-            <ConceptExplorerWorkspace />
+          <div className="p-4 md:p-6">
+            <AITutor hideHeader={true} />
           </div>
         )}
       </div>

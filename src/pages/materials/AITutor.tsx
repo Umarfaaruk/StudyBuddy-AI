@@ -228,7 +228,7 @@ async function extractTextFromFile(file: File): Promise<string> {
  * Users must upload a file to start asking questions.
  * All answers are strictly based on the uploaded document content.
  */
-const AITutor = () => {
+const AITutor = ({ hideHeader = false }: { hideHeader?: boolean } = {}) => {
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const [question, setQuestion] = useState("");
@@ -513,40 +513,42 @@ const AITutor = () => {
   };
 
   return (
-    <div className="flex flex-col h-[calc(100vh-80px)] w-full overflow-hidden bg-white">
+    <div className={`flex flex-col w-full overflow-hidden bg-white ${hideHeader ? "h-[600px] rounded-xl" : "h-[calc(100vh-80px)]"}`}>
       {/* Premium Revamped Header */}
-      <div className="relative overflow-hidden bg-gradient-to-r from-blue-600 via-blue-700 to-indigo-800 text-white px-6 py-6 shadow-sm shrink-0">
-        <div className="absolute top-0 right-0 w-64 h-64 bg-white/5 rounded-full -translate-y-16 translate-x-16" />
-        <div className="absolute bottom-0 left-0 w-32 h-32 bg-white/5 rounded-full translate-y-8 -translate-x-8" />
-        
-        <div className="relative flex flex-col md:flex-row md:items-center justify-between gap-4">
-          <div className="space-y-1.5">
-            <div className="inline-flex items-center gap-1.5 bg-white/10 px-2.5 py-1 rounded-full text-[10px] font-semibold uppercase tracking-wider text-blue-200 backdrop-blur-sm">
-              <Sparkles className="h-3 w-3" /> AI Study Assistant
+      {!hideHeader && (
+        <div className="relative overflow-hidden bg-gradient-to-r from-blue-600 via-blue-700 to-indigo-800 text-white px-6 py-6 shadow-sm shrink-0">
+          <div className="absolute top-0 right-0 w-64 h-64 bg-white/5 rounded-full -translate-y-16 translate-x-16" />
+          <div className="absolute bottom-0 left-0 w-32 h-32 bg-white/5 rounded-full translate-y-8 -translate-x-8" />
+          
+          <div className="relative flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div className="space-y-1.5">
+              <div className="inline-flex items-center gap-1.5 bg-white/10 px-2.5 py-1 rounded-full text-[10px] font-semibold uppercase tracking-wider text-blue-200 backdrop-blur-sm">
+                <Sparkles className="h-3 w-3" /> AI Study Assistant
+              </div>
+              <h1 className="text-2xl md:text-3xl font-extrabold tracking-tight flex items-center gap-2">
+                AI Study Tutor
+              </h1>
+              <p className="text-blue-100/90 text-xs md:text-sm max-w-xl">
+                {selectedMaterial
+                  ? `Ask questions about "${selectedMaterial.file_name}" to unlock concepts, summarize details, or clarify doubts.`
+                  : "Upload study materials or select a file to receive personalized tutoring based on your content."}
+              </p>
             </div>
-            <h1 className="text-2xl md:text-3xl font-extrabold tracking-tight flex items-center gap-2">
-              AI Study Tutor
-            </h1>
-            <p className="text-blue-100/90 text-xs md:text-sm max-w-xl">
-              {selectedMaterial
-                ? `Ask questions about "${selectedMaterial.file_name}" to unlock concepts, summarize details, or clarify doubts.`
-                : "Upload study materials or select a file to receive personalized tutoring based on your content."}
-            </p>
-          </div>
-          <div className="flex items-center gap-2 self-start md:self-auto shrink-0">
-            {messages.length > 0 && (
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={handleClear}
-                className="bg-white/10 hover:bg-white/20 border-white/20 hover:border-white/30 text-white gap-2 rounded-xl text-xs"
-              >
-                <Trash2 className="h-3.5 w-3.5" /> Clear Chat
-              </Button>
-            )}
+            <div className="flex items-center gap-2 self-start md:self-auto shrink-0">
+              {messages.length > 0 && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleClear}
+                  className="bg-white/10 hover:bg-white/20 border-white/20 hover:border-white/30 text-white gap-2 rounded-xl text-xs"
+                >
+                  <Trash2 className="h-3.5 w-3.5" /> Clear Chat
+                </Button>
+              )}
+            </div>
           </div>
         </div>
-      </div>
+      )}
 
       {/* Recent Files Quick-Select Bar */}
       {materials.length > 0 && (
