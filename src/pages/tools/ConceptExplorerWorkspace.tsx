@@ -66,7 +66,7 @@ Format your output using gorgeous markdown with bullet points, numbered lists, a
     <div className="bg-card border border-border rounded-xl p-6 space-y-6 shadow-sm font-sans">
       <div className="flex items-center gap-2 pb-3 border-b border-border">
         <Atom className="h-6 w-6 text-accent animate-pulse" />
-        <h2 className="font-bold text-lg text-foreground">AI Concept Explorer & Analogy Studio</h2>
+        <h2 className="font-bold text-lg text-foreground">AI Tutor & Analogy Studio</h2>
       </div>
 
       <div className="grid md:grid-cols-[1fr_400px] gap-6">

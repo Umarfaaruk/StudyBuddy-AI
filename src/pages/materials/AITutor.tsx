@@ -947,17 +947,17 @@ const AITutor = () => {
                 </div>
               </div>
 
-              {/* Concept Explorer */}
+              {/* Concept Explorer / AI Tutor */}
               <div className="group border border-gray-100 rounded-xl p-3 hover:border-blue-200 hover:bg-blue-50/20 transition-all">
                 <div className="flex items-start gap-2.5">
                   <div className="h-8 w-8 rounded-lg bg-purple-50 text-purple-500 flex items-center justify-center shrink-0">
                     <Brain className="h-4.5 w-4.5" />
                   </div>
                   <div>
-                    <h5 className="text-xs font-bold text-gray-800">Concept Explorer</h5>
+                    <h5 className="text-xs font-bold text-gray-800">AI Tutor</h5>
                     <p className="text-[10px] text-gray-400 mt-0.5">Drill down and visualize topics with AI maps.</p>
                     <Link to="/tools" className="text-[10px] font-semibold text-[#1D4ED8] hover:underline inline-flex items-center gap-0.5 mt-1.5">
-                      Explore Concepts &rarr;
+                      Open AI Tutor &rarr;
                     </Link>
                   </div>
                 </div>

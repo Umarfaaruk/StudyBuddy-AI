@@ -1,31 +1,31 @@
 import { useState } from "react";
-import { Wrench, Youtube, Brain } from "lucide-react";
+import { Wrench, Youtube, Brain, Bot } from "lucide-react";
 import YoutubeSummarizer from "./YoutubeSummarizer";
 import ConceptExplorerWorkspace from "./ConceptExplorerWorkspace";
 
 type ToolTab = "youtube" | "concept";
 
-const tabs: { id: ToolTab; label: string; icon: typeof Youtube }[] = [
+const tabs: { id: ToolTab; label: string; icon: any }[] = [
+  { id: "concept", label: "AI Tutor", icon: Bot },
   { id: "youtube", label: "YouTube Summarizer", icon: Youtube },
-  { id: "concept", label: "Concept Explorer", icon: Brain },
 ];
 
 const QuickTools = () => {
-  const [activeTab, setActiveTab] = useState<ToolTab>("youtube");
+  const [activeTab, setActiveTab] = useState<ToolTab>("concept");
 
   return (
     <div className="p-6 md:p-8 max-w-7xl mx-auto space-y-8">
       <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4">
         <div className="flex items-start gap-4">
           <div className="h-12 w-12 rounded-2xl bg-primary/10 flex items-center justify-center shrink-0 ring-1 ring-primary/10">
-            <Wrench className="h-6 w-6 text-primary" />
+            <Bot className="h-6 w-6 text-primary" />
           </div>
           <div>
             <h1 className="font-display text-2xl md:text-3xl font-bold text-foreground tracking-tight">
-              Quick Tools
+              AI Tutor
             </h1>
             <p className="text-muted-foreground text-sm mt-1 max-w-lg">
-              AI study assistants — summarize videos and explore concepts in one place.
+              AI study assistants — learn with AI tutor and summarize videos in one place.
             </p>
           </div>
         </div>

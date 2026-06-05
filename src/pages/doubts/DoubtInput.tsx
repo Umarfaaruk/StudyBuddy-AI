@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from "react";
 import { Link } from "react-router-dom";
 import {
-  Send, Paperclip, X, FileText, Mic, Trash2, Wrench, Sparkles, Loader2, Copy, Check, Square,
+  Send, Paperclip, X, FileText, Mic, Trash2, Wrench, Sparkles, Loader2, Copy, Check, Square, Bot,
 } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
@@ -293,8 +293,8 @@ const DoubtInput = () => {
             to="/tools"
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-primary hover:bg-primary/5 transition-colors"
           >
-            <Wrench className="h-3.5 w-3.5" />
-            Tools
+            <Bot className="h-3.5 w-3.5" />
+            AI Tutor
           </Link>
           {messages.length > 0 && (
             <button

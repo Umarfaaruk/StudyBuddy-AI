@@ -178,16 +178,16 @@ const Dashboard = () => {
         <div className="lg:col-span-8 glass-card rounded-2xl p-6 hover-glow">
           <div className="flex items-center justify-between mb-5">
             <h3 className="text-base font-bold text-foreground flex items-center gap-2">
-              <Wrench className="h-5 w-5 text-primary" />
-              Quick Tools
+              <Bot className="h-5 w-5 text-primary" />
+              AI Tutor
             </h3>
             <Link to="/tools" className="text-xs font-semibold text-primary hover:underline flex items-center gap-1">
-              View all <ArrowRight className="h-3 w-3" />
+              Open <ArrowRight className="h-3 w-3" />
             </Link>
           </div>
           <div className="grid grid-cols-2 gap-3">
             {[
-              { icon: Bot, label: "AI Tutor", desc: "Chat with your study AI", to: "/materials/tutor", color: "from-violet-500 to-violet-600" },
+              { icon: Bot, label: "AI Document Tutor", desc: "Chat with your study AI", to: "/materials/tutor", color: "from-violet-500 to-violet-600" },
               { icon: MessageCircleQuestion, label: "Ask Doubt", desc: "Get instant answers", to: "/doubts", color: "from-blue-500 to-blue-600" },
               { icon: Sparkles, label: "Flashcards", desc: "Generate study cards", to: "/materials/flashcards", color: "from-amber-500 to-orange-500" },
               { icon: Gamepad2, label: "Quick Quiz", desc: "Test your knowledge", to: "/quiz", color: "from-emerald-500 to-emerald-600" },

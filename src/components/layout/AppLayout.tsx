@@ -20,8 +20,7 @@ import eduonxLogoOnDark from "@/assets/eduonx-logo-on-dark.png";
 const sidebarLinks = [
   { to: "/dashboard", icon: LayoutDashboard, label: "Home" },
   { to: "/lessons", icon: BookOpen, label: "Academy" },
-  { to: "/materials/tutor", icon: Bot, label: "AI Tutor" },
-  { to: "/tools", icon: Wrench, label: "Quick Tools" },
+  { to: "/tools", icon: Bot, label: "AI Tutor" },
   { to: "/progress", icon: BarChart3, label: "Progress" },
   { to: "/doubts", icon: MessageCircleQuestion, label: "Ask Doubt" },
   { to: "/leaderboard", icon: Trophy, label: "Leaderboard" },
@@ -38,7 +37,7 @@ const mobileNavLinks = [
   { to: "/lessons", icon: BookOpen, label: "Academy" },
   { to: "/doubts", icon: MessageCircleQuestion, label: "Ask" },
   { to: "/materials", icon: Upload, label: "Resources" },
-  { to: "/materials/tutor", icon: Bot, label: "AI Tutor" },
+  { to: "/tools", icon: Bot, label: "AI Tutor" },
 ];
 
 function NavLink({
