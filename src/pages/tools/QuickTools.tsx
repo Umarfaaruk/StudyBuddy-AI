@@ -4,11 +4,12 @@ import YoutubeSummarizer from "./YoutubeSummarizer";
 import ConceptExplorerWorkspace from "./ConceptExplorerWorkspace";
 import AITutor from "../materials/AITutor";
 
-type ToolTab = "youtube" | "concept";
+type ToolTab = "concept" | "youtube" | "explorer";
 
 const tabs: { id: ToolTab; label: string; icon: any }[] = [
   { id: "concept", label: "AI Tutor", icon: Bot },
   { id: "youtube", label: "YouTube Summarizer", icon: Youtube },
+  { id: "explorer", label: "Content Explorer", icon: Brain },
 ];
 
 const QuickTools = () => {
@@ -56,15 +57,19 @@ const QuickTools = () => {
       </div>
 
       <div className="rounded-2xl border border-border bg-card/50 shadow-sm overflow-hidden min-h-[560px]">
-        {activeTab === "youtube" && (
-          <div className="p-6 md:p-8 grid grid-cols-1 xl:grid-cols-2 gap-8 items-start">
-            <YoutubeSummarizer />
-            <ConceptExplorerWorkspace />
-          </div>
-        )}
         {activeTab === "concept" && (
           <div className="p-4 md:p-6">
             <AITutor hideHeader={true} />
+          </div>
+        )}
+        {activeTab === "youtube" && (
+          <div className="p-6 md:p-8">
+            <YoutubeSummarizer />
+          </div>
+        )}
+        {activeTab === "explorer" && (
+          <div className="p-6 md:p-8">
+            <ConceptExplorerWorkspace />
           </div>
         )}
       </div>

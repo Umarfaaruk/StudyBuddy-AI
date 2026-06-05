@@ -687,9 +687,9 @@ export const YoutubeSummarizer = () => {
 
   return (
     <div className="animate-in fade-in duration-300">
-      <div className="grid grid-cols-1 2xl:grid-cols-5 gap-6">
+      <div className="grid lg:grid-cols-5 gap-6">
         {/* Video column */}
-        <div className="2xl:col-span-2 space-y-4">
+        <div className="lg:col-span-2 space-y-4">
           <div className="rounded-2xl overflow-hidden bg-foreground aspect-video shadow-md ring-1 ring-border">
             <iframe
               key={playerStartSeconds}
@@ -745,7 +745,7 @@ export const YoutubeSummarizer = () => {
           </div>
 
           {/* Action buttons on mobile (hidden on lg) */}
-          <div className="flex flex-wrap gap-2 2xl:hidden">
+          <div className="flex flex-wrap gap-2 lg:hidden">
             {QUICK_ACTIONS.map((action) => {
               const Icon = action.icon;
               return (
@@ -769,7 +769,7 @@ export const YoutubeSummarizer = () => {
         </div>
 
         {/* AI panel */}
-        <div className="2xl:col-span-3 flex flex-col min-h-[520px] lg:min-h-[640px]">
+        <div className="lg:col-span-3 flex flex-col min-h-[520px] lg:min-h-[640px]">
           <div className="flex flex-col flex-1 rounded-2xl border border-border bg-card shadow-sm overflow-hidden">
             {/* Header */}
             <div className="flex items-center justify-between px-5 py-3.5 border-b border-divider bg-gradient-to-r from-primary/5 to-transparent">
