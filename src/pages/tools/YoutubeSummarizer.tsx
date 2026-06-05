@@ -458,11 +458,11 @@ export const YoutubeSummarizer = () => {
         ? formatTranscriptWithTimestamps(videoData.segments, 20000)
         : videoData.transcript.substring(0, 20000);
 
+    const hasCaps = videoData.hasCaptions && videoData.transcript.trim().length > 50;
+
     const context = hasCaps
       ? `Video: "${videoData.title}" by ${videoData.channel}\n\nTranscript:\n${transcriptContext}`
       : `Video Title: "${videoData.title}"\nChannel: ${videoData.channel}\n${videoData.transcript ? `\nDescription:\n${videoData.transcript.slice(0, 1000)}` : "\nNo description available."}`;
-
-    const hasCaps = videoData.hasCaptions && videoData.transcript.trim().length > 50;
     const systemMap: Record<Exclude<ActionId, "chat" | "summarise">, string> = {
       takeaways: hasCaps ? TAKEAWAYS_SYSTEM_WITH_TRANSCRIPT : TAKEAWAYS_SYSTEM_NO_TRANSCRIPT,
       mindmap:   hasCaps ? MINDMAP_SYSTEM_WITH_TRANSCRIPT   : MINDMAP_SYSTEM_NO_TRANSCRIPT,
