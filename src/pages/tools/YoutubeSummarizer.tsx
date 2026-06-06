@@ -396,7 +396,7 @@ export const YoutubeSummarizer = () => {
     resetSession();
 
     try {
-      const resp = await fetch(`/api/youtube-transcript?v=${id}`);
+      const resp = await fetch(`/api/youtube-transcript?v=${id}&t=${Date.now()}`);
       if (!resp.ok) throw new Error("Failed to fetch video details");
       const data = await resp.json();
 

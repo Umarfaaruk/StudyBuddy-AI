@@ -311,7 +311,7 @@ ${materialContent}`;
 
     try {
       // Step 1: Fetch transcript
-      const resp = await fetch(`/api/youtube-transcript?v=${videoId}`);
+      const resp = await fetch(`/api/youtube-transcript?v=${videoId}&t=${Date.now()}`);
       if (!resp.ok) throw new Error("Failed to fetch video data");
       const videoData = await resp.json();
       const videoTitle = videoData.title || "YouTube Video";

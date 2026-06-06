@@ -83,7 +83,7 @@ const AISolution = () => {
           const videoId = extractYouTubeId(youtubeUrl);
           if (videoId) {
             try {
-              const resp = await fetch(`/api/youtube-transcript?v=${videoId}`, {
+              const resp = await fetch(`/api/youtube-transcript?v=${videoId}&t=${Date.now()}`, {
                 signal: controller.signal
               });
               if (resp.ok) {
