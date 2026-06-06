@@ -402,7 +402,11 @@ export const YoutubeSummarizer = () => {
 
       const hasCaptions = data.hasTranscript === true && (data.segments?.length ?? 0) > 0;
       if (!hasCaptions) {
-        toast.warning("No captions found — summary will be limited to video metadata.");
+        if (data.error) {
+          toast.error(`YouTube API: ${data.error}`);
+        } else {
+          toast.warning("No captions found — summary will be limited to video metadata.");
+        }
       }
 
       const video: VideoData = {

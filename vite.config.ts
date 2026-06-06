@@ -59,8 +59,8 @@ export default defineConfig(({ mode }) => {
                 return;
               }
 
-              // Import API handler dynamically (file:// URL required on Windows ESM)
-              const { default: handler } = await import(pathToFileURL(apiPath).href);
+              // Import API handler dynamically (file:// URL required on Windows ESM, use query parameter to bypass ESM cache)
+              const { default: handler } = await import(`${pathToFileURL(apiPath).href}?t=${Date.now()}`);
 
               // Parse search query params
               const query: Record<string, string> = {};

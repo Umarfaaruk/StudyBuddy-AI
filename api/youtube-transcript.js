@@ -203,17 +203,18 @@ function assertPlayability(playabilityStatus) {
   if (status === "OK" || status === undefined) return;
 
   const reason = playabilityStatus.reason || "";
+  const reasonLower = reason.toLowerCase();
 
   if (status === "LOGIN_REQUIRED") {
-    if (reason.includes("Sign in to confirm you're not a bot")) {
+    if (reasonLower.includes("bot") || reasonLower.includes("sign in")) {
       throw new Error("[RequestBlocked] YouTube is blocking requests from your IP.");
     }
-    if (reason.includes("inappropriate for some users")) {
+    if (reasonLower.includes("inappropriate") || reasonLower.includes("age")) {
       throw new Error("[AgeRestricted] This video is age-restricted.");
     }
   }
 
-  if (status === "ERROR" && reason.includes("unavailable")) {
+  if (status === "ERROR" && reasonLower.includes("unavailable")) {
     throw new Error("[VideoUnavailable] This video is no longer available.");
   }
 
@@ -368,7 +369,7 @@ async function fetchViaInnerTube(videoId, html) {
     return { segments, metadata };
   } catch (err) {
     console.error("[InnerTube] Error:", err.message);
-    return { segments: [], metadata: null };
+    return { segments: [], metadata: null, error: err.message };
   }
 }
 
@@ -576,14 +577,19 @@ export default async function handler(req, res) {
 
     // Strategy 1: InnerTube API (ported from youtube-transcript-api Python lib)
     console.log("[YouTube] Trying InnerTube API (youtube-transcript-api approach)...");
-    const { segments: innerTubeSegments, metadata: innerTubeMetadata } =
+    const { segments: innerTubeSegments, metadata: innerTubeMetadata, error: innerTubeError } =
       await fetchViaInnerTube(videoId, html);
 
     // Strategy 2: HTML scraping fallback
     let htmlSegments = [];
+    let htmlError = null;
     if (innerTubeSegments.length === 0 && html) {
       console.log("[YouTube] InnerTube empty, trying HTML scraping...");
-      htmlSegments = await fetchViaHtmlScraping(videoId, html);
+      try {
+        htmlSegments = await fetchViaHtmlScraping(videoId, html);
+      } catch (err) {
+        htmlError = err.message;
+      }
     }
 
     // Pick best segment source
@@ -650,6 +656,7 @@ export default async function handler(req, res) {
       segmentCount: segments.length,
       transcript,
       segments,
+      error: hasTranscript ? undefined : (innerTubeError || htmlError || "No captions found for this video.")
     });
   } catch (error) {
     console.error("[YouTube Transcript] Fatal error:", error);
