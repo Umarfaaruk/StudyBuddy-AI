@@ -229,20 +229,24 @@ function assertPlayability(playabilityStatus) {
 }
 
 // ─── Strategy 1: InnerTube (ported from youtube-transcript-api) ───────────────
-async function fetchViaInnerTube(videoId, html) {
+async function fetchViaInnerTube(videoId, html, consentValue = "") {
   try {
     // Step 1: Extract InnerTube API key from the watch page HTML
     let apiKey = extractInnertubeApiKey(html || "");
 
     // If we couldn't extract from HTML, try fetching the page ourselves
     if (!apiKey && !html) {
+      const pageHeaders = {
+        "User-Agent": DEFAULT_USER_AGENT,
+        "Accept-Language": "en-US,en;q=0.9",
+      };
+      if (consentValue) {
+        pageHeaders["Cookie"] = `CONSENT=YES+${consentValue}`;
+      }
       const pageResp = await fetch(
         WATCH_URL.replace("{video_id}", videoId),
         {
-          headers: {
-            "User-Agent": DEFAULT_USER_AGENT,
-            "Accept-Language": "en-US,en;q=0.9",
-          },
+          headers: pageHeaders,
           signal: AbortSignal.timeout(12000),
         }
       );
@@ -261,12 +265,18 @@ async function fetchViaInnerTube(videoId, html) {
     const url = apiKey
       ? INNERTUBE_API_URL.replace("{api_key}", apiKey)
       : "https://www.youtube.com/youtubei/v1/player?prettyPrint=false";
+    
+    const postHeaders = {
+      "Content-Type": "application/json",
+      "User-Agent": INNERTUBE_USER_AGENT,
+    };
+    if (consentValue) {
+      postHeaders["Cookie"] = `CONSENT=YES+${consentValue}`;
+    }
+
     const resp = await fetch(url, {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "User-Agent": INNERTUBE_USER_AGENT,
-      },
+      headers: postHeaders,
       body: JSON.stringify({
         context: INNERTUBE_CONTEXT,
         videoId,
@@ -278,13 +288,8 @@ async function fetchViaInnerTube(videoId, html) {
 
     const data = await resp.json();
 
-    // Step 3: Check playability
-    try {
-      assertPlayability(data.playabilityStatus);
-    } catch (err) {
-      console.warn("[InnerTube] Playability issue:", err.message);
-      // Still try to extract metadata even if playability fails
-    }
+    // Step 3: Check playability (let the error propagate to the catch block)
+    assertPlayability(data.playabilityStatus);
 
     // Step 4: Extract metadata
     const videoDetails = data?.videoDetails || {};
@@ -327,11 +332,16 @@ async function fetchViaInnerTube(videoId, html) {
       .replace(/\\u0026/g, "&")
       .replace(/&fmt=srv3/g, "");
 
+    const captionHeaders = {
+      "User-Agent": INNERTUBE_USER_AGENT,
+      "Accept-Language": "en-US,en;q=0.9",
+    };
+    if (consentValue) {
+      captionHeaders["Cookie"] = `CONSENT=YES+${consentValue}`;
+    }
+
     const captionResp = await fetch(captionUrl, {
-      headers: {
-        "User-Agent": INNERTUBE_USER_AGENT,
-        "Accept-Language": "en-US,en;q=0.9",
-      },
+      headers: captionHeaders,
       signal: AbortSignal.timeout(12000),
     });
 
@@ -374,7 +384,7 @@ async function fetchViaInnerTube(videoId, html) {
 }
 
 // ─── Strategy 2: HTML playerResponse scraping (fallback) ──────────────────────
-async function fetchViaHtmlScraping(videoId, html) {
+async function fetchViaHtmlScraping(videoId, html, consentValue = "") {
   if (!html) return [];
 
   const playerResponse =
@@ -395,11 +405,15 @@ async function fetchViaHtmlScraping(videoId, html) {
   }
 
   try {
+    const captionHeaders = {
+      "User-Agent": INNERTUBE_USER_AGENT,
+      "Accept-Language": "en-US,en;q=0.9",
+    };
+    if (consentValue) {
+      captionHeaders["Cookie"] = `CONSENT=YES+${consentValue}`;
+    }
     const captionResp = await fetch(captionUrl, {
-      headers: {
-        "User-Agent": INNERTUBE_USER_AGENT,
-        "Accept-Language": "en-US,en;q=0.9",
-      },
+      headers: captionHeaders,
       signal: AbortSignal.timeout(12000),
     });
 
@@ -529,6 +543,7 @@ export default async function handler(req, res) {
     // Step 1: Fetch YouTube HTML page (like the Python lib does first)
     let html = "";
     let htmlMetadata = null;
+    let consentValue = "";
 
     try {
       const pageResp = await fetch(
@@ -549,8 +564,9 @@ export default async function handler(req, res) {
         // Handle consent cookie flow (ported from Python lib)
         if (needsConsentCookie(html)) {
           console.log("[YouTube] Consent page detected, attempting to bypass...");
-          const consentValue = extractConsentValue(html);
-          if (consentValue) {
+          const extractedConsent = extractConsentValue(html);
+          if (extractedConsent) {
+            consentValue = extractedConsent;
             // Re-fetch with consent cookie
             const retryResp = await fetch(
               WATCH_URL.replace("{video_id}", videoId) + "&hl=en",
@@ -578,7 +594,7 @@ export default async function handler(req, res) {
     // Strategy 1: InnerTube API (ported from youtube-transcript-api Python lib)
     console.log("[YouTube] Trying InnerTube API (youtube-transcript-api approach)...");
     const { segments: innerTubeSegments, metadata: innerTubeMetadata, error: innerTubeError } =
-      await fetchViaInnerTube(videoId, html);
+      await fetchViaInnerTube(videoId, html, consentValue);
 
     // Strategy 2: HTML scraping fallback
     let htmlSegments = [];
@@ -586,7 +602,7 @@ export default async function handler(req, res) {
     if (innerTubeSegments.length === 0 && html) {
       console.log("[YouTube] InnerTube empty, trying HTML scraping...");
       try {
-        htmlSegments = await fetchViaHtmlScraping(videoId, html);
+        htmlSegments = await fetchViaHtmlScraping(videoId, html, consentValue);
       } catch (err) {
         htmlError = err.message;
       }
