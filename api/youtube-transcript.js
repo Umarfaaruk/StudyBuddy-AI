@@ -22,6 +22,9 @@ const INNERTUBE_CONTEXT = {
 const DEFAULT_USER_AGENT =
   "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36";
 
+const INNERTUBE_USER_AGENT =
+  "com.google.android.youtube/20.10.38 (Linux; U; Android 14)";
+
 // ─── Decode helpers ───────────────────────────────────────────────────────────
 function decodeHtmlEntities(text) {
   if (!text) return "";
@@ -125,27 +128,54 @@ function extractJsonFromHtml(html, marker) {
 }
 
 // ─── Caption track selection ──────────────────────────────────────────────────
-function pickCaptionTrack(tracks, requestedLang = null) {
-  if (!Array.isArray(tracks) || tracks.length === 0) return null;
+function selectCaptionTrack(captionTracks, preferredLangs = ["en"]) {
+  if (!Array.isArray(captionTracks) || captionTracks.length === 0) return null;
 
-  const scoreTrack = (track) => {
+  const manualTracks = {};
+  const generatedTracks = {};
+
+  for (const track of captionTracks) {
     const lang = (track.languageCode || "").toLowerCase();
-    let score = 0;
-
-    if (requestedLang && lang === requestedLang.toLowerCase()) score += 100;
-
-    if (!requestedLang) {
-      if (lang === "en") score += 20;
-      else if (lang.startsWith("en")) score += 15;
+    if (track.kind === "asr") {
+      generatedTracks[lang] = track;
+    } else {
+      manualTracks[lang] = track;
     }
+  }
 
-    // Manual captions preferred over ASR
-    if (track.kind !== "asr") score += 10;
+  // 1. Try manual tracks in priority order
+  for (const lang of preferredLangs) {
+    if (manualTracks[lang]) return manualTracks[lang];
+    for (const trackLang in manualTracks) {
+      if (trackLang.startsWith(lang + "-")) {
+        return manualTracks[trackLang];
+      }
+    }
+  }
 
-    return score;
-  };
+  // 2. Try generated tracks in priority order
+  for (const lang of preferredLangs) {
+    if (generatedTracks[lang]) return generatedTracks[lang];
+    for (const trackLang in generatedTracks) {
+      if (trackLang.startsWith(lang + "-")) {
+        return generatedTracks[trackLang];
+      }
+    }
+  }
 
-  return [...tracks].sort((a, b) => scoreTrack(b) - scoreTrack(a))[0];
+  // 3. Fallback: Try any manual track
+  const manualKeys = Object.keys(manualTracks);
+  if (manualKeys.length > 0) {
+    return manualTracks[manualKeys[0]];
+  }
+
+  // 4. Fallback: Try any generated track
+  const generatedKeys = Object.keys(generatedTracks);
+  if (generatedKeys.length > 0) {
+    return generatedTracks[generatedKeys[0]];
+  }
+
+  return null;
 }
 
 // ─── Ported from youtube-transcript-api: InnerTube API key extraction ─────────
@@ -227,12 +257,14 @@ async function fetchViaInnerTube(videoId, html) {
     }
 
     // Step 2: Call the InnerTube player API
-    const url = INNERTUBE_API_URL.replace("{api_key}", apiKey);
+    const url = apiKey
+      ? INNERTUBE_API_URL.replace("{api_key}", apiKey)
+      : "https://www.youtube.com/youtubei/v1/player?prettyPrint=false";
     const resp = await fetch(url, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "User-Agent": DEFAULT_USER_AGENT,
+        "User-Agent": INNERTUBE_USER_AGENT,
       },
       body: JSON.stringify({
         context: INNERTUBE_CONTEXT,
@@ -285,16 +317,8 @@ async function fetchViaInnerTube(videoId, html) {
 
     const captionTracks = captionsJson.captionTracks;
 
-    // Try to find best caption track (priority: en, te, hi, etc.)
-    const langPriority = ["en", "te", "hi", "mr", "ta", "ka", "ml", "bn"];
-    let selectedTrack = null;
-
-    for (const lang of langPriority) {
-      selectedTrack = pickCaptionTrack(captionTracks, lang);
-      if (selectedTrack) break;
-    }
-
-    if (!selectedTrack) selectedTrack = captionTracks[0];
+    // Use selectCaptionTrack to prioritize English, Telugu, Hindi, etc.
+    const selectedTrack = selectCaptionTrack(captionTracks, ["en", "te", "hi", "mr", "ta", "ka", "ml", "bn"]);
     if (!selectedTrack?.baseUrl) return { segments: [], metadata };
 
     // Like the Python lib: strip &fmt=srv3 and fetch raw XML
@@ -304,7 +328,7 @@ async function fetchViaInnerTube(videoId, html) {
 
     const captionResp = await fetch(captionUrl, {
       headers: {
-        "User-Agent": DEFAULT_USER_AGENT,
+        "User-Agent": INNERTUBE_USER_AGENT,
         "Accept-Language": "en-US,en;q=0.9",
       },
       signal: AbortSignal.timeout(12000),
@@ -360,7 +384,7 @@ async function fetchViaHtmlScraping(videoId, html) {
     playerResponse?.captions?.playerCaptionsTracklistRenderer?.captionTracks;
   if (!Array.isArray(tracks) || tracks.length === 0) return [];
 
-  const track = pickCaptionTrack(tracks);
+  const track = selectCaptionTrack(tracks, ["en", "te", "hi", "mr", "ta", "ka", "ml", "bn"]);
   if (!track?.baseUrl) return [];
 
   let captionUrl = track.baseUrl.replace(/\\u0026/g, "&");
@@ -372,7 +396,7 @@ async function fetchViaHtmlScraping(videoId, html) {
   try {
     const captionResp = await fetch(captionUrl, {
       headers: {
-        "User-Agent": DEFAULT_USER_AGENT,
+        "User-Agent": INNERTUBE_USER_AGENT,
         "Accept-Language": "en-US,en;q=0.9",
       },
       signal: AbortSignal.timeout(12000),
