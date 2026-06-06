@@ -35,3 +35,6 @@ scratch/
 
 # Codex automation artifacts
 .codex-*
+
+# Python reference library (not part of the build)
+youtube-transcript-api-master/

@@ -1,27 +1,26 @@
 /**
- * YouTube Transcript API Proxy — v4
+ * YouTube Transcript API Proxy — v5
  * ===================================
- * Multi-strategy transcript fetcher with improved non-English support.
+ * Transcript fetcher ported from jdepoix/youtube-transcript-api (Python).
  *
  * Strategies (in order):
- *   1. YouTube InnerTube API (works for ALL languages including Telugu)
- *   2. youtube-transcript npm library (tries multiple languages)
- *   3. Direct HTML playerResponse caption parsing
- *   4. Video metadata fallback (title, channel, description)
+ *   1. InnerTube API (extracts API key from YouTube HTML, like the Python lib)
+ *   2. Direct HTML playerResponse caption parsing (fallback)
+ *   3. Video metadata fallback (title, channel, description)
  *
  * Endpoint: GET /api/youtube-transcript?v=<videoId>
  */
 
-import { YoutubeTranscript } from "youtube-transcript";
-
-// ─── InnerTube constants ──────────────────────────────────────────────────────
+// ─── Constants (mirroring youtube-transcript-api _settings.py) ────────────────
+const WATCH_URL = "https://www.youtube.com/watch?v={video_id}";
 const INNERTUBE_API_URL =
-  "https://www.youtube.com/youtubei/v1/player?prettyPrint=false";
-const INNERTUBE_CLIENT_VERSION = "20.10.38";
+  "https://www.youtube.com/youtubei/v1/player?key={api_key}";
 const INNERTUBE_CONTEXT = {
-  client: { clientName: "ANDROID", clientVersion: INNERTUBE_CLIENT_VERSION },
+  client: { clientName: "ANDROID", clientVersion: "20.10.38" },
 };
-const INNERTUBE_USER_AGENT = `com.google.android.youtube/${INNERTUBE_CLIENT_VERSION} (Linux; U; Android 14)`;
+
+const DEFAULT_USER_AGENT =
+  "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36";
 
 // ─── Decode helpers ───────────────────────────────────────────────────────────
 function decodeHtmlEntities(text) {
@@ -133,10 +132,8 @@ function pickCaptionTrack(tracks, requestedLang = null) {
     const lang = (track.languageCode || "").toLowerCase();
     let score = 0;
 
-    // If a specific language is requested, prioritize it
     if (requestedLang && lang === requestedLang.toLowerCase()) score += 100;
 
-    // English is preferred if no specific request
     if (!requestedLang) {
       if (lang === "en") score += 20;
       else if (lang.startsWith("en")) score += 15;
@@ -151,14 +148,91 @@ function pickCaptionTrack(tracks, requestedLang = null) {
   return [...tracks].sort((a, b) => scoreTrack(b) - scoreTrack(a))[0];
 }
 
-// ─── Strategy 1: InnerTube API with multi-language fallback ────────────────────
-async function fetchViaInnerTube(videoId) {
+// ─── Ported from youtube-transcript-api: InnerTube API key extraction ─────────
+function extractInnertubeApiKey(html) {
+  const match = html.match(/"INNERTUBE_API_KEY":\s*"([a-zA-Z0-9_-]+)"/);
+  if (match && match[1]) return match[1];
+  return null;
+}
+
+// ─── Ported from youtube-transcript-api: Consent cookie handling ──────────────
+function needsConsentCookie(html) {
+  return html.includes('action="https://consent.youtube.com/s"');
+}
+
+function extractConsentValue(html) {
+  const match = html.match(/name="v" value="(.*?)"/);
+  return match ? match[1] : null;
+}
+
+// ─── Ported from youtube-transcript-api: Playability status checks ────────────
+function assertPlayability(playabilityStatus) {
+  if (!playabilityStatus) return; // assume OK if missing
+
+  const status = playabilityStatus.status;
+  if (status === "OK" || status === undefined) return;
+
+  const reason = playabilityStatus.reason || "";
+
+  if (status === "LOGIN_REQUIRED") {
+    if (reason.includes("Sign in to confirm you're not a bot")) {
+      throw new Error("[RequestBlocked] YouTube is blocking requests from your IP.");
+    }
+    if (reason.includes("inappropriate for some users")) {
+      throw new Error("[AgeRestricted] This video is age-restricted.");
+    }
+  }
+
+  if (status === "ERROR" && reason.includes("unavailable")) {
+    throw new Error("[VideoUnavailable] This video is no longer available.");
+  }
+
+  if (status !== "OK") {
+    const subreasons = (
+      playabilityStatus.errorScreen?.playerErrorMessageRenderer?.subreason?.runs || []
+    ).map((r) => r.text || "").join(" ");
+    throw new Error(
+      `[VideoUnplayable] ${reason}${subreasons ? ` — ${subreasons}` : ""}`
+    );
+  }
+}
+
+// ─── Strategy 1: InnerTube (ported from youtube-transcript-api) ───────────────
+async function fetchViaInnerTube(videoId, html) {
   try {
-    const resp = await fetch(INNERTUBE_API_URL, {
+    // Step 1: Extract InnerTube API key from the watch page HTML
+    let apiKey = extractInnertubeApiKey(html || "");
+
+    // If we couldn't extract from HTML, try fetching the page ourselves
+    if (!apiKey && !html) {
+      const pageResp = await fetch(
+        WATCH_URL.replace("{video_id}", videoId),
+        {
+          headers: {
+            "User-Agent": DEFAULT_USER_AGENT,
+            "Accept-Language": "en-US,en;q=0.9",
+          },
+          signal: AbortSignal.timeout(12000),
+        }
+      );
+      if (pageResp.ok) {
+        html = await pageResp.text();
+        apiKey = extractInnertubeApiKey(html);
+      }
+    }
+
+    if (!apiKey) {
+      // Fallback: use default key (like the Python lib's INNERTUBE_CONTEXT uses)
+      apiKey = "AIzaSyAO_FJ2SlqU8Q4STEHLGCilw_Y9_11qcW8";
+    }
+
+    // Step 2: Call the InnerTube player API
+    const url = INNERTUBE_API_URL.replace("{api_key}", apiKey);
+    const resp = await fetch(url, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "User-Agent": INNERTUBE_USER_AGENT,
+        "User-Agent": DEFAULT_USER_AGENT,
       },
       body: JSON.stringify({
         context: INNERTUBE_CONTEXT,
@@ -171,11 +245,21 @@ async function fetchViaInnerTube(videoId) {
 
     const data = await resp.json();
 
-    // Extract metadata
+    // Step 3: Check playability
+    try {
+      assertPlayability(data.playabilityStatus);
+    } catch (err) {
+      console.warn("[InnerTube] Playability issue:", err.message);
+      // Still try to extract metadata even if playability fails
+    }
+
+    // Step 4: Extract metadata
     const videoDetails = data?.videoDetails || {};
     const metadata = {
       title: decodeHtmlEntities(videoDetails.title || ""),
-      channel: decodeHtmlEntities(videoDetails.author || videoDetails.channelTitle || ""),
+      channel: decodeHtmlEntities(
+        videoDetails.author || videoDetails.channelTitle || ""
+      ),
       duration: videoDetails.lengthSeconds
         ? parseInt(videoDetails.lengthSeconds, 10)
         : null,
@@ -191,15 +275,17 @@ async function fetchViaInnerTube(videoId) {
       keywords: videoDetails.keywords || [],
     };
 
-    // Extract caption tracks
-    const captionTracks =
-      data?.captions?.playerCaptionsTracklistRenderer?.captionTracks;
+    // Step 5: Extract caption tracks
+    const captionsJson =
+      data?.captions?.playerCaptionsTracklistRenderer;
 
-    if (!Array.isArray(captionTracks) || captionTracks.length === 0) {
+    if (!captionsJson || !Array.isArray(captionsJson.captionTracks) || captionsJson.captionTracks.length === 0) {
       return { segments: [], metadata };
     }
 
-    // Try to fetch captions in order: first English, then any first available
+    const captionTracks = captionsJson.captionTracks;
+
+    // Try to find best caption track (priority: en, te, hi, etc.)
     const langPriority = ["en", "te", "hi", "mr", "ta", "ka", "ml", "bn"];
     let selectedTrack = null;
 
@@ -211,14 +297,14 @@ async function fetchViaInnerTube(videoId) {
     if (!selectedTrack) selectedTrack = captionTracks[0];
     if (!selectedTrack?.baseUrl) return { segments: [], metadata };
 
-    let captionUrl = selectedTrack.baseUrl.replace(/\\u0026/g, "&");
-    if (!captionUrl.includes("fmt=")) {
-      captionUrl += captionUrl.includes("?") ? "&fmt=3" : "?fmt=3";
-    }
+    // Like the Python lib: strip &fmt=srv3 and fetch raw XML
+    let captionUrl = selectedTrack.baseUrl
+      .replace(/\\u0026/g, "&")
+      .replace(/&fmt=srv3/g, "");
 
     const captionResp = await fetch(captionUrl, {
       headers: {
-        "User-Agent": INNERTUBE_USER_AGENT,
+        "User-Agent": DEFAULT_USER_AGENT,
         "Accept-Language": "en-US,en;q=0.9",
       },
       signal: AbortSignal.timeout(12000),
@@ -231,7 +317,7 @@ async function fetchViaInnerTube(videoId) {
 
     let segments = [];
 
-    // Try JSON format first
+    // Try JSON format first (fmt=3 returns JSON)
     if (captionText.trim().startsWith("{")) {
       try {
         const json = JSON.parse(captionText);
@@ -250,7 +336,7 @@ async function fetchViaInnerTube(videoId) {
       }
     }
 
-    // Try XML format
+    // Try XML format (default format from InnerTube)
     if (segments.length === 0) {
       segments = parseTimedTextXml(captionText);
     }
@@ -262,29 +348,7 @@ async function fetchViaInnerTube(videoId) {
   }
 }
 
-// ─── Strategy 2: youtube-transcript npm library ───────────────────────────────
-async function fetchViaLibrary(videoId) {
-  // Try multiple languages in priority order
-  const langAttempts = ["en", "te", "hi", "mr", "ta", "ka", "ml", "bn", null];
-
-  for (const lang of langAttempts) {
-    try {
-      const config = lang ? { lang } : {};
-      const rawSegments = await YoutubeTranscript.fetchTranscript(videoId, config);
-      if (rawSegments?.length > 0) {
-        return rawSegments.map((s) => ({
-          start: (s.offset ?? s.start ?? 0) / 1000,
-          text: s.text,
-        }));
-      }
-    } catch {
-      // Try next language
-    }
-  }
-  return [];
-}
-
-// ─── Strategy 3: HTML playerResponse scraping ─────────────────────────────────
+// ─── Strategy 2: HTML playerResponse scraping (fallback) ──────────────────────
 async function fetchViaHtmlScraping(videoId, html) {
   if (!html) return [];
 
@@ -300,15 +364,15 @@ async function fetchViaHtmlScraping(videoId, html) {
   if (!track?.baseUrl) return [];
 
   let captionUrl = track.baseUrl.replace(/\\u0026/g, "&");
-  if (!captionUrl.includes("fmt=")) {
-    captionUrl += captionUrl.includes("?") ? "&fmt=3" : "?fmt=3";
+  // Don't add fmt=3 here — let it return default XML
+  if (captionUrl.includes("&fmt=srv3")) {
+    captionUrl = captionUrl.replace(/&fmt=srv3/g, "");
   }
 
   try {
     const captionResp = await fetch(captionUrl, {
       headers: {
-        "User-Agent":
-          "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+        "User-Agent": DEFAULT_USER_AGENT,
         "Accept-Language": "en-US,en;q=0.9",
       },
       signal: AbortSignal.timeout(12000),
@@ -425,44 +489,6 @@ function extractMetadataFromHtml(html, videoId) {
   };
 }
 
-// ─── YouTube Data API v3 helpers ──────────────────────────────────────────────
-function parseIsoDuration(durationStr) {
-  if (!durationStr) return null;
-  const regex = /P(?:([\d.]+)Y)?(?:([\d.]+)M)?(?:([\d.]+)W)?(?:([\d.]+)D)?(?:T(?:([\d.]+)H)?(?:([\d.]+)M)?(?:([\d.]+)S)?)?/;
-  const match = durationStr.match(regex);
-  if (!match) return null;
-
-  const hours = parseFloat(match[5] || 0);
-  const minutes = parseFloat(match[6] || 0);
-  const seconds = parseFloat(match[7] || 0);
-
-  return Math.round(hours * 3600 + minutes * 60 + seconds);
-}
-
-async function fetchMetadataViaApi(videoId, apiKey) {
-  if (!apiKey) return null;
-  try {
-    const url = `https://www.googleapis.com/youtube/v3/videos?part=snippet,contentDetails,statistics&id=${videoId}&key=${apiKey}`;
-    const resp = await fetch(url, { signal: AbortSignal.timeout(8000) });
-    if (!resp.ok) return null;
-    const data = await resp.json();
-    const item = data?.items?.[0];
-    if (!item) return null;
-
-    return {
-      title: item.snippet?.title || "Unknown Video",
-      channel: item.snippet?.channelTitle || "Unknown Channel",
-      duration: parseIsoDuration(item.contentDetails?.duration),
-      viewCount: item.statistics?.viewCount ? parseInt(item.statistics.viewCount, 10) : null,
-      description: item.snippet?.description || "",
-      thumbnail: item.snippet?.thumbnails?.maxresdefault?.url || item.snippet?.thumbnails?.high?.url || `https://img.youtube.com/vi/${videoId}/maxresdefault.jpg`,
-    };
-  } catch (err) {
-    console.warn("[YouTube API] Failed to fetch metadata:", err.message);
-    return null;
-  }
-}
-
 // ─── Main handler ─────────────────────────────────────────────────────────────
 export default async function handler(req, res) {
   if (req.method !== "GET") {
@@ -475,87 +501,91 @@ export default async function handler(req, res) {
   }
 
   try {
-    const apiKey = process.env.YOUTUBE_API_KEY || process.env.VITE_YOUTUBE_API_KEY;
-    let apiMetadata = null;
-    if (apiKey) {
-      console.log("[YouTube] Fetching metadata via YouTube Data API v3...");
-      apiMetadata = await fetchMetadataViaApi(videoId, apiKey);
-    }
-
-    // Fetch YouTube HTML page for metadata and HTML fallback
+    // Step 1: Fetch YouTube HTML page (like the Python lib does first)
     let html = "";
     let htmlMetadata = null;
 
     try {
       const pageResp = await fetch(
-        `https://www.youtube.com/watch?v=${videoId}&hl=en`,
+        WATCH_URL.replace("{video_id}", videoId) + "&hl=en",
         {
           headers: {
-            "User-Agent":
-              "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+            "User-Agent": DEFAULT_USER_AGENT,
             "Accept-Language": "en-US,en;q=0.9",
-            Accept: "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+            Accept:
+              "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
           },
           signal: AbortSignal.timeout(15000),
         }
       );
       if (pageResp.ok) {
         html = await pageResp.text();
+
+        // Handle consent cookie flow (ported from Python lib)
+        if (needsConsentCookie(html)) {
+          console.log("[YouTube] Consent page detected, attempting to bypass...");
+          const consentValue = extractConsentValue(html);
+          if (consentValue) {
+            // Re-fetch with consent cookie
+            const retryResp = await fetch(
+              WATCH_URL.replace("{video_id}", videoId) + "&hl=en",
+              {
+                headers: {
+                  "User-Agent": DEFAULT_USER_AGENT,
+                  "Accept-Language": "en-US,en;q=0.9",
+                  Cookie: `CONSENT=YES+${consentValue}`,
+                },
+                signal: AbortSignal.timeout(15000),
+              }
+            );
+            if (retryResp.ok) {
+              html = await retryResp.text();
+            }
+          }
+        }
+
         htmlMetadata = extractMetadataFromHtml(html, videoId);
       }
     } catch (htmlErr) {
       console.warn("[YouTube] HTML fetch failed:", htmlErr.message);
     }
 
-    // Strategy 1: InnerTube API (best for non-English)
-    console.log("[YouTube] Trying InnerTube API...");
+    // Strategy 1: InnerTube API (ported from youtube-transcript-api Python lib)
+    console.log("[YouTube] Trying InnerTube API (youtube-transcript-api approach)...");
     const { segments: innerTubeSegments, metadata: innerTubeMetadata } =
-      await fetchViaInnerTube(videoId);
+      await fetchViaInnerTube(videoId, html);
 
-    // Strategy 2: youtube-transcript library
-    let librarySegments = [];
-    if (innerTubeSegments.length === 0) {
-      console.log("[YouTube] InnerTube empty, trying library...");
-      librarySegments = await fetchViaLibrary(videoId);
-    }
-
-    // Strategy 3: HTML scraping
+    // Strategy 2: HTML scraping fallback
     let htmlSegments = [];
-    if (innerTubeSegments.length === 0 && librarySegments.length === 0 && html) {
-      console.log("[YouTube] Library empty, trying HTML scraping...");
+    if (innerTubeSegments.length === 0 && html) {
+      console.log("[YouTube] InnerTube empty, trying HTML scraping...");
       htmlSegments = await fetchViaHtmlScraping(videoId, html);
     }
 
     // Pick best segment source
     const rawSegments =
-      innerTubeSegments.length > 0
-        ? innerTubeSegments
-        : librarySegments.length > 0
-          ? librarySegments
-          : htmlSegments;
+      innerTubeSegments.length > 0 ? innerTubeSegments : htmlSegments;
 
     const segments = normalizeSegments(rawSegments);
     const hasTranscript = segments.length > 0;
 
-    // Best metadata: API > InnerTube > HTML > minimal
+    // Best metadata: InnerTube > HTML > minimal
     const meta = {
       title:
-        apiMetadata?.title ||
         (innerTubeMetadata?.title && innerTubeMetadata.title !== "Unknown Video"
           ? innerTubeMetadata.title
           : htmlMetadata?.title) || "Unknown Video",
       channel:
-        apiMetadata?.channel ||
         (innerTubeMetadata?.channel &&
         innerTubeMetadata.channel !== "Unknown Channel"
           ? innerTubeMetadata.channel
           : htmlMetadata?.channel) || "Unknown Channel",
-      duration: apiMetadata?.duration ?? innerTubeMetadata?.duration ?? htmlMetadata?.duration ?? null,
+      duration: innerTubeMetadata?.duration ?? htmlMetadata?.duration ?? null,
       viewCount:
-        apiMetadata?.viewCount ?? innerTubeMetadata?.viewCount ?? htmlMetadata?.viewCount ?? null,
+        innerTubeMetadata?.viewCount ?? htmlMetadata?.viewCount ?? null,
       description:
-        apiMetadata?.description || innerTubeMetadata?.description || htmlMetadata?.description || "",
-      thumbnail: apiMetadata?.thumbnail || `https://img.youtube.com/vi/${videoId}/maxresdefault.jpg`,
+        innerTubeMetadata?.description || htmlMetadata?.description || "",
+      thumbnail: `https://img.youtube.com/vi/${videoId}/maxresdefault.jpg`,
     };
 
     // Build transcript string
@@ -573,11 +603,9 @@ export default async function handler(req, res) {
     const transcriptStrategy =
       innerTubeSegments.length > 0
         ? "innertube"
-        : librarySegments.length > 0
-          ? "library"
-          : htmlSegments.length > 0
-            ? "html"
-            : "none";
+        : htmlSegments.length > 0
+          ? "html"
+          : "none";
 
     console.log(
       `[YouTube] Done: "${meta.title}" | channel="${meta.channel}" | segments=${segments.length} | strategy=${transcriptStrategy}`
@@ -615,7 +643,8 @@ export default async function handler(req, res) {
       segmentCount: 0,
       transcript: "",
       segments: [],
-      error: "Could not fetch transcript. Please try again or watch the video directly.",
+      error:
+        "Could not fetch transcript. Please try again or watch the video directly.",
     });
   }
 }
