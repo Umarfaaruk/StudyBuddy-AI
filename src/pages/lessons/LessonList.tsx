@@ -328,7 +328,7 @@ ${materialContent}`;
         : `No transcript available. Topic: ${videoTitle}\nChannel: ${videoChannel}\nDescription: ${videoData.transcript || "No description provided."}`;
 
       // Step 2: Chunked transcript for long videos
-      const maxChunkLen = 8000;
+      const maxChunkLen = 120000;
       const chunks: string[] = [];
       if (transcript.length <= maxChunkLen) {
         chunks.push(transcript);

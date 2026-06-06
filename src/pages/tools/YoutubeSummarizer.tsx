@@ -228,7 +228,7 @@ async function generateVideoSummary(
     throw new Error("Transcript is empty. Try a different video with captions enabled.");
   }
 
-  const chunks = splitIntoChunks(timestamped);
+  const chunks = splitIntoChunks(timestamped, 120000, 1000);
   const durationHint =
     segments.length > 0 ? formatTimestamp(segments[segments.length - 1].start) : "unknown";
 
