@@ -425,6 +425,44 @@ function extractMetadataFromHtml(html, videoId) {
   };
 }
 
+// ─── YouTube Data API v3 helpers ──────────────────────────────────────────────
+function parseIsoDuration(durationStr) {
+  if (!durationStr) return null;
+  const regex = /P(?:([\d.]+)Y)?(?:([\d.]+)M)?(?:([\d.]+)W)?(?:([\d.]+)D)?(?:T(?:([\d.]+)H)?(?:([\d.]+)M)?(?:([\d.]+)S)?)?/;
+  const match = durationStr.match(regex);
+  if (!match) return null;
+
+  const hours = parseFloat(match[5] || 0);
+  const minutes = parseFloat(match[6] || 0);
+  const seconds = parseFloat(match[7] || 0);
+
+  return Math.round(hours * 3600 + minutes * 60 + seconds);
+}
+
+async function fetchMetadataViaApi(videoId, apiKey) {
+  if (!apiKey) return null;
+  try {
+    const url = `https://www.googleapis.com/youtube/v3/videos?part=snippet,contentDetails,statistics&id=${videoId}&key=${apiKey}`;
+    const resp = await fetch(url, { signal: AbortSignal.timeout(8000) });
+    if (!resp.ok) return null;
+    const data = await resp.json();
+    const item = data?.items?.[0];
+    if (!item) return null;
+
+    return {
+      title: item.snippet?.title || "Unknown Video",
+      channel: item.snippet?.channelTitle || "Unknown Channel",
+      duration: parseIsoDuration(item.contentDetails?.duration),
+      viewCount: item.statistics?.viewCount ? parseInt(item.statistics.viewCount, 10) : null,
+      description: item.snippet?.description || "",
+      thumbnail: item.snippet?.thumbnails?.maxresdefault?.url || item.snippet?.thumbnails?.high?.url || `https://img.youtube.com/vi/${videoId}/maxresdefault.jpg`,
+    };
+  } catch (err) {
+    console.warn("[YouTube API] Failed to fetch metadata:", err.message);
+    return null;
+  }
+}
+
 // ─── Main handler ─────────────────────────────────────────────────────────────
 export default async function handler(req, res) {
   if (req.method !== "GET") {
@@ -437,6 +475,13 @@ export default async function handler(req, res) {
   }
 
   try {
+    const apiKey = process.env.YOUTUBE_API_KEY || process.env.VITE_YOUTUBE_API_KEY;
+    let apiMetadata = null;
+    if (apiKey) {
+      console.log("[YouTube] Fetching metadata via YouTube Data API v3...");
+      apiMetadata = await fetchMetadataViaApi(videoId, apiKey);
+    }
+
     // Fetch YouTube HTML page for metadata and HTML fallback
     let html = "";
     let htmlMetadata = null;
@@ -492,23 +537,25 @@ export default async function handler(req, res) {
     const segments = normalizeSegments(rawSegments);
     const hasTranscript = segments.length > 0;
 
-    // Best metadata: InnerTube > HTML > minimal
+    // Best metadata: API > InnerTube > HTML > minimal
     const meta = {
       title:
+        apiMetadata?.title ||
         (innerTubeMetadata?.title && innerTubeMetadata.title !== "Unknown Video"
           ? innerTubeMetadata.title
           : htmlMetadata?.title) || "Unknown Video",
       channel:
+        apiMetadata?.channel ||
         (innerTubeMetadata?.channel &&
         innerTubeMetadata.channel !== "Unknown Channel"
           ? innerTubeMetadata.channel
           : htmlMetadata?.channel) || "Unknown Channel",
-      duration: innerTubeMetadata?.duration ?? htmlMetadata?.duration ?? null,
+      duration: apiMetadata?.duration ?? innerTubeMetadata?.duration ?? htmlMetadata?.duration ?? null,
       viewCount:
-        innerTubeMetadata?.viewCount ?? htmlMetadata?.viewCount ?? null,
+        apiMetadata?.viewCount ?? innerTubeMetadata?.viewCount ?? htmlMetadata?.viewCount ?? null,
       description:
-        innerTubeMetadata?.description || htmlMetadata?.description || "",
-      thumbnail: `https://img.youtube.com/vi/${videoId}/maxresdefault.jpg`,
+        apiMetadata?.description || innerTubeMetadata?.description || htmlMetadata?.description || "",
+      thumbnail: apiMetadata?.thumbnail || `https://img.youtube.com/vi/${videoId}/maxresdefault.jpg`,
     };
 
     // Build transcript string
