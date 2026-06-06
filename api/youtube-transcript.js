@@ -4,6 +4,9 @@
  * Uses the Android InnerTube API client strategy which is robust,
  * does not trigger browser consent flows, and bypasses device attestation
  * checks when fetched with the Android User-Agent.
+ * 
+ * Fallback: Uses YouTube oEmbed API to get real metadata (title/author) if blocked.
+ * Rate-limit Protection: Downsamples long transcripts to fit within Groq TPM limits.
  */
 
 const ANDROID_PLAYER_URL = "https://www.youtube.com/youtubei/v1/player?prettyPrint=false";
@@ -82,6 +85,38 @@ function selectCaptionTrack(tracks, preferredLangs = ["en", "te", "hi", "mr", "t
   const generatedKeys = Object.keys(generated);
   if (generatedKeys.length > 0) return generated[generatedKeys[0]];
 
+  return null;
+}
+
+// Downsample segments to prevent Groq TPM free tier rate limits (6000 TPM)
+function downsampleSegments(segments, maxChars = 24000) {
+  if (!Array.isArray(segments) || segments.length === 0) return [];
+  const totalLength = segments.reduce((sum, s) => sum + (s.text || "").length, 0);
+  if (totalLength <= maxChars) return segments;
+
+  const step = Math.ceil(totalLength / maxChars);
+  const result = [];
+  for (let i = 0; i < segments.length; i += step) {
+    result.push(segments[i]);
+  }
+  return result;
+}
+
+// Fetch basic metadata from public oEmbed (very high rate limits, never bot-blocked)
+async function fetchOEmbedMetadata(videoId) {
+  try {
+    const url = `https://www.youtube.com/oembed?url=https://www.youtube.com/watch?v=${videoId}&format=json`;
+    const resp = await fetch(url, { signal: AbortSignal.timeout(5000) });
+    if (resp.ok) {
+      const data = await resp.json();
+      return {
+        title: data.title || "YouTube Video",
+        channel: data.author_name || "Unknown Channel",
+      };
+    }
+  } catch (err) {
+    console.warn("[YouTube API] Failed to fetch oEmbed metadata fallback:", err.message);
+  }
   return null;
 }
 
@@ -167,12 +202,15 @@ export default async function handler(req, res) {
     }
 
     // 7. Parse XML to segments
-    const segments = parseXmlCaptions(captionText);
+    let segments = parseXmlCaptions(captionText);
     if (segments.length === 0) {
       throw new Error("Parsed transcript segments are empty.");
     }
 
-    // 8. Return Success Response
+    // 8. Downsample segments if they are too long (protects against Groq TPM rate limits)
+    segments = downsampleSegments(segments, 24000);
+
+    // 9. Return Success Response
     res.setHeader("Cache-Control", "s-maxage=3600, stale-while-revalidate=7200");
     return res.status(200).json({
       videoId,
@@ -193,11 +231,14 @@ export default async function handler(req, res) {
   } catch (error) {
     console.error(`[YouTube API Error] For video ${videoId}:`, error.message);
 
+    // Try oEmbed fallback to at least get real title and channel name for metadata
+    const fallbackMeta = await fetchOEmbedMetadata(videoId);
+
     res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate, max-age=0");
     return res.status(200).json({
       videoId,
-      title: "YouTube Video",
-      channel: "Unknown Channel",
+      title: fallbackMeta?.title || "YouTube Video",
+      channel: fallbackMeta?.channel || "Unknown Channel",
       duration: null,
       thumbnail: `https://img.youtube.com/vi/${videoId}/maxresdefault.jpg`,
       viewCount: null,
