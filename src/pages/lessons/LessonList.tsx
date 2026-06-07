@@ -10,6 +10,7 @@ import { collection, query, getDocs, where, doc, writeBatch, deleteDoc } from "f
 import { db } from "@/lib/firebase";
 import { aiComplete } from "@/lib/aiService";
 import { toast } from "sonner";
+import { extractYouTubeVideoId } from "@/lib/youtube";
 
 const StudyPlanner = lazy(() => import("@/pages/materials/StudyPlanner"));
 
@@ -286,21 +287,9 @@ ${materialContent}`;
   };
 
   // ── YouTube to Course ───────────────────────────────────────────
-  const extractYouTubeId = (url: string): string | null => {
-    const patterns = [
-      /(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/)([a-zA-Z0-9_-]{11})/,
-      /^([a-zA-Z0-9_-]{11})$/,
-    ];
-    for (const p of patterns) {
-      const m = url.match(p);
-      if (m) return m[1];
-    }
-    return null;
-  };
-
   const handleGenerateYouTubeCourse = async () => {
     if (!user) return;
-    const videoId = extractYouTubeId(youtubeUrl);
+    const videoId = extractYouTubeVideoId(youtubeUrl);
     if (!videoId) {
       toast.error("Please enter a valid YouTube URL");
       return;

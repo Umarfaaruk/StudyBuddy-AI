@@ -1,5 +1,6 @@
 import { addDoc, collection, doc, getDoc, increment, serverTimestamp, setDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
+import { toDateKey } from "@/lib/utils";
 
 interface StreakData {
   current_streak: number;
@@ -14,12 +15,6 @@ interface SaveSessionResult {
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
-const toDateKey = (date: Date) => {
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, "0");
-  const day = String(date.getDate()).padStart(2, "0");
-  return `${year}-${month}-${day}`;
-};
 
 const dayDiff = (a: string, b: string) => {
   const first = new Date(`${a}T00:00:00Z`).getTime();

@@ -8,6 +8,7 @@ import { db } from "@/lib/firebase";
 import { addDoc, collection } from "firebase/firestore";
 import ReactMarkdown from "react-markdown";
 import { aiStream } from "@/lib/aiService";
+import { extractYouTubeVideoId } from "@/lib/youtube";
 
 /**
  * AISolution — Doubt Solver using OpenRouter (Gemma 3 27B)
@@ -69,18 +70,7 @@ const AISolution = () => {
       try {
         let youtubeContext = "";
         if (youtubeUrl) {
-          const extractYouTubeId = (url: string): string | null => {
-            const patterns = [
-              /(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/)([a-zA-Z0-9_-]{11})/,
-              /^([a-zA-Z0-9_-]{11})$/,
-            ];
-            for (const p of patterns) {
-              const m = url.match(p);
-              if (m) return m[1];
-            }
-            return null;
-          };
-          const videoId = extractYouTubeId(youtubeUrl);
+          const videoId = extractYouTubeVideoId(youtubeUrl);
           if (videoId) {
             try {
               const resp = await fetch(`/api/youtube-transcript?v=${videoId}&t=${Date.now()}`, {

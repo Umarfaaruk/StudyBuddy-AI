@@ -10,7 +10,7 @@ import {
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
 import { db } from "@/lib/firebase";
-import { doc, setDoc } from "firebase/firestore";
+import { doc, setDoc, getDoc } from "firebase/firestore";
 
 import eduonxLogo from "@/assets/eduonx-logo.png";
 
@@ -195,13 +195,20 @@ const OnboardingFlow = () => {
     if (!user) return;
     setIsLoading(true);
     try {
+      const docRef = doc(db, "profiles", user.uid);
+      const docSnap = await getDoc(docRef);
+      const existingData = docSnap.exists() ? docSnap.data() : null;
+
       // Save profile baseline
-      await setDoc(doc(db, "profiles", user.uid), {
+      await setDoc(docRef, {
         user_id: user.uid,
+        full_name: existingData?.full_name || user.displayName || "Unknown",
+        email: existingData?.email || user.email || "—",
         onboarding_completed: true,
         learner_type: learnerType,
         main_purpose: mainPurpose,
         current_goal: currentGoal,
+        created_at: existingData?.created_at || new Date().toISOString(),
         updated_at: new Date().toISOString(),
       }, { merge: true });
 

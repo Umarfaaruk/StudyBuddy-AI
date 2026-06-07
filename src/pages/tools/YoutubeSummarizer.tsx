@@ -52,6 +52,12 @@ const QUICK_ACTIONS: { id: ActionId; label: string; icon: React.ComponentType<{ 
   { id: "chat",      label: "Ask Anything", icon: ChevronDown },
 ];
 
+const SUMMARY_SOURCE_MAX_CHARS = 72_000;
+const SUMMARY_SINGLE_PASS_MAX_CHARS = 14_000;
+const SUMMARY_CHUNK_CHARS = 9_000;
+const SUMMARY_CHUNK_OVERLAP = 450;
+const MAX_SUMMARY_CHUNKS = 6;
+
 const SUMMARY_SYSTEM = `You are a precise transcript summarizer. Summarize ONLY from the transcript provided.
 
 STRICT RULES:
@@ -156,18 +162,43 @@ function cleanSegmentText(text: string): string {
   return text.replace(/[\u266a\u266b\u266c\u266d\u266e\u266f♪♫]/g, " ").replace(/\s+/g, " ").trim();
 }
 
+function fitLinesToCharBudget(lines: string[], maxChars: number): string {
+  const joined = lines.join("\n");
+  if (joined.length <= maxChars) return joined;
+
+  const averageLineLength = Math.max(1, Math.ceil(joined.length / lines.length));
+  const targetCount = Math.max(2, Math.floor(maxChars / (averageLineLength + 1)));
+  const indices = new Set<number>();
+
+  for (let i = 0; i < targetCount; i++) {
+    const index = Math.round((i * (lines.length - 1)) / Math.max(1, targetCount - 1));
+    indices.add(index);
+  }
+
+  const selected = [...indices].sort((a, b) => a - b).map((index) => lines[index]);
+  const fitted: string[] = [];
+  let total = 0;
+
+  for (const line of selected) {
+    const nextTotal = total + line.length + 1;
+    if (nextTotal > maxChars) break;
+    fitted.push(line);
+    total = nextTotal;
+  }
+
+  return fitted.join("\n");
+}
+
 function formatTranscriptWithTimestamps(segments: Segment[], maxChars = 120000): string {
   const lines: string[] = [];
-  let total = 0;
+
   for (const seg of segments) {
     const text = cleanSegmentText(seg.text);
     if (!text) continue;
-    const line = `[${formatTimestamp(seg.start)}] ${text}`;
-    if (total + line.length > maxChars) break;
-    lines.push(line);
-    total += line.length + 1;
+    lines.push(`[${formatTimestamp(seg.start)}] ${text}`);
   }
-  return lines.join("\n");
+
+  return fitLinesToCharBudget(lines, maxChars);
 }
 
 function splitIntoChunks(text: string, chunkSize = 8000, overlap = 400): string[] {
@@ -188,6 +219,23 @@ function splitIntoChunks(text: string, chunkSize = 8000, overlap = 400): string[
   return chunks;
 }
 
+function selectChunksForCoverage(chunks: string[], maxChunks: number): string[] {
+  if (chunks.length <= maxChunks) return chunks;
+
+  const selected: string[] = [];
+  const used = new Set<number>();
+
+  for (let i = 0; i < maxChunks; i++) {
+    const index = Math.round((i * (chunks.length - 1)) / Math.max(1, maxChunks - 1));
+    if (!used.has(index)) {
+      used.add(index);
+      selected.push(chunks[index]);
+    }
+  }
+
+  return selected;
+}
+
 function linkifyTimestamps(text: string): string {
   return text.replace(
     /(?<!\[)(\d{1,2}:\d{2}(?::\d{2})?)\s*-\s*(\d{1,2}:\d{2}(?::\d{2})?)(?!\))/g,
@@ -199,16 +247,21 @@ function linkifyTimestamps(text: string): string {
 async function runAI(
   systemPrompt: string,
   userContent: string,
-  onToken?: (t: string) => void
+  options: {
+    onToken?: (t: string) => void;
+    maxTokens?: number;
+    temperature?: number;
+  } = {}
 ): Promise<string> {
+  const { onToken, maxTokens = 4096, temperature = 0.2 } = options;
   const messages = [
     { role: "system" as const, content: systemPrompt },
     { role: "user" as const, content: userContent },
   ];
   if (onToken) {
-    return aiStream({ messages, temperature: 0.2, maxTokens: 8192 }, onToken);
+    return aiStream({ messages, temperature, maxTokens }, onToken);
   }
-  return aiComplete({ messages, temperature: 0.15, maxTokens: 8192 });
+  return aiComplete({ messages, temperature, maxTokens });
 }
 
 async function generateVideoSummary(
@@ -218,38 +271,57 @@ async function generateVideoSummary(
   hasCaptions: boolean
 ): Promise<string> {
   if (!hasCaptions) {
-    return runAI(NO_CAPTIONS_SYSTEM, `Video: "${title}"\n\nMetadata:\n${transcript}`);
+    return runAI(NO_CAPTIONS_SYSTEM, `Video: "${title}"\n\nMetadata:\n${transcript}`, {
+      maxTokens: 900,
+      temperature: 0.15,
+    });
   }
 
   const timestamped =
-    segments.length > 0 ? formatTranscriptWithTimestamps(segments) : transcript;
+    segments.length > 0
+      ? formatTranscriptWithTimestamps(segments, SUMMARY_SOURCE_MAX_CHARS)
+      : transcript.slice(0, SUMMARY_SOURCE_MAX_CHARS);
 
   if (!timestamped.trim()) {
     throw new Error("Transcript is empty. Try a different video with captions enabled.");
   }
 
-  const chunks = splitIntoChunks(timestamped, 120000, 1000);
+  const chunks = splitIntoChunks(timestamped, SUMMARY_CHUNK_CHARS, SUMMARY_CHUNK_OVERLAP);
   const durationHint =
     segments.length > 0 ? formatTimestamp(segments[segments.length - 1].start) : "unknown";
 
-  if (chunks.length === 1) {
+  if (timestamped.length <= SUMMARY_SINGLE_PASS_MAX_CHARS || chunks.length === 1) {
     return runAI(
       SUMMARY_SYSTEM,
-      `Summarize this video faithfully.\n\nVideo: "${title}" (duration ~${durationHint})\n\nTranscript:\n${timestamped}`
+      `Summarize this video faithfully.\n\nVideo: "${title}" (duration ~${durationHint})\n\nTranscript:\n${timestamped}`,
+      {
+        maxTokens: 2600,
+        temperature: 0.15,
+      }
     );
   }
 
+  const sourceChunks = selectChunksForCoverage(chunks, MAX_SUMMARY_CHUNKS);
+  const wasBudgeted = sourceChunks.length < chunks.length;
   const parts: string[] = [];
-  for (let i = 0; i < chunks.length; i++) {
+  for (let i = 0; i < sourceChunks.length; i++) {
     const part = await runAI(
-      "Extract factual bullet points with timestamps from this transcript segment. Include ONLY what is explicitly stated. Format: - **Topic (M:SS - M:SS):** description",
-      `Segment ${i + 1}/${chunks.length} of "${title}":\n\n${chunks[i]}`
+      "Extract factual bullet points with timestamps from this transcript section. Include ONLY what is explicitly stated. Format: - **Topic (M:SS - M:SS):** description",
+      `Section ${i + 1}/${sourceChunks.length} of "${title}"${wasBudgeted ? " (evenly selected from a long transcript)" : ""}:\n\n${sourceChunks[i]}`,
+      {
+        maxTokens: 900,
+        temperature: 0.1,
+      }
     );
     parts.push(part);
   }
   return runAI(
     SUMMARY_SYSTEM,
-    `Combine these segment summaries into one cohesive summary for "${title}" (~${durationHint}). Keep chronological order, all timestamps, and only facts from the segments.\n\n${parts.join("\n\n---\n\n")}`
+    `Combine these section notes into one cohesive summary for "${title}" (~${durationHint}). Keep chronological order, all timestamps, and only facts from the notes. If the transcript was budgeted, avoid claiming exhaustive coverage of details not present in the notes.\n\n${parts.join("\n\n---\n\n")}`,
+    {
+      maxTokens: 2800,
+      temperature: 0.15,
+    }
   );
 }
 

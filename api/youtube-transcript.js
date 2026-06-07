@@ -6,7 +6,8 @@
  * checks when fetched with the Android User-Agent.
  * 
  * Fallback: Uses YouTube oEmbed API to get real metadata (title/author) if blocked.
- * Rate-limit Protection: Downsamples long transcripts to fit within Groq TPM limits.
+ * The frontend is responsible for AI prompt budgeting so this route can return
+ * the actual caption sequence instead of dropping transcript lines.
  */
 
 const ANDROID_PLAYER_URL = "https://www.youtube.com/youtubei/v1/player?prettyPrint=false";
@@ -44,6 +45,91 @@ function parseXmlCaptions(xml) {
     }
   }
   return segments;
+}
+
+function parseJsonCaptions(raw) {
+  const data = JSON.parse(raw);
+  const segments = [];
+  const events = Array.isArray(data.events) ? data.events : [];
+
+  for (const event of events) {
+    if (!Array.isArray(event.segs)) continue;
+    const text = event.segs
+      .map((seg) => seg?.utf8 || "")
+      .join("")
+      .replace(/\n/g, " ")
+      .replace(/\s+/g, " ")
+      .trim();
+
+    if (!text) continue;
+
+    const startMs =
+      typeof event.tStartMs === "number"
+        ? event.tStartMs
+        : parseInt(event.tStartMs || "0", 10);
+
+    segments.push({
+      start: Number.isFinite(startMs) ? startMs / 1000 : 0,
+      text: decodeHtml(text)
+    });
+  }
+
+  return segments;
+}
+
+function parseCaptionPayload(raw) {
+  const trimmed = raw.trim();
+  if (!trimmed) return [];
+
+  if (trimmed.startsWith("{")) {
+    return parseJsonCaptions(trimmed);
+  }
+
+  return parseXmlCaptions(trimmed);
+}
+
+function buildCaptionUrl(baseUrl, format) {
+  const normalizedBase = baseUrl.replace(/\\u0026/g, "&");
+  const url = new URL(normalizedBase);
+  url.searchParams.set("fmt", format);
+  return url.toString();
+}
+
+async function fetchCaptionSegments(baseUrl) {
+  const formats = ["json3", "srv1"];
+  let lastError = null;
+
+  for (const format of formats) {
+    try {
+      const capResp = await fetch(buildCaptionUrl(baseUrl, format), {
+        headers: {
+          "User-Agent": ANDROID_USER_AGENT
+        },
+        signal: AbortSignal.timeout(10000)
+      });
+
+      if (!capResp.ok) {
+        throw new Error(`Failed to retrieve ${format} captions (HTTP ${capResp.status})`);
+      }
+
+      const captionText = await capResp.text();
+      if (!captionText.trim()) {
+        throw new Error(`YouTube returned empty ${format} captions.`);
+      }
+
+      const segments = parseCaptionPayload(captionText);
+      if (segments.length > 0) {
+        return { segments, captionFormat: format };
+      }
+
+      throw new Error(`Parsed ${format} captions are empty.`);
+    } catch (err) {
+      lastError = err;
+      console.warn(`[YouTube API] ${format} caption fetch failed:`, err.message);
+    }
+  }
+
+  throw lastError || new Error("Failed to retrieve captions.");
 }
 
 function selectCaptionTrack(tracks, preferredLangs = ["en", "te", "hi", "mr", "ta", "ka", "ml", "bn"]) {
@@ -86,20 +172,6 @@ function selectCaptionTrack(tracks, preferredLangs = ["en", "te", "hi", "mr", "t
   if (generatedKeys.length > 0) return generated[generatedKeys[0]];
 
   return null;
-}
-
-// Downsample segments to prevent Groq TPM free tier rate limits (6000 TPM)
-function downsampleSegments(segments, maxChars = 24000) {
-  if (!Array.isArray(segments) || segments.length === 0) return [];
-  const totalLength = segments.reduce((sum, s) => sum + (s.text || "").length, 0);
-  if (totalLength <= maxChars) return segments;
-
-  const step = Math.ceil(totalLength / maxChars);
-  const result = [];
-  for (let i = 0; i < segments.length; i += step) {
-    result.push(segments[i]);
-  }
-  return result;
 }
 
 // Fetch basic metadata from public oEmbed (very high rate limits, never bot-blocked)
@@ -183,34 +255,10 @@ export default async function handler(req, res) {
       throw new Error("No suitable manual or automatic caption track found.");
     }
 
-    // 6. Fetch Caption XML (must use ANDROID user-agent to bypass attestation checks)
-    const capUrl = track.baseUrl.replace(/\\u0026/g, "&").replace(/&fmt=srv3/g, "");
-    const capResp = await fetch(capUrl, {
-      headers: {
-        "User-Agent": ANDROID_USER_AGENT
-      },
-      signal: AbortSignal.timeout(10000)
-    });
+    // 6. Fetch and parse captions. Prefer JSON3, fall back to XML.
+    const { segments, captionFormat } = await fetchCaptionSegments(track.baseUrl);
 
-    if (!capResp.ok) {
-      throw new Error(`Failed to retrieve caption XML (HTTP ${capResp.status})`);
-    }
-
-    const captionText = await capResp.text();
-    if (!captionText.trim()) {
-      throw new Error("YouTube returned empty captions (Proof of Origin attestation active).");
-    }
-
-    // 7. Parse XML to segments
-    let segments = parseXmlCaptions(captionText);
-    if (segments.length === 0) {
-      throw new Error("Parsed transcript segments are empty.");
-    }
-
-    // 8. Downsample segments if they are too long (protects against Groq TPM rate limits)
-    segments = downsampleSegments(segments, 24000);
-
-    // 9. Return Success Response
+    // 7. Return Success Response
     res.setHeader("Cache-Control", "s-maxage=3600, stale-while-revalidate=7200");
     return res.status(200).json({
       videoId,
@@ -223,6 +271,9 @@ export default async function handler(req, res) {
       hasTranscript: true,
       transcriptSource: "captions",
       transcriptStrategy: "innertube_android",
+      captionFormat,
+      captionLanguage: track.languageCode || null,
+      isAutoGenerated: track.kind === "asr",
       segmentCount: segments.length,
       transcript: segments.map(s => s.text).join(" "),
       segments

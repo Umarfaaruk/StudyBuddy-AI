@@ -3,11 +3,11 @@ import { useQuery } from "@tanstack/react-query";
 import { db } from "@/lib/firebase";
 import { doc, getDoc, collection, query, where, getDocs } from "firebase/firestore";
 import { computeAvgQuizScore } from "@/lib/userStats";
+import { toDateKey } from "@/lib/utils";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 const shortDay = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
-const toDateKey = (date: Date) => date.toISOString().slice(0, 10);
 
 const startOfWeek = (date: Date) => {
   const current = new Date(date);

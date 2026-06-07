@@ -456,11 +456,14 @@ const AdminPanel = () => {
                         <div className="text-lg md:text-xl font-bold text-gray-900">{u.materialsCount}</div>
                       </div>
                     </div>
-                    {u.grade_level && (
+                    {(u.grade_level || u.joined !== "—") && (
                       <div className="mt-3 text-xs text-gray-400">
-                        <span className="font-semibold text-gray-500">Grade:</span> {u.grade_level}
+                        {u.grade_level && (
+                          <><span className="font-semibold text-gray-500">Grade:</span> {u.grade_level}</>
+                        )}
+                        {u.grade_level && u.joined !== "—" && " · "}
                         {u.joined !== "—" && (
-                          <> · <span className="font-semibold text-gray-500">Joined:</span> {new Date(u.joined).toLocaleDateString()}</>
+                          <><span className="font-semibold text-gray-500">Joined:</span> {new Date(u.joined).toLocaleDateString()}</>
                         )}
                       </div>
                     )}

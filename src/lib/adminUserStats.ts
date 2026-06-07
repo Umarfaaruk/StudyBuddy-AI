@@ -1,5 +1,6 @@
 import { collection, getDocs } from "firebase/firestore";
 import { db } from "./firebase";
+import { toDateKey } from "./utils";
 import {
   UserStatsRow,
   computeAvgQuizScore,
@@ -49,7 +50,6 @@ export async function fetchAdminPlatformStats(): Promise<PlatformStats> {
     const uid = data.user_id as string;
     if (!uid) continue;
     xpByUser[uid] = (xpByUser[uid] || 0) + (Number(data.xp_amount) || 0);
-    if (!profileByUid[uid]) profileByUid[uid] = { uid };
   }
 
   const streakDocs = await safeFetchCollection("user_streaks");
@@ -60,14 +60,12 @@ export async function fetchAdminPlatformStats(): Promise<PlatformStats> {
       current: Number(data.current_streak) || 0,
       longest: Number(data.longest_streak) || 0,
     };
-    if (!profileByUid[d.id]) profileByUid[d.id] = { uid: d.id };
   }
 
   const sessionDocs = await safeFetchCollection("study_sessions");
   const studyByUser: Record<string, { seconds: number; lastActive: string }> = {};
-  const todayKey = new Date().toISOString().slice(0, 10);
+  const todayKey = toDateKey(new Date());
   const activeTodayUsers = new Set<string>();
-  let totalStudySeconds = 0;
 
   for (const d of sessionDocs) {
     const data = d.data();
@@ -75,15 +73,13 @@ export async function fetchAdminPlatformStats(): Promise<PlatformStats> {
     if (!uid) continue;
     const duration = Number(data.duration_seconds) || 0;
     const date = parseFirestoreDate(data);
-    const endedAt = date ? date.toISOString() : "";
+    const endedAt = date ? toDateKey(date) : "";
 
     if (!studyByUser[uid]) studyByUser[uid] = { seconds: 0, lastActive: "" };
     studyByUser[uid].seconds += duration;
-    totalStudySeconds += duration;
     studyByUser[uid].lastActive = pickLatestIso(studyByUser[uid].lastActive, endedAt);
 
-    if (endedAt.slice(0, 10) === todayKey) activeTodayUsers.add(uid);
-    if (!profileByUid[uid]) profileByUid[uid] = { uid };
+    if (endedAt === todayKey) activeTodayUsers.add(uid);
   }
 
   const quizDocs = await safeFetchCollection("quiz_attempts");
@@ -98,19 +94,14 @@ export async function fetchAdminPlatformStats(): Promise<PlatformStats> {
       total_questions: Number(data.total_questions) || 0,
     });
     const date = parseFirestoreDate(data);
-    if (date && studyByUser[uid]) {
-      studyByUser[uid].lastActive = pickLatestIso(
-        studyByUser[uid].lastActive,
-        date.toISOString()
-      );
-    } else if (date) {
+    if (date) {
+      const endedAt = toDateKey(date);
       if (!studyByUser[uid]) studyByUser[uid] = { seconds: 0, lastActive: "" };
       studyByUser[uid].lastActive = pickLatestIso(
         studyByUser[uid].lastActive,
-        date.toISOString()
+        endedAt
       );
     }
-    if (!profileByUid[uid]) profileByUid[uid] = { uid };
   }
 
   const materialDocs = await safeFetchCollection("materials");
@@ -119,7 +110,6 @@ export async function fetchAdminPlatformStats(): Promise<PlatformStats> {
     const uid = d.data().user_id as string;
     if (!uid) continue;
     matsByUser[uid] = (matsByUser[uid] || 0) + 1;
-    if (!profileByUid[uid]) profileByUid[uid] = { uid };
   }
 
   const doubtDocs = await safeFetchCollection("doubt_sessions");
@@ -131,13 +121,13 @@ export async function fetchAdminPlatformStats(): Promise<PlatformStats> {
     doubtsByUser[uid] = (doubtsByUser[uid] || 0) + 1;
     const date = parseFirestoreDate(data);
     if (date) {
+      const endedAt = toDateKey(date);
       if (!studyByUser[uid]) studyByUser[uid] = { seconds: 0, lastActive: "" };
       studyByUser[uid].lastActive = pickLatestIso(
         studyByUser[uid].lastActive,
-        date.toISOString()
+        endedAt
       );
     }
-    if (!profileByUid[uid]) profileByUid[uid] = { uid };
   }
 
   const flashcardDocs = await safeFetchCollection("flashcards");
@@ -146,7 +136,6 @@ export async function fetchAdminPlatformStats(): Promise<PlatformStats> {
     const uid = d.data().user_id as string;
     if (!uid) continue;
     flashcardsByUser[uid] = (flashcardsByUser[uid] || 0) + 1;
-    if (!profileByUid[uid]) profileByUid[uid] = { uid };
   }
 
   const studyPlanDocs = await safeFetchCollection("study_plans");
@@ -155,7 +144,6 @@ export async function fetchAdminPlatformStats(): Promise<PlatformStats> {
     const uid = d.data().user_id as string;
     if (!uid) continue;
     studyPlansByUser[uid] = (studyPlansByUser[uid] || 0) + 1;
-    if (!profileByUid[uid]) profileByUid[uid] = { uid };
   }
 
   const users: UserStatsRow[] = Object.entries(profileByUid).map(([uid, p]) => {
@@ -166,7 +154,7 @@ export async function fetchAdminPlatformStats(): Promise<PlatformStats> {
       email: (p.email as string) || "—",
       avatar_url: p.avatar_url as string | undefined,
       grade_level: p.grade_level as string | undefined,
-      joined: (p.created_at as string) || "—",
+      joined: (p.created_at as string) || (p.updated_at as string) || "—",
       xp: xpByUser[uid] || 0,
       streak: streakByUser[uid]?.current || 0,
       longestStreak: streakByUser[uid]?.longest || 0,
@@ -183,19 +171,23 @@ export async function fetchAdminPlatformStats(): Promise<PlatformStats> {
 
   users.sort((a, b) => b.xp - a.xp);
 
-  const streakValues = Object.values(streakByUser);
+  // Compute metrics using only registered active users to keep data accurate
+  const activeToday = users.filter(u => activeTodayUsers.has(u.uid)).length;
+  const totalStudySeconds = users.reduce((sum, u) => sum + (studyByUser[u.uid]?.seconds || 0), 0);
+  const totalStudyHours = parseFloat((totalStudySeconds / 3600).toFixed(1));
+
   const avgStreak =
-    streakValues.length > 0
+    users.length > 0
       ? parseFloat(
-          (streakValues.reduce((a, b) => a + b.current, 0) / streakValues.length).toFixed(1)
+          (users.reduce((sum, u) => sum + u.streak, 0) / users.length).toFixed(1)
         )
       : 0;
 
   return {
     users,
     totalUsers: users.length,
-    activeToday: activeTodayUsers.size,
-    totalStudyHours: parseFloat((totalStudySeconds / 3600).toFixed(1)),
+    activeToday,
+    totalStudyHours,
     avgStreak,
   };
 }

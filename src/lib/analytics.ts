@@ -129,6 +129,7 @@
 
 import { collection, query, where, orderBy, limit, getDocs } from "firebase/firestore";
 import { db } from "./firebase";
+import { toDateKey } from "./utils";
 
 /**
  * ANALYTICS DATA MODELS
@@ -384,7 +385,7 @@ export async function getPerformanceBreakdown(userId: string) {
       avgDailyMinutes: Math.round(monthlyTotal / 30),
     },
     breakdown: dailyAnalytics.slice(-7).map((d) => ({
-      date: typeof d.date === "string" ? d.date : d.timestamp?.toDate?.()?.toISOString().split("T")[0],
+      date: typeof d.date === "string" ? d.date : (d.timestamp?.toDate ? toDateKey(d.timestamp.toDate()) : ""),
       minutes: d.study_minutes,
       sessions: d.session_count,
       xp: d.xp_earned,

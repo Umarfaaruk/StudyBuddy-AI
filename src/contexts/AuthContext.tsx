@@ -7,7 +7,8 @@ import {
   onAuthStateChanged,
   updateProfile
 } from "firebase/auth";
-import { auth } from "@/lib/firebase";
+import { auth, db } from "@/lib/firebase";
+import { doc, setDoc } from "firebase/firestore";
 
 interface AuthContextType {
   user: User | null;
@@ -37,6 +38,17 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     try {
       const userCredential = await createUserWithEmailAndPassword(auth, email, password);
       await updateProfile(userCredential.user, { displayName: fullName });
+      
+      // Create initial profile doc so it always exists and is accurate!
+      await setDoc(doc(db, "profiles", userCredential.user.uid), {
+        user_id: userCredential.user.uid,
+        full_name: fullName,
+        email: email,
+        onboarding_completed: false,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      });
+      
       return { error: null };
     } catch (error: any) {
       return { error };

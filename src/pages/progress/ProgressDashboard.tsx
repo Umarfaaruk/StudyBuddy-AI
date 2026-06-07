@@ -9,6 +9,8 @@ import { db } from "@/lib/firebase";
 import { collection, query, where, orderBy, getDocs } from "firebase/firestore";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
+import { toDateKey } from "@/lib/utils";
+
 
 const ProgressDashboard = () => {
   const { user } = useAuth();
@@ -312,22 +314,23 @@ const ProgressDashboard = () => {
             {weekBarData.map((d: any, idx: number) => {
               const pct = Math.max((d.hours / maxHours) * 100, 6);
               return (
-                <div key={d.day} className="flex-1 flex flex-col items-center gap-2 group">
-                  <span className="text-[10px] font-semibold text-gray-500 opacity-0 group-hover:opacity-100 transition-opacity">
+                <div key={d.day} className="flex-1 flex flex-col justify-end items-center h-full group">
+                  <span className="text-[10px] font-semibold text-gray-500 opacity-0 group-hover:opacity-100 transition-opacity mb-1.5">
                     {d.hours > 0 ? `${d.hours}h` : "–"}
                   </span>
-                  <div className="w-full relative" style={{ height: `${pct}%` }}>
+                  <div className="w-full h-32 flex items-end">
                     <div
-                      className="absolute inset-0 rounded-xl transition-all duration-500 group-hover:scale-105"
+                      className="w-full rounded-xl transition-all duration-500 group-hover:scale-105"
                       style={{
+                        height: `${pct}%`,
                         background: d.hours > 0
                           ? `linear-gradient(180deg, #1D4ED8 0%, #2563EB 100%)`
-                          : '#F3F4F6',
+                          : '#E5E7EB',
                         opacity: d.hours > 0 ? 0.85 + (idx * 0.02) : 1,
                       }}
                     />
                   </div>
-                  <span className="text-[11px] text-gray-400 font-medium">{d.day}</span>
+                  <span className="text-[11px] text-gray-400 font-medium mt-2">{d.day}</span>
                 </div>
               );
             })}
@@ -392,128 +395,7 @@ const ProgressDashboard = () => {
         </div>
       </div>
 
-      {/* ───── Performance Insights ───── */}
-      {subjectProgress.length > 0 && (
-        <div className="grid md:grid-cols-3 gap-4">
-          {/* Strong Areas */}
-          <div className="bg-emerald-50/50 border border-emerald-200/50 rounded-2xl p-5 space-y-3">
-            <div className="flex items-center gap-2">
-              <div className="h-8 w-8 rounded-xl bg-emerald-500/10 flex items-center justify-center">
-                <ArrowUpRight className="h-4 w-4 text-emerald-600" />
-              </div>
-              <div>
-                <h4 className="text-sm font-bold text-gray-900">Strong Areas</h4>
-                <p className="text-[10px] text-gray-400">Score ≥ 80%</p>
-              </div>
-            </div>
-            {strongTopics.length > 0 ? (
-              <div className="space-y-2">
-                {strongTopics.slice(0, 3).map((t) => (
-                  <div key={t.subject} className="flex items-center justify-between bg-white rounded-xl px-3 py-2 border border-emerald-100">
-                    <span className="text-xs font-semibold text-gray-700 truncate">{t.subject}</span>
-                    <span className="text-xs font-bold text-emerald-600">{t.avgPct}%</span>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <p className="text-xs text-gray-400">Keep practicing to identify your strengths!</p>
-            )}
-          </div>
 
-          {/* Needs Improvement */}
-          <div className="bg-red-50/50 border border-red-200/50 rounded-2xl p-5 space-y-3">
-            <div className="flex items-center gap-2">
-              <div className="h-8 w-8 rounded-xl bg-red-500/10 flex items-center justify-center">
-                <ArrowDownRight className="h-4 w-4 text-red-600" />
-              </div>
-              <div>
-                <h4 className="text-sm font-bold text-gray-900">Needs Work</h4>
-                <p className="text-[10px] text-gray-400">Score &lt; 50%</p>
-              </div>
-            </div>
-            {strugglingTopics.length > 0 ? (
-              <div className="space-y-2">
-                {strugglingTopics.slice(0, 3).map((t) => (
-                  <Link key={t.subject} to="/quiz" className="flex items-center justify-between bg-white rounded-xl px-3 py-2 border border-red-100 hover:border-red-200 transition-colors">
-                    <span className="text-xs font-semibold text-gray-700 truncate">{t.subject}</span>
-                    <span className="text-xs font-bold text-red-500">{t.avgPct}%</span>
-                  </Link>
-                ))}
-              </div>
-            ) : (
-              <p className="text-xs text-gray-400">No struggling areas detected. Great job!</p>
-            )}
-          </div>
-
-          {/* Improving */}
-          <div className="bg-blue-50/50 border border-blue-200/50 rounded-2xl p-5 space-y-3">
-            <div className="flex items-center gap-2">
-              <div className="h-8 w-8 rounded-xl bg-blue-500/10 flex items-center justify-center">
-                <TrendingUp className="h-4 w-4 text-blue-600" />
-              </div>
-              <div>
-                <h4 className="text-sm font-bold text-gray-900">Improving</h4>
-                <p className="text-[10px] text-gray-400">Positive trend</p>
-              </div>
-            </div>
-            {improvingTopics.length > 0 ? (
-              <div className="space-y-2">
-                {improvingTopics.slice(0, 3).map((t) => (
-                  <div key={t.subject} className="flex items-center justify-between bg-white rounded-xl px-3 py-2 border border-blue-100">
-                    <span className="text-xs font-semibold text-gray-700 truncate">{t.subject}</span>
-                    <span className="text-xs font-bold text-blue-600">+{Math.round(t.trend)}%</span>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <p className="text-xs text-gray-400">Take more quizzes to track improvement trends.</p>
-            )}
-          </div>
-        </div>
-      )}
-
-      {/* ───── Subject-wise Progress ───── */}
-      {subjectProgress.length > 0 && (
-        <div className="bg-white rounded-2xl p-6 shadow-[0_1px_3px_rgba(0,0,0,0.04)] border border-gray-100">
-          <div className="flex items-center justify-between mb-5">
-            <div>
-              <h3 className="font-bold text-gray-900 text-lg">Subject Progress</h3>
-              <p className="text-xs text-gray-400 mt-0.5">Detailed breakdown by subject</p>
-            </div>
-            <Link to="/lessons" className="text-xs text-[#1D4ED8] hover:underline font-medium">View Courses →</Link>
-          </div>
-          <div className="space-y-4">
-            {subjectProgress.map((s) => (
-              <div key={s.subject} className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <span className="text-sm font-semibold text-gray-700">{s.subject}</span>
-                    <span className="text-[10px] text-gray-400 bg-gray-100 px-2 py-0.5 rounded-full">
-                      {s.attempts} quiz{s.attempts !== 1 ? "zes" : ""}
-                    </span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    {s.trend > 5 && <ArrowUpRight className="h-3.5 w-3.5 text-emerald-500" />}
-                    {s.trend < -5 && <ArrowDownRight className="h-3.5 w-3.5 text-red-400" />}
-                    <span className={`text-sm font-bold ${s.avgPct >= 80 ? "text-emerald-600" : s.avgPct >= 50 ? "text-amber-500" : "text-red-500"}`}>
-                      {s.avgPct}%
-                    </span>
-                  </div>
-                </div>
-                <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
-                  <div
-                    className="h-full rounded-full transition-all duration-500"
-                    style={{
-                      width: `${s.avgPct}%`,
-                      background: s.avgPct >= 80 ? 'linear-gradient(90deg, #059669, #10b981)' : s.avgPct >= 50 ? 'linear-gradient(90deg, #f59e0b, #d97706)' : 'linear-gradient(90deg, #ef4444, #dc2626)'
-                    }}
-                  />
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
 
       {/* ───── Bottom Row — 3 cards ───── */}
       <div className="grid md:grid-cols-3 gap-6">
@@ -876,7 +758,7 @@ const ProgressDashboard = () => {
                         const data = d.data();
                         if (data.updated_at) {
                           const updatedDate = data.updated_at?.toDate?.() ?? new Date(data.updated_at);
-                          if (updatedDate.toISOString().slice(0, 10) === entry.date) {
+                          if (toDateKey(updatedDate) === entry.date) {
                             dayLessons.push(...(data.completed_lessons || []));
                           }
                         }
@@ -888,7 +770,7 @@ const ProgressDashboard = () => {
                       quizSnap.forEach(d => {
                         const data = d.data();
                         const createdAt = data.created_at?.toDate?.() ?? new Date(data.created_at);
-                        if (createdAt.toISOString().slice(0, 10) === entry.date) {
+                        if (toDateKey(createdAt) === entry.date) {
                           dayQuizzes.push({
                             topic: data.topic_title || "General",
                             score: data.score || 0,
@@ -903,7 +785,7 @@ const ProgressDashboard = () => {
                       doubtsSnap.forEach(d => {
                         const data = d.data();
                         const createdAt = data.created_at ? new Date(data.created_at) : null;
-                        if (createdAt && createdAt.toISOString().slice(0, 10) === entry.date) {
+                        if (createdAt && toDateKey(createdAt) === entry.date) {
                           dayDoubts.push(data.question_preview || "Question");
                         }
                       });
@@ -1000,75 +882,7 @@ const ProgressDashboard = () => {
         )}
       </div>
 
-      {/* ───── Subject Mastery ───── */}
-      <div className="grid lg:grid-cols-3 gap-6">
-        <div className="lg:col-span-2 bg-white rounded-2xl p-6 shadow-[0_1px_3px_rgba(0,0,0,0.04)] border border-gray-100 space-y-4">
-          <div className="flex items-center justify-between">
-            <h3 className="font-bold text-gray-900 text-lg">Subject Mastery</h3>
-            <Link to="/lessons" className="text-xs text-[#1D4ED8] hover:underline font-medium">View All →</Link>
-          </div>
-          {(weakTopics ?? []).length > 0 ? (
-            weakTopics.map((t: any) => (
-              <div key={t.topic} className="space-y-2">
-                <div className="flex justify-between text-sm">
-                  <span className="text-gray-700 font-medium">{t.topic}</span>
-                  <span className="text-[#1D4ED8] font-bold">{t.avgScore}%</span>
-                </div>
-                <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
-                  <div
-                    className="h-full rounded-full transition-all duration-500"
-                    style={{
-                      width: `${t.avgScore}%`,
-                      background: t.avgScore >= 80 ? 'linear-gradient(90deg, #1D4ED8, #2563EB)' : t.avgScore >= 50 ? 'linear-gradient(90deg, #f59e0b, #d97706)' : 'linear-gradient(90deg, #ef4444, #dc2626)'
-                    }}
-                  />
-                </div>
-              </div>
-            ))
-          ) : (
-            <p className="text-sm text-gray-400 py-4 text-center">Take quizzes to see your mastery levels.</p>
-          )}
-        </div>
 
-        {/* Study Summary side card */}
-        <div className="bg-white rounded-2xl p-6 shadow-[0_1px_3px_rgba(0,0,0,0.04)] border border-gray-100 space-y-4">
-          <h3 className="font-bold text-gray-900">Study Summary</h3>
-          <div className="space-y-3">
-            {[
-              { label: "Total Study Time", value: `${totalHours}h` },
-              { label: "This Week", value: `${weekHours}h` },
-              { label: "Sessions", value: `${sessionCount}` },
-              { label: "Avg Session", value: `${avgSessionMinutes}m` },
-              { label: "Current Streak", value: `${currentStreak} days 🔥` },
-            ].map(item => (
-              <div key={item.label} className="flex items-center justify-between text-sm">
-                <span className="text-gray-400">{item.label}</span>
-                <span className="font-semibold text-gray-900">{item.value}</span>
-              </div>
-            ))}
-          </div>
-          <Link to="/timer" className="text-xs text-[#1D4ED8] hover:underline font-medium block mt-4">Start New Session →</Link>
-        </div>
-      </div>
-
-      {/* ───── Weak Topics Alert ───── */}
-      {(weakTopics?.length ?? 0) > 0 && (
-        <div className="bg-amber-50/50 border border-amber-200/50 rounded-2xl p-5 space-y-3">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <AlertTriangle className="h-4 w-4 text-amber-500" />
-              <span className="font-bold text-sm text-gray-900">Needs Attention</span>
-            </div>
-          </div>
-          <div className="grid sm:grid-cols-2 gap-3">
-            {weakTopics?.map((t: any) => (
-              <div key={t.topic} className="bg-white border border-gray-100 rounded-xl px-4 py-3 text-sm text-gray-500">
-                <span className="font-semibold text-gray-900">{t.topic}</span> — Average Score: {t.avgScore}%
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
     </div>
   );
 };

@@ -10,6 +10,7 @@ import { collection, query, where, orderBy, limit, getDocs } from "firebase/fire
 import { db } from "@/lib/firebase";
 import { useQuery } from "@tanstack/react-query";
 import { calculateProductivityScore, getConsistencyMetrics, getPerformanceBreakdown } from "@/lib/analytics";
+import { toDateKey } from "@/lib/utils";
 
 interface StudySession {
   id: string;
@@ -100,7 +101,7 @@ const TimerPage = () => {
     // ── Daily Statistics ──
     const dailyMap: { [date: string]: DailyStats } = {};
     sessions.forEach((session) => {
-      const date = new Date(session.started_at).toISOString().split("T")[0];
+      const date = toDateKey(new Date(session.started_at));
       if (!dailyMap[date]) {
         dailyMap[date] = { date, minutes: 0, sessions: 0 };
       }
@@ -123,7 +124,7 @@ const TimerPage = () => {
     for (let i = 0; i < 7; i++) {
       const d = new Date(mondayThisWeek);
       d.setDate(d.getDate() + i);
-      const dateKey = d.toISOString().split("T")[0];
+      const dateKey = toDateKey(d);
       const existing = dailyMap[dateKey];
       currentWeekDays.push({
         date: d.toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" }),
@@ -143,14 +144,14 @@ const TimerPage = () => {
       const diff = day === 0 ? -6 : 1 - day;
       monday.setDate(monday.getDate() + diff);
       monday.setHours(0, 0, 0, 0);
-      const weekKey = monday.toISOString().split("T")[0];
+      const weekKey = toDateKey(monday);
 
       if (!weeklyMap[weekKey]) {
         weeklyMap[weekKey] = { minutes: 0, sessions: 0, days: new Set(), start: monday };
       }
       weeklyMap[weekKey].minutes += Math.round(session.duration_seconds / 60);
       weeklyMap[weekKey].sessions += 1;
-      weeklyMap[weekKey].days.add(date.toISOString().split("T")[0]);
+      weeklyMap[weekKey].days.add(toDateKey(date));
     });
 
     const sortedWeekly: WeeklyStats[] = Object.entries(weeklyMap)
@@ -179,7 +180,7 @@ const TimerPage = () => {
       }
       monthlyMap[monthKey].minutes += Math.round(session.duration_seconds / 60);
       monthlyMap[monthKey].sessions += 1;
-      monthlyMap[monthKey].days.add(date.toISOString().split("T")[0]);
+      monthlyMap[monthKey].days.add(toDateKey(date));
     });
 
     const sortedMonthly: MonthlyStats[] = Object.entries(monthlyMap)
