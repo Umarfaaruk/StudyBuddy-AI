@@ -181,6 +181,82 @@ async function fetchOEmbedMetadata(videoId) {
   return null;
 }
 
+async function tryAudioTranscription(data, metadata, videoId) {
+  try {
+    const formats = data?.streamingData?.adaptiveFormats;
+    if (!Array.isArray(formats)) return null;
+
+    const audioFormat = formats.find(f => f.mimeType?.startsWith("audio/"));
+    if (!audioFormat || !audioFormat.url) return null;
+
+    console.log(`[YouTube API] Found audio format. Fetching stream from ${audioFormat.url.slice(0, 60)}...`);
+    const audioResp = await fetch(audioFormat.url, {
+      headers: {
+        "Range": "bytes=0-9999999", // First 10MB
+        "User-Agent": ANDROID_USER_AGENT
+      },
+      signal: AbortSignal.timeout(15000)
+    });
+
+    if (!audioResp.ok) {
+      throw new Error(`Failed to fetch audio stream: ${audioResp.status}`);
+    }
+
+    const buffer = await audioResp.arrayBuffer();
+    const apiKey = process.env.GROQ_API_KEY || process.env.VITE_GROQ_API_KEY;
+    if (!apiKey) {
+      throw new Error("Missing GROQ_API_KEY");
+    }
+
+    const formData = new FormData();
+    const blob = new Blob([buffer], { type: audioFormat.mimeType.split(";")[0] });
+    formData.append("file", blob, "audio.m4a");
+    formData.append("model", "whisper-large-v3");
+    formData.append("response_format", "verbose_json");
+
+    const whisperResp = await fetch("https://api.groq.com/openai/v1/audio/transcriptions", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${apiKey}`
+      },
+      body: formData,
+      signal: AbortSignal.timeout(20000)
+    });
+
+    if (!whisperResp.ok) {
+      const errText = await whisperResp.text();
+      throw new Error(`Whisper API error (HTTP ${whisperResp.status}): ${errText}`);
+    }
+
+    const whisperData = await whisperResp.json();
+    if (whisperData.text) {
+      const segments = (whisperData.segments || []).map(s => ({
+        start: s.start || 0,
+        text: s.text || ""
+      }));
+
+      return {
+        videoId,
+        title: metadata.title,
+        channel: metadata.channel,
+        duration: metadata.duration,
+        thumbnail: `https://img.youtube.com/vi/${videoId}/maxresdefault.jpg`,
+        viewCount: metadata.viewCount,
+        description: metadata.description,
+        hasTranscript: true,
+        transcriptSource: "whisper_audio",
+        transcriptStrategy: "groq_whisper",
+        segmentCount: segments.length,
+        transcript: whisperData.text,
+        segments: segments
+      };
+    }
+  } catch (err) {
+    console.warn("[YouTube API] Whisper fallback failed:", err.message);
+  }
+  return null;
+}
+
 export default async function handler(req, res) {
   if (req.method !== "GET") {
     res.setHeader("Allow", "GET");
@@ -193,6 +269,9 @@ export default async function handler(req, res) {
   }
 
   console.log(`[YouTube API] Fetching transcript via Android client for videoId: ${videoId}`);
+
+  let data = null;
+  let metadata = null;
 
   try {
     // 1. Request InnerTube Player API
@@ -213,7 +292,7 @@ export default async function handler(req, res) {
       throw new Error(`InnerTube API request failed (HTTP ${resp.status})`);
     }
 
-    const data = await resp.json();
+    data = await resp.json();
 
     // 2. Check Playability Status
     const playStatus = data.playabilityStatus || {};
@@ -224,7 +303,7 @@ export default async function handler(req, res) {
 
     // 3. Extract Metadata
     const details = data.videoDetails || {};
-    const metadata = {
+    metadata = {
       title: decodeHtml(details.title || "YouTube Video"),
       channel: decodeHtml(details.author || "Unknown Channel"),
       duration: details.lengthSeconds ? parseInt(details.lengthSeconds, 10) : null,
@@ -235,7 +314,14 @@ export default async function handler(req, res) {
     // 4. Get Caption Tracks
     const tracks = data.captions?.playerCaptionsTracklistRenderer?.captionTracks;
     if (!Array.isArray(tracks) || tracks.length === 0) {
-      // Captions unavailable, but we have metadata — return it instead of throwing
+      // Captions unavailable, try Whisper transcription fallback first!
+      const whisperResult = await tryAudioTranscription(data, metadata, videoId);
+      if (whisperResult) {
+        res.setHeader("Cache-Control", "s-maxage=3600, stale-while-revalidate=7200");
+        return res.status(200).json(whisperResult);
+      }
+
+      // Metadata-only fallback
       res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate, max-age=0");
       return res.status(200).json({
         videoId,
@@ -288,6 +374,12 @@ export default async function handler(req, res) {
 
     const finalLength = selectedSegments.reduce((sum, s) => sum + s.text.length, 0);
     if (!selectedTrack || selectedSegments.length === 0 || finalLength < 50) {
+      // Captions empty or failed, try Whisper fallback
+      const whisperResult = await tryAudioTranscription(data, metadata, videoId);
+      if (whisperResult) {
+        res.setHeader("Cache-Control", "s-maxage=3600, stale-while-revalidate=7200");
+        return res.status(200).json(whisperResult);
+      }
       throw new Error("No valid transcripts or captions available for this video.");
     }
 
@@ -314,6 +406,15 @@ export default async function handler(req, res) {
 
   } catch (error) {
     console.error(`[YouTube API Error] For video ${videoId}:`, error.message);
+
+    // Try fallback transcription using video data if we managed to load it before error
+    if (data && metadata) {
+      const whisperResult = await tryAudioTranscription(data, metadata, videoId);
+      if (whisperResult) {
+        res.setHeader("Cache-Control", "s-maxage=3600, stale-while-revalidate=7200");
+        return res.status(200).json(whisperResult);
+      }
+    }
 
     // Try oEmbed fallback to at least get real title and channel name for metadata
     const fallbackMeta = await fetchOEmbedMetadata(videoId);

@@ -68,16 +68,52 @@ STRICT RULES:
 - If something is unclear in the transcript, omit it — do not guess.
 
 Output format (markdown):
+You must output exactly these 15 sections in order. Use these exact headings:
 
-Write a 2-4 sentence overview paragraph first (bold key names/entities).
+### 1. Executive Summary
+- A 2-4 sentence high-level overview of the video content. Bold key names, entities, and theories.
 
-Then exactly this heading on its own line:
-**Key Highlights and Topics:**
+### 2. Detailed Summary
+- A structured, comprehensive summary of the major concepts, theories, and details described in the video.
 
-Then bullet points in this exact format:
-- **Topic Title (M:SS - M:SS):** One or two sentences describing what is discussed in that segment.
+### 3. Chapter Breakdown
+- List the logical chapters/sections of the video with their time ranges in (M:SS - M:SS) and bulleted details.
 
-Use 5-10 bullet points covering the full video chronologically. Timestamps must match the transcript timestamps.`;
+### 4. Key Takeaways
+- Bullet points highlighting the 5-8 primary actionable insights or lessons learned.
+
+### 5. Mind Map
+- A structured hierarchical outline map representing the conceptual structure of the video.
+
+### 6. Quiz Questions
+- 3 comprehension questions with answers hidden behind collapsible tags (e.g., <details><summary>Reveal Answer</summary>...</details>) based only on the video contents.
+
+### 7. Interview Questions
+- 3-5 technical or theoretical interview questions based on the video context.
+
+### 8. Practical Exercises
+- 1-2 realistic tasks or practice scenarios the user can perform to apply these concepts.
+
+### 9. Action Items
+- Concrete next steps the viewer should take to implement the knowledge.
+
+### 10. Learning Roadmap
+- Prerequisite skills, core concepts, and adjacent studies to pursue next in sequence.
+
+### 11. Beginner Explanation
+- Explain the key ideas to a child or beginner (ELI5 style, using simple analogies).
+
+### 12. Advanced Insights
+- Highlight deep technical details, edge cases, or conceptual subtleties discussed in the transcript.
+
+### 13. Common Mistakes
+- Pitfalls, misconceptions, or errors to avoid when working with these concepts.
+
+### 14. Real World Applications
+- Industrial, scientific, or production use cases of the concepts discussed.
+
+### 15. Recommended Resources
+- Suggest types of literature, documentation, or tools relevant to study further based on the subject.`;
 
 const NO_CAPTIONS_SYSTEM = `You are analysing a YouTube video that has NO captions or transcript available.
 You only know the video title, channel name, and possibly a short description.

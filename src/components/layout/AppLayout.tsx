@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import {
   LayoutDashboard, BookOpen, MessageCircleQuestion, Trophy,
   BarChart3, Upload, Settings, User, Gamepad2, Bot,
-  Focus, X, Menu, Wrench, ShieldCheck,
+  Focus, X, Menu, Wrench, ShieldCheck, ChevronLeft, ChevronRight,
 } from "lucide-react";
 import { useDeepFocus } from "@/hooks/useDeepFocus";
 import GlobalTimer from "@/components/GlobalTimer";
@@ -46,20 +46,23 @@ function NavLink({
   label,
   active,
   onClick,
+  collapsed,
 }: {
   to: string;
   icon: typeof LayoutDashboard;
   label: string;
   active: boolean;
   onClick?: () => void;
+  collapsed?: boolean;
 }) {
   return (
     <Link
       to={to}
       onClick={onClick}
-      className={`relative flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-medium transition-colors duration-200 z-10 ${
+      className={`relative flex items-center ${collapsed ? "justify-center px-2 py-3" : "gap-3 px-4 py-2.5"} rounded-xl text-sm font-medium transition-all duration-200 z-10 ${
         active ? "text-foreground" : "text-white/55 hover:text-white"
       }`}
+      title={collapsed ? label : undefined}
     >
       {active && (
         <motion.div
@@ -69,7 +72,7 @@ function NavLink({
         />
       )}
       <Icon className={`h-[18px] w-[18px] flex-shrink-0 relative z-10 ${active ? "text-primary" : ""}`} />
-      <span className={`relative z-10 ${active ? "font-semibold" : ""}`}>{label}</span>
+      {!collapsed && <span className={`relative z-10 ${active ? "font-semibold" : ""}`}>{label}</span>}
     </Link>
   );
 }
@@ -79,6 +82,23 @@ const AppLayout = () => {
   const { isDeepFocus, disableDeepFocus } = useDeepFocus();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const { user } = useAuth();
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(() => {
+    try {
+      return localStorage.getItem("sidebar_collapsed") === "true";
+    } catch {
+      return false;
+    }
+  });
+
+  const toggleSidebar = () => {
+    setSidebarCollapsed((prev) => {
+      const newVal = !prev;
+      try {
+        localStorage.setItem("sidebar_collapsed", String(newVal));
+      } catch {}
+      return newVal;
+    });
+  };
 
   const { data: profile } = useQuery({
     queryKey: ["profile-sidebar", user?.uid],
@@ -123,59 +143,87 @@ const AppLayout = () => {
 
       {/* Desktop Sidebar */}
       {!isDeepFocus && (
-        <aside className="hidden md:flex w-[272px] flex-col fixed inset-y-0 left-0 z-30 border-r border-white/[0.06]">
+        <aside className={`hidden md:flex flex-col fixed inset-y-0 left-0 z-30 border-r border-white/[0.06] transition-all duration-300 ${sidebarCollapsed ? "w-[76px]" : "w-[272px]"}`}>
           <div className="absolute inset-0 bg-[#0F172A]" />
           <div className="absolute inset-0 bg-gradient-to-b from-primary/[0.08] via-transparent to-transparent pointer-events-none" />
 
           <div className="relative flex flex-col h-full">
-            <div className="px-6 pt-7 pb-5 flex-shrink-0">
-              <Link to="/dashboard" className="block mb-6">
-                <img src={eduonxLogoOnDark} alt="EduOnx" className="h-8 w-auto object-contain" />
-              </Link>
-              <div className="flex items-center gap-3 p-3 rounded-2xl bg-white/[0.06] border border-white/[0.08]">
-                <div className="h-11 w-11 rounded-xl bg-gradient-to-br from-cta to-cta/80 flex items-center justify-center text-lg font-bold text-white shadow-lg shadow-cta/20">
-                  {firstName[0]?.toUpperCase() || "S"}
-                </div>
-                <div className="min-w-0">
-                  <p className="text-white/45 text-xs">Welcome back</p>
-                  <p className="text-white font-semibold truncate">{firstName}</p>
-                </div>
-              </div>
+            <div className={`pt-7 pb-5 flex-shrink-0 flex items-center justify-between ${sidebarCollapsed ? "px-2 flex-col gap-4" : "px-6"}`}>
+              {sidebarCollapsed ? (
+                <Link to="/dashboard" className="h-8 w-8 rounded-lg bg-gradient-to-br from-primary to-primary/80 flex items-center justify-center font-bold text-white text-sm shadow-md">
+                  EO
+                </Link>
+              ) : (
+                <Link to="/dashboard" className="block">
+                  <img src={eduonxLogoOnDark} alt="EduOnx" className="h-8 w-auto object-contain" />
+                </Link>
+              )}
+              <button
+                type="button"
+                onClick={toggleSidebar}
+                className="text-white/40 hover:text-white p-1 rounded-lg hover:bg-white/[0.06] transition-all"
+                title={sidebarCollapsed ? "Expand Sidebar" : "Collapse Sidebar"}
+              >
+                {sidebarCollapsed ? <ChevronRight className="h-4 w-4" /> : <ChevronLeft className="h-4 w-4" />}
+              </button>
             </div>
 
-            <nav className="flex-1 px-4 space-y-0.5 overflow-y-auto scrollbar-thin pb-4">
+            {!sidebarCollapsed && (
+              <div className="px-6 pb-5 flex-shrink-0">
+                <div className="flex items-center gap-3 p-3 rounded-2xl bg-white/[0.06] border border-white/[0.08]">
+                  <div className="h-11 w-11 rounded-xl bg-gradient-to-br from-cta to-cta/80 flex items-center justify-center text-lg font-bold text-white shadow-lg shadow-cta/20">
+                    {firstName[0]?.toUpperCase() || "S"}
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-white/45 text-xs">Welcome back</p>
+                    <p className="text-white font-semibold truncate">{firstName}</p>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            <nav className={`flex-1 space-y-0.5 overflow-y-auto scrollbar-thin pb-4 ${sidebarCollapsed ? "px-2" : "px-4"}`}>
               {sidebarLinks.map((link) => (
-                <NavLink key={link.to} {...link} active={isActive(link.to)} />
+                <NavLink key={link.to} {...link} active={isActive(link.to)} collapsed={sidebarCollapsed} />
               ))}
 
               <div className="pt-5 pb-2">
-                <span className="px-4 text-[10px] font-bold text-white/25 uppercase tracking-[0.15em]">
-                  Library
-                </span>
+                {sidebarCollapsed ? (
+                  <div className="h-px bg-white/10 my-1 mx-2" />
+                ) : (
+                  <span className="px-4 text-[10px] font-bold text-white/25 uppercase tracking-[0.15em]">
+                    Library
+                  </span>
+                )}
               </div>
               {librarySidebarLinks.map((link) => (
-                <NavLink key={link.to} {...link} active={isActive(link.to)} />
+                <NavLink key={link.to} {...link} active={isActive(link.to)} collapsed={sidebarCollapsed} />
               ))}
 
               {isAdmin && (
                 <>
                   <div className="pt-5 pb-2">
-                    <span className="px-4 text-[10px] font-bold text-white/25 uppercase tracking-[0.15em]">
-                      Admin
-                    </span>
+                    {sidebarCollapsed ? (
+                      <div className="h-px bg-white/10 my-1 mx-2" />
+                    ) : (
+                      <span className="px-4 text-[10px] font-bold text-white/25 uppercase tracking-[0.15em]">
+                        Admin
+                      </span>
+                    )}
                   </div>
-                  <NavLink to="/admin" icon={ShieldCheck} label="Admin Panel" active={pathname === "/admin"} />
+                  <NavLink to="/admin" icon={ShieldCheck} label="Admin Panel" active={pathname === "/admin"} collapsed={sidebarCollapsed} />
                 </>
               )}
             </nav>
 
-            <div className="px-4 pb-6 flex-shrink-0">
+            <div className={`${sidebarCollapsed ? "px-2" : "px-4"} pb-6 flex-shrink-0`}>
               <Link
                 to="/profile"
-                className="flex items-center gap-3 px-4 py-3 rounded-xl text-sm text-white/50 hover:text-white hover:bg-white/[0.06] transition-all duration-200"
+                className={`flex items-center ${sidebarCollapsed ? "justify-center" : "gap-3 px-4"} py-3 rounded-xl text-sm text-white/50 hover:text-white hover:bg-white/[0.06] transition-all duration-200`}
+                title={sidebarCollapsed ? "Profile & account" : undefined}
               >
                 <User className="h-4 w-4" />
-                Profile & account
+                {!sidebarCollapsed && <span>Profile & account</span>}
               </Link>
             </div>
           </div>
@@ -296,8 +344,8 @@ const AppLayout = () => {
 
       {/* Main content */}
       <main
-        className={`flex-1 ${
-          isDeepFocus ? "pt-12 pb-0" : "pt-14 md:pt-0 md:ml-[272px] pb-20 md:pb-0"
+        className={`flex-1 transition-all duration-300 ${
+          isDeepFocus ? "pt-12 pb-0" : `pt-14 md:pt-0 ${sidebarCollapsed ? "md:ml-[76px]" : "md:ml-[272px]"} pb-20 md:pb-0`
         }`}
       >
         <div className={`${isDeepFocus ? "" : "md:p-3 md:h-screen md:flex md:flex-col"}`}>

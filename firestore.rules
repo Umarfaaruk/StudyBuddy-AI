@@ -13,10 +13,14 @@ service cloud.firestore {
     
     function isAdmin() {
       return isAuthenticated() && (
-        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.is_admin == true ||
-        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == "admin" ||
-        get(/databases/$(database)/documents/profiles/$(request.auth.uid)).data.is_admin == true ||
-        get(/databases/$(database)/documents/profiles/$(request.auth.uid)).data.role == "admin"
+        (exists(/databases/$(database)/documents/users/$(request.auth.uid)) && (
+          get(/databases/$(database)/documents/users/$(request.auth.uid)).data.is_admin == true ||
+          get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == "admin"
+        )) ||
+        (exists(/databases/$(database)/documents/profiles/$(request.auth.uid)) && (
+          get(/databases/$(database)/documents/profiles/$(request.auth.uid)).data.is_admin == true ||
+          get(/databases/$(database)/documents/profiles/$(request.auth.uid)).data.role == "admin"
+        ))
       );
     }
 
