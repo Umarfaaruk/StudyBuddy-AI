@@ -268,12 +268,14 @@ async function generateVideoSummary(
   title: string,
   segments: Segment[],
   transcript: string,
-  hasCaptions: boolean
+  hasCaptions: boolean,
+  onToken?: (token: string) => void
 ): Promise<string> {
   if (!hasCaptions) {
     return runAI(NO_CAPTIONS_SYSTEM, `Video: "${title}"\n\nMetadata:\n${transcript}`, {
       maxTokens: 900,
       temperature: 0.15,
+      onToken,
     });
   }
 
@@ -297,30 +299,35 @@ async function generateVideoSummary(
       {
         maxTokens: 2600,
         temperature: 0.15,
+        onToken,
       }
     );
   }
 
   const sourceChunks = selectChunksForCoverage(chunks, MAX_SUMMARY_CHUNKS);
   const wasBudgeted = sourceChunks.length < chunks.length;
-  const parts: string[] = [];
-  for (let i = 0; i < sourceChunks.length; i++) {
-    const part = await runAI(
+
+  // Fetch sections in parallel for dramatic efficiency boost
+  const partPromises = sourceChunks.map((chunk, i) =>
+    runAI(
       "Extract factual bullet points with timestamps from this transcript section. Include ONLY what is explicitly stated. Format: - **Topic (M:SS - M:SS):** description",
-      `Section ${i + 1}/${sourceChunks.length} of "${title}"${wasBudgeted ? " (evenly selected from a long transcript)" : ""}:\n\n${sourceChunks[i]}`,
+      `Section ${i + 1}/${sourceChunks.length} of "${title}"${wasBudgeted ? " (evenly selected from a long transcript)" : ""}:\n\n${chunk}`,
       {
         maxTokens: 900,
         temperature: 0.1,
       }
-    );
-    parts.push(part);
-  }
+    )
+  );
+
+  const parts = await Promise.all(partPromises);
+
   return runAI(
     SUMMARY_SYSTEM,
     `Combine these section notes into one cohesive summary for "${title}" (~${durationHint}). Keep chronological order, all timestamps, and only facts from the notes. If the transcript was budgeted, avoid claiming exhaustive coverage of details not present in the notes.\n\n${parts.join("\n\n---\n\n")}`,
     {
       maxTokens: 2800,
       temperature: 0.15,
+      onToken,
     }
   );
 }
@@ -492,7 +499,7 @@ export const YoutubeSummarizer = () => {
         segments: data.segments || [],
         transcript: hasCaptions
           ? data.transcript
-          : `Title: ${data.title}\nChannel: ${data.channel}\nDescription: ${data.transcript || "N/A"}`,
+          : `Title: ${data.title}\nChannel: ${data.channel}\nDescription: ${data.description || "N/A"}`,
       };
 
       setVideoData(video);
@@ -501,12 +508,17 @@ export const YoutubeSummarizer = () => {
       setActiveAction("summarise");
       setStreamingContent("");
 
-      // Stream the summary
+      // Stream the summary with live token updates
+      let accumulated = "";
       const result = await generateVideoSummary(
         video.title,
         video.segments,
         video.transcript,
-        hasCaptions
+        hasCaptions,
+        (token) => {
+          accumulated += token;
+          setStreamingContent(accumulated);
+        }
       );
 
       setActionContent((prev) => ({ ...prev, summarise: result }));
@@ -549,11 +561,16 @@ export const YoutubeSummarizer = () => {
       setIsGenerating(true);
       setStreamingContent("");
       try {
+        let accumulated = "";
         const result = await generateVideoSummary(
           videoData.title,
           videoData.segments,
           videoData.transcript,
-          videoData.hasCaptions
+          videoData.hasCaptions,
+          (token) => {
+            accumulated += token;
+            setStreamingContent(accumulated);
+          }
         );
         setActionContent((prev) => ({ ...prev, summarise: result }));
       } catch {

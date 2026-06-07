@@ -21,7 +21,8 @@ export default async function handler(req: any, res: any) {
 
   try {
     const body = typeof req.body === "string" ? JSON.parse(req.body) : req.body;
-    const { messages, temperature = 0.7, maxTokens = 4096, stream = false, model } = body ?? {};
+    const { messages, temperature = 0.7, max_tokens, maxTokens, stream = false, model } = body ?? {};
+    const tokenLimit = max_tokens || maxTokens || 4096;
 
     if (!Array.isArray(messages) || messages.length === 0) {
       return res.status(400).json({ error: "messages must be a non-empty array" });
@@ -37,7 +38,7 @@ export default async function handler(req: any, res: any) {
         model: model || "llama-3.3-70b-versatile",
         messages,
         temperature,
-        max_tokens: maxTokens,
+        max_tokens: tokenLimit,
         stream,
       }),
     });

@@ -235,7 +235,24 @@ export default async function handler(req, res) {
     // 4. Get Caption Tracks
     const tracks = data.captions?.playerCaptionsTracklistRenderer?.captionTracks;
     if (!Array.isArray(tracks) || tracks.length === 0) {
-      throw new Error("Captions are disabled or unavailable for this video.");
+      // Captions unavailable, but we have metadata — return it instead of throwing
+      res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate, max-age=0");
+      return res.status(200).json({
+        videoId,
+        title: metadata.title,
+        channel: metadata.channel,
+        duration: metadata.duration,
+        thumbnail: `https://img.youtube.com/vi/${videoId}/maxresdefault.jpg`,
+        viewCount: metadata.viewCount,
+        description: metadata.description,
+        hasTranscript: false,
+        transcriptSource: "none",
+        transcriptStrategy: "innertube_android",
+        segmentCount: 0,
+        transcript: "",
+        segments: [],
+        error: "Captions are disabled or unavailable for this video."
+      });
     }
 
     // 5. Sort tracks by language preference and kind (manual vs ASR)
