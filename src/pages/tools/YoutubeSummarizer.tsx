@@ -343,19 +343,23 @@ async function generateVideoSummary(
   const sourceChunks = selectChunksForCoverage(chunks, MAX_SUMMARY_CHUNKS);
   const wasBudgeted = sourceChunks.length < chunks.length;
 
-  // Fetch sections in parallel for dramatic efficiency boost
-  const partPromises = sourceChunks.map((chunk, i) =>
-    runAI(
+  // Fetch sections sequentially to avoid rate limit (TPM) issues on the free Groq tier
+  const parts: string[] = [];
+  for (let i = 0; i < sourceChunks.length; i++) {
+    const chunk = sourceChunks[i];
+    const part = await runAI(
       "Extract factual bullet points with timestamps from this transcript section. Include ONLY what is explicitly stated. Format: - **Topic (M:SS - M:SS):** description",
       `Section ${i + 1}/${sourceChunks.length} of "${title}"${wasBudgeted ? " (evenly selected from a long transcript)" : ""}:\n\n${chunk}`,
       {
         maxTokens: 900,
         temperature: 0.1,
       }
-    )
-  );
-
-  const parts = await Promise.all(partPromises);
+    );
+    parts.push(part);
+    if (i < sourceChunks.length - 1) {
+      await new Promise((resolve) => setTimeout(resolve, 500));
+    }
+  }
 
   return runAI(
     SUMMARY_SYSTEM,
@@ -631,7 +635,7 @@ export const YoutubeSummarizer = () => {
             { role: "user", content: context },
           ],
           temperature: 0.2,
-          maxTokens: 4096,
+          maxTokens: 2048,
         },
         (token) => {
           accumulated += token;
@@ -686,7 +690,7 @@ export const YoutubeSummarizer = () => {
             { role: "user", content: question },
           ],
           temperature: 0.2,
-          maxTokens: 4096,
+          maxTokens: 2048,
         },
         (token) => {
           accumulated += token;

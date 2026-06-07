@@ -1,17 +1,22 @@
-import { useState } from "react";
+import { useState, useEffect, useMemo } from "react";
 import {
   ShieldCheck, Users, Clock, Flame, BookOpen, Search, ChevronDown, ChevronUp,
   Trophy, Upload, BarChart3, Zap, Loader2, MessageSquare, MessageCircleQuestion,
   Star, AlertTriangle, Target, Trash2
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { db } from "@/lib/firebase";
-import { collection, getDocs, deleteDoc, doc, query, where } from "firebase/firestore";
+import { collection, deleteDoc, doc, query, where, onSnapshot, getDocs } from "firebase/firestore";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
-import { fetchAdminPlatformStats } from "@/lib/adminUserStats";
+import {
+  computeAvgQuizScore,
+  parseFirestoreDate,
+  formatLastActive,
+  pickLatestIso
+} from "@/lib/userStats";
 import type { UserStatsRow } from "@/lib/userStats";
+import { toDateKey } from "@/lib/utils";
 
 interface FeedbackItem {
   id: string;
@@ -37,62 +42,240 @@ async function safeFetchCollection(collectionName: string) {
 
 const AdminPanel = () => {
   const { user } = useAuth();
-  const queryClient = useQueryClient();
   const [searchQuery, setSearchQuery] = useState("");
   const [expandedUserId, setExpandedUserId] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<"users" | "feedback" | "analytics">("users");
   const [confirmDeleteUserId, setConfirmDeleteUserId] = useState<string | null>(null);
   const [deletingUserId, setDeletingUserId] = useState<string | null>(null);
 
-  const { data: platformStats, isLoading, error: statsError } = useQuery({
-    queryKey: ["admin-platform-stats"],
-    queryFn: fetchAdminPlatformStats,
-    enabled: !!user,
-    retry: 1,
-    staleTime: 1000 * 60 * 2,
-  });
+  // Real-time collections state
+  const [profiles, setProfiles] = useState<any[]>([]);
+  const [usersData, setUsersData] = useState<any[]>([]);
+  const [xpLogs, setXpLogs] = useState<any[]>([]);
+  const [userStreaks, setUserStreaks] = useState<any[]>([]);
+  const [studySessions, setStudySessions] = useState<any[]>([]);
+  const [quizAttempts, setQuizAttempts] = useState<any[]>([]);
+  const [materials, setMaterials] = useState<any[]>([]);
+  const [doubtSessions, setDoubtSessions] = useState<any[]>([]);
+  const [flashcards, setFlashcards] = useState<any[]>([]);
+  const [studyPlans, setStudyPlans] = useState<any[]>([]);
+  const [feedback, setFeedback] = useState<any[]>([]);
 
-  // Fetch all feedback
-  const { data: feedbackList = [], isLoading: feedbackLoading } = useQuery({
-    queryKey: ["admin-feedback"],
-    queryFn: async () => {
-      const feedbackDocs = await safeFetchCollection("feedback");
-      const items: FeedbackItem[] = feedbackDocs.map(d => {
-        const data = d.data();
-        const createdAt = data.createdAt?.toDate?.()
-          ? data.createdAt.toDate().toISOString()
-          : data.createdAt || "";
-        return {
-          id: d.id,
-          userId: data.userId || "anonymous",
-          userName: data.name || "Anonymous",
-          userEmail: data.email || "—",
-          rating: data.rating || 0,
-          comment: data.comment || "",
-          createdAt,
-          source: data.source || "manual",
-        };
+  // Track initially loaded listeners
+  const [loadedListeners, setLoadedListeners] = useState<Record<string, boolean>>({});
+
+  useEffect(() => {
+    if (!user) return;
+
+    const collectionsToListen = [
+      { name: "profiles", setter: setProfiles },
+      { name: "users", setter: setUsersData },
+      { name: "xp_logs", setter: setXpLogs },
+      { name: "user_streaks", setter: setUserStreaks },
+      { name: "study_sessions", setter: setStudySessions },
+      { name: "quiz_attempts", setter: setQuizAttempts },
+      { name: "materials", setter: setMaterials },
+      { name: "doubt_sessions", setter: setDoubtSessions },
+      { name: "flashcards", setter: setFlashcards },
+      { name: "study_plans", setter: setStudyPlans },
+      { name: "feedback", setter: setFeedback },
+    ];
+
+    const unsubs = collectionsToListen.map(({ name, setter }) => {
+      return onSnapshot(
+        collection(db, name),
+        (snapshot) => {
+          setter(snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() })));
+          setLoadedListeners((prev) => ({ ...prev, [name]: true }));
+        },
+        (err) => {
+          console.warn(`[Admin Realtime] Error listening to "${name}":`, err.message);
+          setLoadedListeners((prev) => ({ ...prev, [name]: true }));
+        }
+      );
+    });
+
+    return () => {
+      unsubs.forEach((unsub) => unsub());
+    };
+  }, [user]);
+
+  const isLoading = useMemo(() => {
+    const totalRequired = 11;
+    return Object.keys(loadedListeners).length < totalRequired;
+  }, [loadedListeners]);
+
+  const platformStats = useMemo(() => {
+    const profileByUid: Record<string, any> = {};
+    for (const p of profiles) {
+      profileByUid[p.id] = { ...p, uid: p.id };
+    }
+    for (const u of usersData) {
+      if (!profileByUid[u.id]) {
+        profileByUid[u.id] = { ...u, uid: u.id };
+      }
+    }
+
+    const xpByUser: Record<string, number> = {};
+    for (const d of xpLogs) {
+      const uid = d.user_id;
+      if (!uid) continue;
+      xpByUser[uid] = (xpByUser[uid] || 0) + (Number(d.xp_amount) || 0);
+    }
+
+    const streakByUser: Record<string, { current: number; longest: number }> = {};
+    for (const d of userStreaks) {
+      streakByUser[d.id] = {
+        current: Number(d.current_streak) || 0,
+        longest: Number(d.longest_streak) || 0,
+      };
+    }
+
+    const studyByUser: Record<string, { seconds: number; lastActive: string }> = {};
+    const todayKey = toDateKey(new Date());
+    const activeTodayUsers = new Set<string>();
+
+    for (const d of studySessions) {
+      const uid = d.user_id;
+      if (!uid) continue;
+      const duration = Number(d.duration_seconds) || 0;
+      const date = parseFirestoreDate(d);
+      const endedAt = date ? toDateKey(date) : "";
+
+      if (!studyByUser[uid]) studyByUser[uid] = { seconds: 0, lastActive: "" };
+      studyByUser[uid].seconds += duration;
+      studyByUser[uid].lastActive = pickLatestIso(studyByUser[uid].lastActive, endedAt);
+
+      if (endedAt === todayKey) activeTodayUsers.add(uid);
+    }
+
+    const quizByUser: Record<string, { score?: number; total_questions?: number }[]> = {};
+    for (const d of quizAttempts) {
+      const uid = d.user_id;
+      if (!uid) continue;
+      if (!quizByUser[uid]) quizByUser[uid] = [];
+      quizByUser[uid].push({
+        score: Number(d.score) || 0,
+        total_questions: Number(d.total_questions) || 0,
       });
-      items.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-      return items;
-    },
-    enabled: !!user,
-    retry: 1,
-  });
+      const date = parseFirestoreDate(d);
+      if (date) {
+        const endedAt = toDateKey(date);
+        if (!studyByUser[uid]) studyByUser[uid] = { seconds: 0, lastActive: "" };
+        studyByUser[uid].lastActive = pickLatestIso(
+          studyByUser[uid].lastActive,
+          endedAt
+        );
+      }
+    }
 
-  /* ── Delete user data across all collections + auth account ── */
+    const matsByUser: Record<string, number> = {};
+    for (const d of materials) {
+      const uid = d.user_id;
+      if (!uid) continue;
+      matsByUser[uid] = (matsByUser[uid] || 0) + 1;
+    }
+
+    const doubtsByUser: Record<string, number> = {};
+    for (const d of doubtSessions) {
+      const uid = d.user_id;
+      if (!uid) continue;
+      doubtsByUser[uid] = (doubtsByUser[uid] || 0) + 1;
+      const date = parseFirestoreDate(d);
+      if (date) {
+        const endedAt = toDateKey(date);
+        if (!studyByUser[uid]) studyByUser[uid] = { seconds: 0, lastActive: "" };
+        studyByUser[uid].lastActive = pickLatestIso(
+          studyByUser[uid].lastActive,
+          endedAt
+        );
+      }
+    }
+
+    const flashcardsByUser: Record<string, number> = {};
+    for (const d of flashcards) {
+      const uid = d.user_id;
+      if (!uid) continue;
+      flashcardsByUser[uid] = (flashcardsByUser[uid] || 0) + 1;
+    }
+
+    const studyPlansByUser: Record<string, number> = {};
+    for (const d of studyPlans) {
+      const uid = d.user_id;
+      if (!uid) continue;
+      studyPlansByUser[uid] = (studyPlansByUser[uid] || 0) + 1;
+    }
+
+    const users: UserStatsRow[] = Object.entries(profileByUid).map(([uid, p]) => {
+      const attempts = quizByUser[uid] || [];
+      return {
+        uid,
+        name: (p.full_name as string) || (p.displayName as string) || "Unknown",
+        email: (p.email as string) || "—",
+        avatar_url: p.avatar_url as string | undefined,
+        grade_level: p.grade_level as string | undefined,
+        joined: (p.created_at as string) || (p.updated_at as string) || "—",
+        xp: xpByUser[uid] || 0,
+        streak: streakByUser[uid]?.current || 0,
+        longestStreak: streakByUser[uid]?.longest || 0,
+        studyHours: parseFloat(((studyByUser[uid]?.seconds || 0) / 3600).toFixed(1)),
+        quizCount: attempts.length,
+        avgQuizScore: computeAvgQuizScore(attempts),
+        materialsCount: matsByUser[uid] || 0,
+        doubtCount: doubtsByUser[uid] || 0,
+        flashcardCount: flashcardsByUser[uid] || 0,
+        studyPlanCount: studyPlansByUser[uid] || 0,
+        lastActive: formatLastActive(studyByUser[uid]?.lastActive),
+      };
+    });
+
+    users.sort((a, b) => b.xp - a.xp);
+
+    const activeToday = users.filter((u) => activeTodayUsers.has(u.uid)).length;
+    const totalStudySeconds = users.reduce((sum, u) => sum + (studyByUser[u.uid]?.seconds || 0), 0);
+    const totalStudyHours = parseFloat((totalStudySeconds / 3600).toFixed(1));
+
+    const avgStreak =
+      users.length > 0
+        ? parseFloat(
+            (users.reduce((sum, u) => sum + u.streak, 0) / users.length).toFixed(1)
+          )
+        : 0;
+
+    return {
+      users,
+      totalUsers: users.length,
+      activeToday,
+      totalStudyHours,
+      avgStreak,
+    };
+  }, [profiles, usersData, xpLogs, userStreaks, studySessions, quizAttempts, materials, doubtSessions, flashcards, studyPlans]);
+
+  const feedbackList = useMemo(() => {
+    const items: FeedbackItem[] = feedback.map((d) => {
+      const createdAt = d.createdAt?.toDate?.()
+        ? d.createdAt.toDate().toISOString()
+        : d.createdAt || "";
+      return {
+        id: d.id,
+        userId: d.userId || "anonymous",
+        userName: d.name || "Anonymous",
+        userEmail: d.email || "—",
+        rating: d.rating || 0,
+        comment: d.comment || "",
+        createdAt,
+        source: d.source || "manual",
+      };
+    });
+    items.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+    return items;
+  }, [feedback]);
+
+  const feedbackLoading = isLoading;
+  const statsError = null;
+
   const handleDeleteUser = async (uid: string) => {
     setDeletingUserId(uid);
-
-    // Optimistic: remove user from the list immediately
-    queryClient.setQueryData(
-      ["admin-platform-stats"],
-      (old: any) => old ? {
-        ...old,
-        users: old.users.filter((u: UserStatsRow) => u.uid !== uid),
-        totalUsers: Math.max(0, (old.totalUsers || 0) - 1),
-      } : old
-    );
 
     try {
       const collectionsToClean = [
@@ -169,15 +352,9 @@ const AdminPanel = () => {
       }
 
       toast.success(`User account & data deleted (${totalDeleted} records removed)`);
-
-      // Refresh admin data
-      queryClient.invalidateQueries({ queryKey: ["admin-platform-stats"] });
-      queryClient.invalidateQueries({ queryKey: ["admin-feedback"] });
     } catch (err: any) {
       console.error("[Admin] Delete user error:", err);
       toast.error("Failed to delete user data. Check console for details.");
-      // Revert optimistic update on failure
-      queryClient.invalidateQueries({ queryKey: ["admin-platform-stats"] });
     } finally {
       setDeletingUserId(null);
       setConfirmDeleteUserId(null);
