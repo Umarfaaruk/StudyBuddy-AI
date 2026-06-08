@@ -29,17 +29,6 @@ interface FeedbackItem {
   source: string;
 }
 
-/* Safe helper to fetch a collection — returns empty array on permission error */
-async function safeFetchCollection(collectionName: string) {
-  try {
-    const snap = await getDocs(collection(db, collectionName));
-    return snap.docs;
-  } catch (err: any) {
-    console.warn(`[Admin] Could not fetch "${collectionName}":`, err?.message || err);
-    return [];
-  }
-}
-
 const AdminPanel = () => {
   const { user } = useAuth();
   const [searchQuery, setSearchQuery] = useState("");
@@ -61,24 +50,24 @@ const AdminPanel = () => {
   const [studyPlans, setStudyPlans] = useState<any[]>([]);
   const [feedback, setFeedback] = useState<any[]>([]);
 
-  // Track initially loaded listeners
+  // Track which listeners have reported at least once
   const [loadedListeners, setLoadedListeners] = useState<Record<string, boolean>>({});
 
   useEffect(() => {
     if (!user) return;
 
     const collectionsToListen = [
-      { name: "profiles", setter: setProfiles },
-      { name: "users", setter: setUsersData },
-      { name: "xp_logs", setter: setXpLogs },
-      { name: "user_streaks", setter: setUserStreaks },
+      { name: "profiles",       setter: setProfiles },
+      { name: "users",          setter: setUsersData },
+      { name: "xp_logs",        setter: setXpLogs },
+      { name: "user_streaks",   setter: setUserStreaks },
       { name: "study_sessions", setter: setStudySessions },
-      { name: "quiz_attempts", setter: setQuizAttempts },
-      { name: "materials", setter: setMaterials },
+      { name: "quiz_attempts",  setter: setQuizAttempts },
+      { name: "materials",      setter: setMaterials },
       { name: "doubt_sessions", setter: setDoubtSessions },
-      { name: "flashcards", setter: setFlashcards },
-      { name: "study_plans", setter: setStudyPlans },
-      { name: "feedback", setter: setFeedback },
+      { name: "flashcards",     setter: setFlashcards },
+      { name: "study_plans",    setter: setStudyPlans },
+      { name: "feedback",       setter: setFeedback },
     ];
 
     const unsubs = collectionsToListen.map(({ name, setter }) => {
@@ -90,6 +79,7 @@ const AdminPanel = () => {
         },
         (err) => {
           console.warn(`[Admin Realtime] Error listening to "${name}":`, err.message);
+          // Mark as loaded even on error so isLoading resolves
           setLoadedListeners((prev) => ({ ...prev, [name]: true }));
         }
       );
@@ -100,19 +90,33 @@ const AdminPanel = () => {
     };
   }, [user]);
 
+  // FIX: Check against named required keys, not a raw count,
+  // so adding/removing collections doesn't silently break the loading state.
   const isLoading = useMemo(() => {
-    const totalRequired = 11;
-    return Object.keys(loadedListeners).length < totalRequired;
+    const required = [
+      "profiles", "users", "xp_logs", "user_streaks", "study_sessions",
+      "quiz_attempts", "materials", "doubt_sessions", "flashcards",
+      "study_plans", "feedback",
+    ];
+    return required.some((key) => !loadedListeners[key]);
   }, [loadedListeners]);
 
   const platformStats = useMemo(() => {
+    // FIX: Deep merge profiles + users docs so neither source silently wins.
+    // Previously, if a profiles doc existed (even partially), the users doc was
+    // ignored entirely — causing Google sign-in users to show "Unknown" / "—".
     const profileByUid: Record<string, any> = {};
+
     for (const p of profiles) {
       profileByUid[p.id] = { ...p, uid: p.id };
     }
     for (const u of usersData) {
       if (!profileByUid[u.id]) {
+        // No profiles doc at all — use users doc as base
         profileByUid[u.id] = { ...u, uid: u.id };
+      } else {
+        // profiles doc exists but may have empty fields — fill gaps from users doc
+        profileByUid[u.id] = { ...u, ...profileByUid[u.id], uid: u.id };
       }
     }
 
@@ -162,10 +166,7 @@ const AdminPanel = () => {
       if (date) {
         const endedAt = toDateKey(date);
         if (!studyByUser[uid]) studyByUser[uid] = { seconds: 0, lastActive: "" };
-        studyByUser[uid].lastActive = pickLatestIso(
-          studyByUser[uid].lastActive,
-          endedAt
-        );
+        studyByUser[uid].lastActive = pickLatestIso(studyByUser[uid].lastActive, endedAt);
       }
     }
 
@@ -185,10 +186,7 @@ const AdminPanel = () => {
       if (date) {
         const endedAt = toDateKey(date);
         if (!studyByUser[uid]) studyByUser[uid] = { seconds: 0, lastActive: "" };
-        studyByUser[uid].lastActive = pickLatestIso(
-          studyByUser[uid].lastActive,
-          endedAt
-        );
+        studyByUser[uid].lastActive = pickLatestIso(studyByUser[uid].lastActive, endedAt);
       }
     }
 
@@ -234,7 +232,6 @@ const AdminPanel = () => {
     const activeToday = users.filter((u) => activeTodayUsers.has(u.uid)).length;
     const totalStudySeconds = users.reduce((sum, u) => sum + (studyByUser[u.uid]?.seconds || 0), 0);
     const totalStudyHours = parseFloat((totalStudySeconds / 3600).toFixed(1));
-
     const avgStreak =
       users.length > 0
         ? parseFloat(
@@ -242,13 +239,7 @@ const AdminPanel = () => {
           )
         : 0;
 
-    return {
-      users,
-      totalUsers: users.length,
-      activeToday,
-      totalStudyHours,
-      avgStreak,
-    };
+    return { users, totalUsers: users.length, activeToday, totalStudyHours, avgStreak };
   }, [profiles, usersData, xpLogs, userStreaks, studySessions, quizAttempts, materials, doubtSessions, flashcards, studyPlans]);
 
   const feedbackList = useMemo(() => {
@@ -274,87 +265,88 @@ const AdminPanel = () => {
   const feedbackLoading = isLoading;
   const statsError = null;
 
+  // FIX: Correct delete order + parallel Firestore cleanup + double-fire guard.
+  //
+  // Previous bugs:
+  // 1. Firestore was deleted BEFORE Firebase Auth — if Auth deletion failed,
+  //    the user could log back in and their data would be recreated automatically.
+  // 2. Docs were deleted sequentially in a for-loop; now done in parallel.
+  // 3. No guard against double-clicking the delete button firing two requests.
   const handleDeleteUser = async (uid: string) => {
+    // Guard: prevent double-fire if a delete is already in progress
+    if (deletingUserId) return;
     setDeletingUserId(uid);
 
     try {
+      // ── STEP 1: Delete Firebase Auth account FIRST ──────────────────────────
+      // If this fails, we abort entirely and don't touch Firestore.
+      // This prevents the user from re-logging in and recreating their profile.
+      const { getAuth: getClientAuth } = await import("firebase/auth");
+      const currentUser = getClientAuth().currentUser;
+      if (!currentUser) {
+        toast.error("Admin session expired. Please log in again.");
+        return;
+      }
+
+      const adminToken = await currentUser.getIdToken();
+      const resp = await fetch("/api/admin-delete-user", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ uid, adminToken }),
+      });
+      const result = await resp.json();
+
+      if (!resp.ok) {
+        // Auth deletion failed — abort, don't touch Firestore
+        toast.error(`Could not delete auth account: ${result.error || "Unknown error"}`);
+        return;
+      }
+
+      // ── STEP 2: Auth deleted — now clean up Firestore in parallel ───────────
       const collectionsToClean = [
-        { name: "xp_logs", field: "user_id" },
-        { name: "study_sessions", field: "user_id" },
-        { name: "quiz_attempts", field: "user_id" },
-        { name: "materials", field: "user_id" },
-        { name: "doubt_sessions", field: "user_id" },
-        { name: "doubt_messages", field: "user_id" },
-        { name: "flashcards", field: "user_id" },
-        { name: "study_plans", field: "user_id" },
-        { name: "saved_notes", field: "user_id" },
-        { name: "feedback", field: "userId" },
-        { name: "analytics", field: null },          // doc ID = uid
+        { name: "xp_logs",             field: "user_id" },
+        { name: "study_sessions",      field: "user_id" },
+        { name: "quiz_attempts",       field: "user_id" },
+        { name: "materials",           field: "user_id" },
+        { name: "doubt_sessions",      field: "user_id" },
+        { name: "doubt_messages",      field: "user_id" },
+        { name: "flashcards",          field: "user_id" },
+        { name: "study_plans",         field: "user_id" },
+        { name: "saved_notes",         field: "user_id" },
+        { name: "feedback",            field: "userId" },
         { name: "analytics_snapshots", field: "user_id" },
-        { name: "lesson_progress", field: "user_id" },
-        { name: "topic_progress", field: "user_id" },
-        { name: "notifications", field: "user_id" },
+        { name: "lesson_progress",     field: "user_id" },
+        { name: "topic_progress",      field: "user_id" },
+        { name: "notifications",       field: "user_id" },
       ];
 
-      let totalDeleted = 0;
-
-      for (const col of collectionsToClean) {
-        try {
-          if (col.field) {
+      // Delete all subcollection docs in parallel
+      await Promise.all(
+        collectionsToClean.map(async (col) => {
+          try {
             const q = query(collection(db, col.name), where(col.field, "==", uid));
             const snap = await getDocs(q);
-            for (const d of snap.docs) {
-              await deleteDoc(doc(db, col.name, d.id));
-              totalDeleted++;
-            }
-          } else {
-            // Direct doc by uid
-            try {
-              await deleteDoc(doc(db, col.name, uid));
-              totalDeleted++;
-            } catch { /* doc may not exist */ }
+            await Promise.all(snap.docs.map((d) => deleteDoc(doc(db, col.name, d.id))));
+          } catch (err: any) {
+            // Log but don't abort — Auth is already deleted, best effort cleanup
+            console.warn(`[Admin] Could not clean "${col.name}" for ${uid}:`, err?.message);
           }
-        } catch (err: any) {
-          console.warn(`[Admin] Could not clean "${col.name}" for ${uid}:`, err?.message);
-        }
-      }
+        })
+      );
 
-      // Delete user_streaks (doc ID = uid)
-      try { await deleteDoc(doc(db, "user_streaks", uid)); totalDeleted++; } catch { }
+      // Delete documents where the doc ID itself equals the uid (parallel)
+      await Promise.all([
+        deleteDoc(doc(db, "analytics",        uid)).catch(() => {}),
+        deleteDoc(doc(db, "user_streaks",     uid)).catch(() => {}),
+        deleteDoc(doc(db, "user_preferences", uid)).catch(() => {}),
+        deleteDoc(doc(db, "profiles",         uid)).catch(() => {}),
+        deleteDoc(doc(db, "users",            uid)).catch(() => {}),
+      ]);
 
-      // Delete user_preferences (doc ID = uid)
-      try { await deleteDoc(doc(db, "user_preferences", uid)); totalDeleted++; } catch { }
-
-      // Delete profile (doc ID = uid)
-      try { await deleteDoc(doc(db, "profiles", uid)); totalDeleted++; } catch { }
-
-      // Delete users doc (doc ID = uid)
-      try { await deleteDoc(doc(db, "users", uid)); totalDeleted++; } catch { }
-
-      // Delete the user's Firebase Auth account via server-side API
-      try {
-        const { getAuth: getClientAuth } = await import("firebase/auth");
-        const currentUser = getClientAuth().currentUser;
-        if (currentUser) {
-          const adminToken = await currentUser.getIdToken();
-          const resp = await fetch("/api/admin-delete-user", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ uid, adminToken }),
-          });
-          const result = await resp.json();
-          if (!resp.ok) {
-            console.warn("[Admin] Auth account deletion warning:", result.error);
-          }
-        }
-      } catch (authErr: any) {
-        console.warn("[Admin] Could not delete auth account:", authErr?.message);
-      }
-
-      toast.success(`User account & data deleted (${totalDeleted} records removed)`);
+      toast.success(`User deleted successfully.`);
     } catch (err: any) {
       console.error("[Admin] Delete user error:", err);
-      toast.error("Failed to delete user data. Check console for details.");
+      toast.error("Failed to delete user. Check console for details.");
     } finally {
       setDeletingUserId(null);
       setConfirmDeleteUserId(null);
@@ -371,61 +363,71 @@ const AdminPanel = () => {
   const filteredFeedback = feedbackList.filter((f) => {
     if (!searchQuery.trim()) return true;
     const q = searchQuery.toLowerCase();
-    return f.userName.toLowerCase().includes(q) || f.comment.toLowerCase().includes(q) || f.userEmail.toLowerCase().includes(q);
+    return (
+      f.userName.toLowerCase().includes(q) ||
+      f.comment.toLowerCase().includes(q) ||
+      f.userEmail.toLowerCase().includes(q)
+    );
   });
 
-  const avgRating = feedbackList.length > 0
-    ? parseFloat((feedbackList.reduce((sum, f) => sum + f.rating, 0) / feedbackList.length).toFixed(1))
-    : 0;
+  const avgRating =
+    feedbackList.length > 0
+      ? parseFloat(
+          (feedbackList.reduce((sum, f) => sum + f.rating, 0) / feedbackList.length).toFixed(1)
+        )
+      : 0;
 
-  /* ── Analytics data ───────────────────────────────── */
   const totalUsers = platformStats?.totalUsers || 0;
-  const featureUsageData = totalUsers > 0 ? [
-    {
-      feature: "Study Sessions",
-      activeUsers: platformStats?.users.filter(u => u.studyHours > 0).length || 0,
-      color: "from-emerald-400 to-emerald-600",
-      bgColor: "bg-emerald-500",
-      icon: "📚",
-    },
-    {
-      feature: "Quizzes",
-      activeUsers: platformStats?.users.filter(u => u.quizCount > 0).length || 0,
-      color: "from-blue-400 to-blue-600",
-      bgColor: "bg-blue-500",
-      icon: "🎯",
-    },
-    {
-      feature: "Doubt Sessions",
-      activeUsers: platformStats?.users.filter(u => u.doubtCount > 0).length || 0,
-      color: "from-violet-400 to-violet-600",
-      bgColor: "bg-violet-500",
-      icon: "❓",
-    },
-    {
-      feature: "Materials Upload",
-      activeUsers: platformStats?.users.filter(u => u.materialsCount > 0).length || 0,
-      color: "from-amber-400 to-amber-600",
-      bgColor: "bg-amber-500",
-      icon: "📄",
-    },
-    {
-      feature: "Flashcards",
-      activeUsers: platformStats?.users.filter(u => u.flashcardCount > 0).length || 0,
-      color: "from-pink-400 to-pink-600",
-      bgColor: "bg-pink-500",
-      icon: "🗂️",
-    },
-    {
-      feature: "Study Plans",
-      activeUsers: platformStats?.users.filter(u => u.studyPlanCount > 0).length || 0,
-      color: "from-cyan-400 to-cyan-600",
-      bgColor: "bg-cyan-500",
-      icon: "📋",
-    },
-  ] : [];
+  const featureUsageData = totalUsers > 0
+    ? [
+        {
+          feature: "Study Sessions",
+          activeUsers: platformStats?.users.filter((u) => u.studyHours > 0).length || 0,
+          color: "from-emerald-400 to-emerald-600",
+          bgColor: "bg-emerald-500",
+          icon: "📚",
+        },
+        {
+          feature: "Quizzes",
+          activeUsers: platformStats?.users.filter((u) => u.quizCount > 0).length || 0,
+          color: "from-blue-400 to-blue-600",
+          bgColor: "bg-blue-500",
+          icon: "🎯",
+        },
+        {
+          feature: "Doubt Sessions",
+          activeUsers: platformStats?.users.filter((u) => u.doubtCount > 0).length || 0,
+          color: "from-violet-400 to-violet-600",
+          bgColor: "bg-violet-500",
+          icon: "❓",
+        },
+        {
+          feature: "Materials Upload",
+          activeUsers: platformStats?.users.filter((u) => u.materialsCount > 0).length || 0,
+          color: "from-amber-400 to-amber-600",
+          bgColor: "bg-amber-500",
+          icon: "📄",
+        },
+        {
+          feature: "Flashcards",
+          activeUsers: platformStats?.users.filter((u) => u.flashcardCount > 0).length || 0,
+          color: "from-pink-400 to-pink-600",
+          bgColor: "bg-pink-500",
+          icon: "🗂️",
+        },
+        {
+          feature: "Study Plans",
+          activeUsers: platformStats?.users.filter((u) => u.studyPlanCount > 0).length || 0,
+          color: "from-cyan-400 to-cyan-600",
+          bgColor: "bg-cyan-500",
+          icon: "📋",
+        },
+      ]
+    : [];
 
-  const lowUsageFeatures = featureUsageData.filter(f => totalUsers > 0 && (f.activeUsers / totalUsers) < 0.3);
+  const lowUsageFeatures = featureUsageData.filter(
+    (f) => totalUsers > 0 && f.activeUsers / totalUsers < 0.3
+  );
 
   return (
     <div className="p-4 md:p-8 max-w-7xl mx-auto space-y-6">
@@ -467,11 +469,11 @@ const AdminPanel = () => {
       ) : (
         <div className="grid grid-cols-2 md:grid-cols-5 gap-3 md:gap-4">
           {[
-            { label: "Total Users", value: platformStats?.totalUsers || 0, icon: Users, color: "text-[#1D4ED8]", bgColor: "bg-[#1D4ED8]/10" },
-            { label: "Active Today", value: platformStats?.activeToday || 0, icon: Zap, color: "text-emerald-500", bgColor: "bg-emerald-500/10" },
-            { label: "Study Hours", value: `${platformStats?.totalStudyHours || 0}h`, icon: Clock, color: "text-amber-500", bgColor: "bg-amber-500/10" },
-            { label: "Avg Streak", value: `${platformStats?.avgStreak || 0}d`, icon: Flame, color: "text-red-500", bgColor: "bg-red-500/10" },
-            { label: "Avg Rating", value: `${avgRating}★`, icon: Star, color: "text-yellow-500", bgColor: "bg-yellow-500/10" },
+            { label: "Total Users",  value: platformStats?.totalUsers || 0,          icon: Users,  color: "text-[#1D4ED8]",   bgColor: "bg-[#1D4ED8]/10" },
+            { label: "Active Today", value: platformStats?.activeToday || 0,          icon: Zap,    color: "text-emerald-500", bgColor: "bg-emerald-500/10" },
+            { label: "Study Hours",  value: `${platformStats?.totalStudyHours || 0}h`, icon: Clock,  color: "text-amber-500",   bgColor: "bg-amber-500/10" },
+            { label: "Avg Streak",   value: `${platformStats?.avgStreak || 0}d`,       icon: Flame,  color: "text-red-500",     bgColor: "bg-red-500/10" },
+            { label: "Avg Rating",   value: `${avgRating}★`,                           icon: Star,   color: "text-yellow-500",  bgColor: "bg-yellow-500/10" },
           ].map((stat) => (
             <div key={stat.label} className="bg-white rounded-2xl p-4 md:p-5 shadow-sm border border-gray-100 relative overflow-hidden group hover:shadow-md transition-all duration-200">
               <div className={`absolute top-0 right-0 w-20 h-20 ${stat.bgColor} rounded-full -translate-y-8 translate-x-8 opacity-40 group-hover:opacity-60 transition-opacity`} />
@@ -516,7 +518,7 @@ const AdminPanel = () => {
         </button>
       </div>
 
-      {/* Search — show only for users / feedback tabs */}
+      {/* Search */}
       {activeTab !== "analytics" && (
         <div className="relative">
           <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
@@ -530,7 +532,7 @@ const AdminPanel = () => {
         </div>
       )}
 
-      {/* ── USERS TAB ───────────────────────────────────── */}
+      {/* ── USERS TAB ─────────────────────────────────────── */}
       {activeTab === "users" && (
         <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
           {/* Desktop Table Header */}
@@ -554,7 +556,11 @@ const AdminPanel = () => {
             filteredUsers.map((u, idx) => (
               <div key={u.uid}>
                 <button
-                  onClick={() => setExpandedUserId(expandedUserId === u.uid ? null : u.uid)}
+                  // FIX: Clear stale confirmDeleteUserId when switching rows
+                  onClick={() => {
+                    setExpandedUserId(expandedUserId === u.uid ? null : u.uid);
+                    setConfirmDeleteUserId(null);
+                  }}
                   className={`w-full grid grid-cols-1 md:grid-cols-[2fr_1fr_1fr_1fr_1fr_1fr_1fr_1fr_1fr] gap-2 md:gap-4 px-4 md:px-6 py-3.5 md:py-4 text-left hover:bg-gray-50/80 transition-colors items-center ${
                     idx !== filteredUsers.length - 1 ? "border-b border-gray-50" : ""
                   }`}
@@ -583,7 +589,7 @@ const AdminPanel = () => {
                     <span className="flex items-center gap-1"><Zap className="h-3 w-3 text-amber-400" />{u.xp.toLocaleString()}</span>
                     <span className="flex items-center gap-1"><Flame className="h-3 w-3 text-red-400" />{u.streak}d</span>
                     <span className="flex items-center gap-1"><Clock className="h-3 w-3 text-green-500" />{u.studyHours}h</span>
-                    <span className="flex items-center gap-1"><Target className="h-3 w-3 text-emerald-500" />{u.avgQuizScore > 0 ? `${u.avgQuizScore}%` : '—'}</span>
+                    <span className="flex items-center gap-1"><Target className="h-3 w-3 text-emerald-500" />{u.avgQuizScore > 0 ? `${u.avgQuizScore}%` : "—"}</span>
                     <span className="flex items-center gap-1"><Trophy className="h-3 w-3 text-[#1D4ED8]" />{u.quizCount}</span>
                     <span className="flex items-center gap-1"><MessageCircleQuestion className="h-3 w-3 text-violet-500" />{u.doubtCount}</span>
                   </div>
@@ -592,7 +598,7 @@ const AdminPanel = () => {
                   <div className="hidden md:flex items-center gap-1"><Zap className="h-3.5 w-3.5 text-amber-400" /><span className="text-sm font-semibold text-gray-900">{u.xp.toLocaleString()}</span></div>
                   <div className="hidden md:flex items-center gap-1"><Flame className="h-3.5 w-3.5 text-red-400" /><span className="text-sm font-semibold text-gray-900">{u.streak}d</span></div>
                   <div className="hidden md:flex items-center gap-1"><Clock className="h-3.5 w-3.5 text-green-500" /><span className="text-sm font-semibold text-gray-900">{u.studyHours}h</span></div>
-                  <div className="hidden md:flex items-center gap-1"><Target className="h-3.5 w-3.5 text-emerald-500" /><span className={`text-sm font-semibold ${u.avgQuizScore >= 80 ? 'text-emerald-600' : u.avgQuizScore >= 50 ? 'text-amber-600' : u.avgQuizScore > 0 ? 'text-red-500' : 'text-gray-400'}`}>{u.avgQuizScore > 0 ? `${u.avgQuizScore}%` : '—'}</span></div>
+                  <div className="hidden md:flex items-center gap-1"><Target className="h-3.5 w-3.5 text-emerald-500" /><span className={`text-sm font-semibold ${u.avgQuizScore >= 80 ? "text-emerald-600" : u.avgQuizScore >= 50 ? "text-amber-600" : u.avgQuizScore > 0 ? "text-red-500" : "text-gray-400"}`}>{u.avgQuizScore > 0 ? `${u.avgQuizScore}%` : "—"}</span></div>
                   <div className="hidden md:flex items-center gap-1"><Trophy className="h-3.5 w-3.5 text-[#1D4ED8]" /><span className="text-sm font-semibold text-gray-900">{u.quizCount}</span></div>
                   <div className="hidden md:flex items-center gap-1"><MessageCircleQuestion className="h-3.5 w-3.5 text-violet-500" /><span className="text-sm font-semibold text-gray-900">{u.doubtCount}</span></div>
                   <div className="hidden md:flex items-center gap-1"><Upload className="h-3.5 w-3.5 text-purple-500" /><span className="text-sm font-semibold text-gray-900">{u.materialsCount}</span></div>
@@ -619,10 +625,10 @@ const AdminPanel = () => {
                       </div>
                       <div className="bg-white rounded-xl p-3.5 md:p-4 border border-gray-100 shadow-sm">
                         <div className="text-[10px] font-bold uppercase tracking-wider text-gray-400 mb-1">Avg Quiz Score</div>
-                        <div className={`text-lg md:text-xl font-bold ${u.avgQuizScore >= 80 ? 'text-emerald-600' : u.avgQuizScore >= 50 ? 'text-amber-600' : u.avgQuizScore > 0 ? 'text-red-500' : 'text-gray-400'}`}>
-                          {u.avgQuizScore > 0 ? `${u.avgQuizScore}%` : '—'}
+                        <div className={`text-lg md:text-xl font-bold ${u.avgQuizScore >= 80 ? "text-emerald-600" : u.avgQuizScore >= 50 ? "text-amber-600" : u.avgQuizScore > 0 ? "text-red-500" : "text-gray-400"}`}>
+                          {u.avgQuizScore > 0 ? `${u.avgQuizScore}%` : "—"}
                         </div>
-                        <div className="text-[10px] text-gray-400 mt-0.5">{u.quizCount} quiz{u.quizCount !== 1 ? 'zes' : ''}</div>
+                        <div className="text-[10px] text-gray-400 mt-0.5">{u.quizCount} quiz{u.quizCount !== 1 ? "zes" : ""}</div>
                       </div>
                       <div className="bg-white rounded-xl p-3.5 md:p-4 border border-gray-100 shadow-sm">
                         <div className="text-[10px] font-bold uppercase tracking-wider text-gray-400 mb-1">Doubts Asked</div>
@@ -633,6 +639,7 @@ const AdminPanel = () => {
                         <div className="text-lg md:text-xl font-bold text-gray-900">{u.materialsCount}</div>
                       </div>
                     </div>
+
                     {(u.grade_level || u.joined !== "—") && (
                       <div className="mt-3 text-xs text-gray-400">
                         {u.grade_level && (
@@ -645,14 +652,16 @@ const AdminPanel = () => {
                       </div>
                     )}
 
-                    {/* Delete User Button */}
+                    {/* Delete User */}
                     <div className="mt-4 pt-3 border-t border-gray-200/60">
                       {confirmDeleteUserId === u.uid ? (
                         <div className="flex items-center gap-3 bg-red-50 border border-red-200 rounded-xl p-3 animate-in fade-in zoom-in-95 duration-200">
                           <AlertTriangle className="h-5 w-5 text-red-500 flex-shrink-0" />
                           <div className="flex-1">
                             <p className="text-sm font-semibold text-red-800">Delete all data for "{u.name}"?</p>
-                            <p className="text-xs text-red-600 mt-0.5">This will permanently remove their profile, study sessions, quizzes, materials, and all other data. This cannot be undone.</p>
+                            <p className="text-xs text-red-600 mt-0.5">
+                              This permanently removes their profile, sessions, quizzes, materials, and all other data. Cannot be undone.
+                            </p>
                           </div>
                           <div className="flex items-center gap-2 flex-shrink-0">
                             <button
@@ -663,7 +672,7 @@ const AdminPanel = () => {
                             </button>
                             <button
                               onClick={(e) => { e.stopPropagation(); handleDeleteUser(u.uid); }}
-                              disabled={deletingUserId === u.uid}
+                              disabled={!!deletingUserId}
                               className="px-3 py-1.5 text-xs font-semibold text-white bg-red-500 rounded-lg hover:bg-red-600 transition-colors flex items-center gap-1.5 disabled:opacity-60"
                             >
                               {deletingUserId === u.uid ? (
@@ -692,7 +701,7 @@ const AdminPanel = () => {
         </div>
       )}
 
-      {/* ── FEEDBACK TAB ────────────────────────────────── */}
+      {/* ── FEEDBACK TAB ──────────────────────────────────── */}
       {activeTab === "feedback" && (
         <div className="space-y-3">
           {feedbackLoading ? (
@@ -719,13 +728,11 @@ const AdminPanel = () => {
                     </div>
                   </div>
                   <div className="flex items-center gap-2 md:gap-3 flex-shrink-0">
-                    {/* Star rating */}
                     <div className="flex items-center gap-0.5">
                       {[1, 2, 3, 4, 5].map((star) => (
                         <Star key={star} className={`h-3.5 w-3.5 ${star <= f.rating ? "text-yellow-400 fill-yellow-400" : "text-gray-200"}`} />
                       ))}
                     </div>
-                    {/* Source badge */}
                     <span className={`text-[10px] font-medium px-2 py-0.5 rounded-full whitespace-nowrap ${
                       f.source === "ai_chat"
                         ? "bg-purple-50 text-purple-600"
@@ -747,14 +754,13 @@ const AdminPanel = () => {
         </div>
       )}
 
-      {/* ── ANALYTICS TAB ──────────────────────────────── */}
+      {/* ── ANALYTICS TAB ─────────────────────────────────── */}
       {activeTab === "analytics" && (
         <div className="space-y-6">
-          {/* Feature Usage Bar Chart */}
           <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5 md:p-6">
             <div className="flex items-center gap-3 mb-6">
               <div className="h-9 w-9 rounded-lg bg-[#1D4ED8]/10 flex items-center justify-center">
-                <BarChart3 className="h-4.5 w-4.5 text-[#1D4ED8]" />
+                <BarChart3 className="h-4 w-4 text-[#1D4ED8]" />
               </div>
               <div>
                 <h3 className="text-base font-bold text-gray-900">Feature Adoption</h3>
@@ -783,39 +789,32 @@ const AdminPanel = () => {
                   .sort((a, b) => b.activeUsers - a.activeUsers)
                   .map((feature) => {
                     const pct = Math.round((feature.activeUsers / totalUsers) * 100);
-                    const barColor = pct >= 60
-                      ? "bg-gradient-to-r from-emerald-400 to-emerald-500"
-                      : pct >= 30
-                      ? "bg-gradient-to-r from-amber-400 to-amber-500"
-                      : "bg-gradient-to-r from-red-400 to-red-500";
-
+                    const barColor =
+                      pct >= 60
+                        ? "bg-gradient-to-r from-emerald-400 to-emerald-500"
+                        : pct >= 30
+                        ? "bg-gradient-to-r from-amber-400 to-amber-500"
+                        : "bg-gradient-to-r from-red-400 to-red-500";
                     return (
                       <div key={feature.feature} className="group">
                         <div className="flex items-center gap-4">
-                          {/* Feature label */}
                           <div className="w-36 flex items-center gap-2 flex-shrink-0">
                             <span className="text-base">{feature.icon}</span>
                             <span className="text-sm font-medium text-gray-700 truncate">{feature.feature}</span>
                           </div>
-
-                          {/* Bar */}
                           <div className="flex-1 h-9 bg-gray-100 rounded-lg overflow-hidden relative">
                             <div
                               className={`h-full ${barColor} rounded-lg transition-all duration-700 ease-out relative`}
                               style={{ width: `${Math.max(pct, 3)}%` }}
                             >
-                              {/* Animated shimmer */}
                               <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
                             </div>
-                            {/* Percentage label inside bar area */}
                             {pct >= 15 && (
                               <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[11px] font-bold text-white drop-shadow-sm">
                                 {pct}%
                               </span>
                             )}
                           </div>
-
-                          {/* Count */}
                           <div className="w-24 text-right flex-shrink-0">
                             <span className="text-sm font-bold text-gray-900">{feature.activeUsers}</span>
                             <span className="text-xs text-gray-400">/{totalUsers}</span>
@@ -831,7 +830,6 @@ const AdminPanel = () => {
             )}
           </div>
 
-          {/* Low Usage Insights */}
           {lowUsageFeatures.length > 0 && (
             <div className="bg-amber-50 border border-amber-200 rounded-2xl p-5 md:p-6">
               <div className="flex items-center gap-2 mb-4">
@@ -850,7 +848,6 @@ const AdminPanel = () => {
                     "Flashcards": "Users might not realize flashcards are available, or prefer other study methods.",
                     "Study Plans": "Creating study plans may feel too structured for casual learners. Consider auto-generating plans.",
                   };
-
                   return (
                     <div key={feature.feature} className="bg-white rounded-xl p-4 border border-amber-200/50 shadow-sm">
                       <div className="flex items-center gap-2 mb-2">
@@ -858,8 +855,8 @@ const AdminPanel = () => {
                         <span className="text-sm font-semibold text-gray-900">{feature.feature}</span>
                       </div>
                       <div className="text-xs text-gray-500 mb-2">
-                        Only <span className="font-bold text-amber-600">{pct}%</span> of users ({feature.activeUsers}/{totalUsers}) are using this.
-                        <span className="font-semibold text-gray-700"> {unusedCount} user{unusedCount !== 1 ? 's' : ''}</span> haven't tried it.
+                        Only <span className="font-bold text-amber-600">{pct}%</span> of users ({feature.activeUsers}/{totalUsers}) are using this.{" "}
+                        <span className="font-semibold text-gray-700">{unusedCount} user{unusedCount !== 1 ? "s" : ""}</span> haven't tried it.
                       </div>
                       <p className="text-[11px] text-gray-400 leading-relaxed italic">
                         💡 {reasons[feature.feature] || "Consider improving discoverability and onboarding for this feature."}
@@ -879,8 +876,7 @@ const AdminPanel = () => {
           ? `Showing ${filteredUsers.length} of ${platformStats?.totalUsers || 0} users`
           : activeTab === "feedback"
           ? `Showing ${filteredFeedback.length} of ${feedbackList.length} feedback entries`
-          : `Analyzing ${totalUsers} users across 6 features`
-        }
+          : `Analyzing ${totalUsers} users across 6 features`}
       </div>
     </div>
   );

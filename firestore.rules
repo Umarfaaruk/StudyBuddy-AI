@@ -58,8 +58,9 @@ service cloud.firestore {
     
     // ── /user_preferences collection ──────────────────
     match /user_preferences/{userId} {
-      allow read: if isUser(userId);
+      allow read: if isUser(userId) || isAdmin();
       allow write: if isUser(userId);
+      allow delete: if isUser(userId) || isAdmin();
     }
     
     // ── /study_sessions collection ────────────────────
@@ -148,14 +149,14 @@ service cloud.firestore {
     match /feedback/{feedbackId} {
       allow read: if isAuthenticated();
       allow create: if isAuthenticated();
-      allow update, delete: if isAuthenticated();
+      allow update, delete: if isOwner() || isAdmin();
     }
     
-    // ── /topic_progress collection ────────────────────
     match /topic_progress/{progressId} {
-      allow read: if isAuthenticated();
-      allow create: if isAuthenticated();
-      allow update: if isAuthenticated();
+      allow read: if isOwner() || isAdmin();
+      allow create: if isNewOwner();
+      allow update: if isOwner();
+      allow delete: if isOwner() || isAdmin();
     }
     
     // ── /materials collection ─────────────────────────

@@ -3,9 +3,10 @@ import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { db } from "@/lib/firebase";
+import { db, storage } from "@/lib/firebase";
 import { useAuth } from "@/contexts/AuthContext";
 import { doc, getDoc, updateDoc, collection, query, where, getDocs } from "firebase/firestore";
+import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { toast } from "sonner";
 import { useRef } from "react";
 
@@ -82,6 +83,77 @@ const Profile = () => {
     enabled: !!user,
   });
 
+  // FIX: Upload avatar to Firebase Storage, store only the download URL in Firestore.
+  // Previously the code stored a base64 data URL directly in the Firestore document,
+  // which can exceed Firestore's 1MB per-document limit and causes costly read bandwidth.
+  const handleAvatarChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !user) return;
+
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error("Image must be under 5MB");
+      return;
+    }
+
+    const uploadToast = toast.loading("Uploading profile picture...");
+    try {
+      // Resize to 200x200 via canvas before uploading to save Storage space
+      const resizedBlob = await new Promise<Blob>((resolve, reject) => {
+        const canvas = document.createElement("canvas");
+        const ctx = canvas.getContext("2d");
+        const img = document.createElement("img");
+        const reader = new FileReader();
+
+        reader.onload = (ev) => {
+          img.onload = () => {
+            const size = 200;
+            canvas.width = size;
+            canvas.height = size;
+            const minDim = Math.min(img.width, img.height);
+            const sx = (img.width - minDim) / 2;
+            const sy = (img.height - minDim) / 2;
+            ctx?.drawImage(img, sx, sy, minDim, minDim, 0, 0, size, size);
+            canvas.toBlob(
+              (blob) => {
+                if (blob) resolve(blob);
+                else reject(new Error("Canvas toBlob failed"));
+              },
+              "image/jpeg",
+              0.85
+            );
+          };
+          img.onerror = () => reject(new Error("Image load failed"));
+          img.src = ev.target?.result as string;
+        };
+        reader.onerror = () => reject(new Error("FileReader failed"));
+        reader.readAsDataURL(file);
+      });
+
+      // Upload to Firebase Storage at avatars/{uid}/profile.jpg
+      const storageRef = ref(storage, `avatars/${user.uid}/profile.jpg`);
+      await uploadBytes(storageRef, resizedBlob, { contentType: "image/jpeg" });
+      const downloadURL = await getDownloadURL(storageRef);
+
+      // Save only the URL (not base64) to Firestore — stays well within 1MB doc limit
+      await updateDoc(doc(db, "profiles", user.uid), {
+        avatar_url: downloadURL,
+        updated_at: new Date().toISOString(),
+      });
+
+      queryClient.invalidateQueries({ queryKey: ["profile", user.uid] });
+      queryClient.invalidateQueries({ queryKey: ["profile-sidebar", user.uid] });
+      toast.dismiss(uploadToast);
+      toast.success("Profile picture updated!");
+    } catch (err) {
+      toast.dismiss(uploadToast);
+      console.error("[Profile] Avatar upload error:", err);
+      toast.error("Failed to update profile picture. Please try again.");
+    }
+
+    // Reset file input so the same file can be re-selected if needed
+    e.target.value = "";
+  };
+
   const isLoading = profileLoading || statsLoading;
   const displayName = profile?.full_name ?? "Student";
   const gradeLevel = profile?.grade_level ?? "—";
@@ -102,14 +174,14 @@ const Profile = () => {
       {/* Profile header card */}
       <div className="bg-white border border-gray-100 shadow-sm rounded-2xl p-6 flex flex-col sm:flex-row items-center gap-6">
         {/* Avatar — clickable for upload */}
-        <div 
+        <div
           className="relative h-20 w-20 rounded-full flex-shrink-0 cursor-pointer group"
           onClick={() => avatarInputRef.current?.click()}
           title="Click to change profile picture"
         >
           {profile?.avatar_url ? (
-            <img 
-              src={profile.avatar_url} 
+            <img
+              src={profile.avatar_url}
               alt={displayName}
               className="h-20 w-20 rounded-full object-cover border-2 border-gray-100 group-hover:border-[#1D4ED8] transition-colors"
             />
@@ -126,41 +198,7 @@ const Profile = () => {
             type="file"
             accept="image/jpeg,image/png,image/webp"
             className="hidden"
-            onChange={async (e) => {
-              const file = e.target.files?.[0];
-              if (!file || !user) return;
-              if (file.size > 2 * 1024 * 1024) {
-                toast.error("Image must be under 2MB");
-                return;
-              }
-              try {
-                // Resize and compress to base64
-                const canvas = document.createElement('canvas');
-                const ctx = canvas.getContext('2d');
-                const img = document.createElement('img');
-                const reader = new FileReader();
-                reader.onload = async (ev) => {
-                  img.onload = async () => {
-                    const size = 200;
-                    canvas.width = size;
-                    canvas.height = size;
-                    // Center crop
-                    const minDim = Math.min(img.width, img.height);
-                    const sx = (img.width - minDim) / 2;
-                    const sy = (img.height - minDim) / 2;
-                    ctx?.drawImage(img, sx, sy, minDim, minDim, 0, 0, size, size);
-                    const dataUrl = canvas.toDataURL('image/jpeg', 0.8);
-                    await updateDoc(doc(db, 'profiles', user.uid), { avatar_url: dataUrl });
-                    queryClient.invalidateQueries({ queryKey: ['profile', user.uid] });
-                    toast.success('Profile picture updated!');
-                  };
-                  img.src = ev.target?.result as string;
-                };
-                reader.readAsDataURL(file);
-              } catch (err) {
-                toast.error('Failed to update profile picture');
-              }
-            }}
+            onChange={handleAvatarChange}
           />
         </div>
 
@@ -225,10 +263,10 @@ const Profile = () => {
       {/* Stats grid */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         {[
-          { icon: BookOpen,  label: "Lessons Done",   value: stats?.lessonsCompleted ?? 0,  color: "text-[#1D4ED8]" },
-          { icon: Trophy,    label: "Quizzes Taken",  value: stats?.quizCount ?? 0,          color: "text-[#f4a261]" },
-          { icon: Clock,     label: "Study Hours",    value: `${stats?.studyHours ?? "0.0"}h`, color: "text-green-500" },
-          { icon: Flame,     label: "Best Streak",    value: `${stats?.streak?.longest_streak ?? 0}d`, color: "text-red-500" },
+          { icon: BookOpen, label: "Lessons Done",  value: stats?.lessonsCompleted ?? 0,          color: "text-[#1D4ED8]" },
+          { icon: Trophy,   label: "Quizzes Taken", value: stats?.quizCount ?? 0,                 color: "text-[#f4a261]" },
+          { icon: Clock,    label: "Study Hours",   value: `${stats?.studyHours ?? "0.0"}h`,      color: "text-green-500" },
+          { icon: Flame,    label: "Best Streak",   value: `${stats?.streak?.longest_streak ?? 0}d`, color: "text-red-500" },
         ].map((s) => (
           <div key={s.label} className="bg-white border border-gray-100 shadow-sm rounded-2xl p-4 text-center">
             {isLoading ? (

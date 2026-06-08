@@ -38,27 +38,26 @@ export function computeAvgQuizScore(
   return count > 0 ? Math.round((totalPct / count) * 100) : 0;
 }
 
-export function parseFirestoreDate(data: {
-  ended_at?: string;
-  created_at?: { toDate?: () => Date };
-  updated_at?: { toDate?: () => Date };
-  createdAt?: { toDate?: () => Date };
-}): Date | null {
-  if (data.ended_at) {
-    const d = new Date(data.ended_at);
-    if (!isNaN(d.getTime())) return d;
-  }
-  if (data.updated_at?.toDate) {
-    const d = data.updated_at.toDate();
-    if (!isNaN(d.getTime())) return d;
-  }
-  if (data.created_at?.toDate) {
-    const d = data.created_at.toDate();
-    if (!isNaN(d.getTime())) return d;
-  }
-  if (data.createdAt?.toDate) {
-    const d = data.createdAt.toDate();
-    if (!isNaN(d.getTime())) return d;
+export function parseFirestoreDate(data: Record<string, any>): Date | null {
+  const candidates = [
+    data.ended_at,
+    data.updated_at,
+    data.created_at,
+    data.createdAt,
+  ];
+
+  for (const val of candidates) {
+    if (!val) continue;
+    // Firestore Timestamp object
+    if (typeof val?.toDate === "function") {
+      const d = val.toDate();
+      if (!isNaN(d.getTime())) return d;
+    }
+    // ISO string or any parseable string
+    if (typeof val === "string") {
+      const d = new Date(val);
+      if (!isNaN(d.getTime())) return d;
+    }
   }
   return null;
 }
