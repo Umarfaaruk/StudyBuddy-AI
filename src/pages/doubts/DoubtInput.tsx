@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from "react";
 import { Link } from "react-router-dom";
 import {
-  Send, Paperclip, X, FileText, Mic, Trash2, Wrench, Sparkles, Loader2, Copy, Check, Square, Bot,
+  Send, Paperclip, X, FileText, Mic, Trash2, Sparkles, Loader2, Copy, Check, Square, Bot,
 } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";

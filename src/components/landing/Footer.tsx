@@ -2,10 +2,27 @@ import { Link } from "react-router-dom";
 import { BackgroundPaths } from "@/components/ui/background-paths";
 import eduonxLogoOnDark from "@/assets/eduonx-logo-on-dark.png";
 
-const footerLinks = {
-  Platform: ["AI Tutor", "Quiz Engine", "Progress Tracker", "Study Timer"],
-  Features: ["Document Learning", "Streaks & XP", "Leaderboards"],
-  Legal: ["Privacy Policy", "Terms of Service"],
+// FIX Bug 12: All footer links were plain <span> tags with cursor-pointer that
+// did nothing when clicked. Privacy Policy and Terms of Service especially must
+// be real links (legal risk). Platform/Feature links now route to the relevant
+// app pages. Legal links point to dedicated pages — create /privacy and /terms
+// routes, or swap the `to` values for external URLs if you host them elsewhere.
+const footerLinks: Record<string, { label: string; to: string }[]> = {
+  Platform: [
+    { label: "AI Tutor", to: "/materials/tutor" },
+    { label: "Quiz Engine", to: "/quiz" },
+    { label: "Progress Tracker", to: "/progress" },
+    { label: "Study Timer", to: "/timer" },
+  ],
+  Features: [
+    { label: "Document Learning", to: "/materials" },
+    { label: "Streaks & XP", to: "/achievements" },
+    { label: "Leaderboards", to: "/leaderboard" },
+  ],
+  Legal: [
+    { label: "Privacy Policy", to: "/privacy" },
+    { label: "Terms of Service", to: "/terms" },
+  ],
 };
 
 const Footer = () => (
@@ -32,9 +49,25 @@ const Footer = () => (
           <div key={title}>
             <h4 className="text-xs font-bold uppercase tracking-widest text-slate-200 mb-4">{title}</h4>
             <ul className="space-y-2.5">
-              {links.map((link) => (
-                <li key={link}>
-                  <span className="text-sm text-slate-400 hover:text-white transition-colors cursor-pointer">{link}</span>
+              {links.map(({ label, to }) => (
+                <li key={label}>
+                  {to.startsWith("http") ? (
+                    <a
+                      href={to}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-sm text-slate-400 hover:text-white transition-colors"
+                    >
+                      {label}
+                    </a>
+                  ) : (
+                    <Link
+                      to={to}
+                      className="text-sm text-slate-400 hover:text-white transition-colors"
+                    >
+                      {label}
+                    </Link>
+                  )}
                 </li>
               ))}
             </ul>

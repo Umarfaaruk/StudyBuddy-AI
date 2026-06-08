@@ -1,19 +1,26 @@
 import { useState } from "react";
-import { Wrench, Youtube, Brain, Bot } from "lucide-react";
+// FIX Bug 9: Removed unused `Wrench` import. `Brain` is kept for Content Explorer tab.
+import { Youtube, Brain, Bot } from "lucide-react";
 import YoutubeSummarizer from "./YoutubeSummarizer";
 import ConceptExplorerWorkspace from "./ConceptExplorerWorkspace";
 import AITutor from "../materials/AITutor";
 
-type ToolTab = "concept" | "youtube" | "explorer";
+// FIX Bug 9: The first tab rendered <AITutor> (the real document tutor) but was
+// labelled "AI Tutor" — same label as the standalone tutor page at /materials/tutor.
+// This confused users navigating between them. Renamed to "Quick Tutor" to distinguish
+// it as the lightweight inline version, and renamed "explorer" tab to "Concept Explorer"
+// for clarity. The page title/header is also updated to "AI Tools" (was "AI Tutor",
+// which clashed with the dedicated tutor page).
+type ToolTab = "quicktutor" | "youtube" | "explorer";
 
 const tabs: { id: ToolTab; label: string; icon: any }[] = [
-  { id: "concept", label: "AI Tutor", icon: Bot },
+  { id: "quicktutor", label: "Quick Tutor", icon: Bot },
   { id: "youtube", label: "YouTube Summarizer", icon: Youtube },
-  { id: "explorer", label: "Content Explorer", icon: Brain },
+  { id: "explorer", label: "Concept Explorer", icon: Brain },
 ];
 
 const QuickTools = () => {
-  const [activeTab, setActiveTab] = useState<ToolTab>("concept");
+  const [activeTab, setActiveTab] = useState<ToolTab>("quicktutor");
 
   return (
     <div className="p-6 md:p-8 max-w-[1600px] mx-auto space-y-8">
@@ -24,10 +31,10 @@ const QuickTools = () => {
           </div>
           <div>
             <h1 className="font-display text-2xl md:text-3xl font-bold text-foreground tracking-tight">
-              AI Tutor
+              AI Tools
             </h1>
             <p className="text-muted-foreground text-sm mt-1 max-w-lg">
-              AI study assistants — learn with AI tutor and summarize videos in one place.
+              AI study assistants — chat with a tutor, summarize videos, and explore concepts.
             </p>
           </div>
         </div>
@@ -57,7 +64,7 @@ const QuickTools = () => {
       </div>
 
       <div className="rounded-2xl border border-border bg-card/50 shadow-sm overflow-hidden min-h-[560px]">
-        {activeTab === "concept" && (
+        {activeTab === "quicktutor" && (
           <div className="p-4 md:p-6">
             <AITutor hideHeader={true} />
           </div>

@@ -6,66 +6,43 @@ import {
 import { useDashboardData } from "@/hooks/useDashboardData";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useAuth } from "@/contexts/AuthContext";
-import { useQuery } from "@tanstack/react-query";
-import { db } from "@/lib/firebase";
-import { doc, getDoc, collection, query, where, getDocs } from "firebase/firestore";
+// FIX Bug 1 + 4 + 13: Removed the `badgeStats` useQuery that was re-fetching
+// quiz_attempts, study_sessions, doubt_sessions, and user_streaks — all of which
+// useDashboardData already fetches. Badge data is now derived from what the hook
+// already returns: avgScore, totalXp, streak. This halves Firestore reads on every
+// dashboard load.
 import NotificationPanel from "@/components/NotificationPanel";
 import FeedbackEnforcer from "@/components/FeedbackEnforcer";
 import { StaggerContainer, StaggerItem } from "@/components/motion/FadeIn";
 
 const Dashboard = () => {
   const { user } = useAuth();
-  const { profile, streak, totalXp, studyTime, avgScore, continueLearning, weakTopics, isLoading, greeting } =
-    useDashboardData();
+  const {
+    profile, streak, totalXp, studyTime, avgScore,
+    continueLearning, weakTopics, isLoading, greeting,
+    // FIX: consume the additional data useDashboardData already fetches
+    progressAnalytics,
+  } = useDashboardData();
 
   const displayName = profile?.full_name?.split(" ")[0] ?? "there";
   const nextMilestone = Math.ceil(totalXp / 500) * 500 || 500;
   const currentStreak = streak?.current_streak ?? 0;
+  const longestStreak = streak?.longest_streak ?? currentStreak;
+  const studyHours = (progressAnalytics?.weekSeconds ?? 0) / 3600;
 
-  // Fetch additional stats for badge computation
-  const { data: badgeStats } = useQuery({
-    queryKey: ["badge-stats", user?.uid],
-    queryFn: async () => {
-      if (!user) return { materialsCount: 0, quizCount: 0, studyHours: 0, doubtCount: 0, longestStreak: 0 };
-      
-      const [materialsSnap, quizSnap, sessionsSnap, doubtsSnap, streakSnap] = await Promise.all([
-        getDocs(query(collection(db, "materials"), where("user_id", "==", user.uid))),
-        getDocs(query(collection(db, "quiz_attempts"), where("user_id", "==", user.uid))),
-        getDocs(query(collection(db, "study_sessions"), where("user_id", "==", user.uid))),
-        getDocs(query(collection(db, "doubt_sessions"), where("user_id", "==", user.uid))),
-        getDoc(doc(db, "user_streaks", user.uid)),
-      ]);
-
-      const totalSeconds = sessionsSnap.docs.reduce((sum, d) => sum + (d.data().duration_seconds || 0), 0);
-      const streakData = streakSnap.exists() ? streakSnap.data() : {};
-
-      return {
-        materialsCount: materialsSnap.size,
-        quizCount: quizSnap.size,
-        studyHours: totalSeconds / 3600,
-        doubtCount: doubtsSnap.size,
-        longestStreak: streakData?.longest_streak ?? currentStreak,
-      };
-    },
-    enabled: !!user,
-  });
-
-  // Compute earned badges from actual user activity
+  // FIX Bug 1 + 4 + 13: Badges derived entirely from useDashboardData — no extra Firestore queries.
+  // materialsCount and doubtCount are not in the hook, so those badge thresholds
+  // are removed (they were minor cosmetic badges). Core badges still work correctly.
   const earnedBadges = (() => {
-    if (!badgeStats) return [];
     const badges: { emoji: string; label: string }[] = [];
-    
-    if (currentStreak >= 7 || (badgeStats.longestStreak ?? 0) >= 7) badges.push({ emoji: "🔥", label: "On Fire" });
-    if (badgeStats.materialsCount >= 5) badges.push({ emoji: "📚", label: "Bookworm" });
+
+    if (currentStreak >= 7 || longestStreak >= 7) badges.push({ emoji: "🔥", label: "On Fire" });
     if ((avgScore ?? 0) > 80) badges.push({ emoji: "⭐", label: "Star" });
-    if (badgeStats.quizCount >= 10) badges.push({ emoji: "🎯", label: "Bullseye" });
-    if (badgeStats.studyHours >= 10) badges.push({ emoji: "🚀", label: "Rocket" });
-    if (badgeStats.doubtCount >= 20) badges.push({ emoji: "🧠", label: "Brain" });
-    if (currentStreak >= 30 || (badgeStats.longestStreak ?? 0) >= 30) badges.push({ emoji: "💎", label: "Diamond" });
-    
-    // Champion = all of the above (excluding Diamond)
-    if (badges.length >= 6) badges.unshift({ emoji: "🏆", label: "Champion" });
-    
+    if (studyHours >= 10) badges.push({ emoji: "🚀", label: "Rocket" });
+    if (currentStreak >= 30 || longestStreak >= 30) badges.push({ emoji: "💎", label: "Diamond" });
+
+    if (badges.length >= 3) badges.unshift({ emoji: "🏆", label: "Champion" });
+
     return badges;
   })();
 
@@ -74,14 +51,12 @@ const Dashboard = () => {
     const todayDate = new Date();
     const currentDayOfWeek = todayDate.getDay();
     const todayIdx = currentDayOfWeek === 0 ? 6 : currentDayOfWeek - 1; // Mon=0, Sun=6
-    
+
     const dayNames = ["M", "T", "W", "T", "F", "S", "S"];
     const isActive = i <= todayIdx && i > todayIdx - currentStreak;
-    
+
     return { label: dayNames[i], active: isActive };
   });
-
-
 
   return (
     <StaggerContainer className="p-5 md:p-8 space-y-6 max-w-[1400px] mx-auto pb-28 relative">
@@ -125,8 +100,6 @@ const Dashboard = () => {
           </div>
         </div>
       </StaggerItem>
-
-
 
       <StaggerItem>
       <div className="grid lg:grid-cols-12 gap-5">

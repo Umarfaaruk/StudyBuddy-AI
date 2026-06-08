@@ -1,4 +1,4 @@
-import { Trophy, Zap, Flame, Users, Crown, Medal, Award, Star, UserPlus, UserCheck } from "lucide-react";
+import { Trophy, Zap, Flame, Users, Crown, Award, Star, UserPlus, UserCheck } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";

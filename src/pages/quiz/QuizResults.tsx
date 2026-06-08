@@ -3,7 +3,11 @@ import { Link, useLocation, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Trophy, RotateCcw, ArrowRight, Target, TrendingUp, Zap } from "lucide-react";
 import { db } from "@/lib/firebase";
-import { addDoc, collection, doc, setDoc, getDoc, increment, serverTimestamp } from "firebase/firestore";
+// FIX Bug 17: Removed `setDoc` + `increment` — no longer writing profiles.total_xp here.
+// XP is the single source of truth in xp_logs and is always computed by summing that
+// collection. Writing a separate running total to profiles.total_xp caused it to drift
+// out of sync with xp_logs (different numbers shown on Dashboard vs Profile vs Progress).
+import { addDoc, collection, doc, getDoc, serverTimestamp } from "firebase/firestore";
 import { useAuth } from "@/contexts/AuthContext";
 
 const QuizResults = () => {
@@ -42,7 +46,9 @@ const QuizResults = () => {
           created_at: serverTimestamp(),
         });
 
-        // Award XP
+        // Award XP — xp_logs is the single source of truth.
+        // useDashboardData sums this collection to compute totalXp.
+        // Do NOT also write to profiles.total_xp — that causes drift.
         if (xp > 0) {
           await addDoc(collection(db, "xp_logs"), {
             user_id: user.uid,
@@ -50,10 +56,6 @@ const QuizResults = () => {
             xp_amount: xp,
             created_at: serverTimestamp(),
           });
-
-          // Update profile total_xp
-          const profileRef = doc(db, "profiles", user.uid);
-          await setDoc(profileRef, { total_xp: increment(xp), updated_at: serverTimestamp() }, { merge: true });
         }
 
         // Update topic_progress if we have a topicId
@@ -68,6 +70,7 @@ const QuizResults = () => {
             const newAvg = ((Number(existing.avg_quiz_score || 0) * (existing.quiz_count || 0)) + scorePct) / newCount;
             const mastery = Math.round(newAvg * 0.7 + (existing.lessons_completed > 0 ? 30 : 0));
 
+            const { setDoc } = await import("firebase/firestore");
             await setDoc(progressRef, {
               quiz_count: newCount,
               avg_quiz_score: Math.round(newAvg),
@@ -76,6 +79,7 @@ const QuizResults = () => {
             }, { merge: true });
           } else {
             const mastery = Math.round(scorePct * 0.7);
+            const { setDoc } = await import("firebase/firestore");
             await setDoc(progressRef, {
               user_id: user.uid,
               topic_id: topicId,

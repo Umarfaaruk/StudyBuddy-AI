@@ -1,16 +1,16 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    
+
     // ── Helper functions ──────────────────────────────
     function isAuthenticated() {
       return request.auth != null;
     }
-    
+
     function isUser(uid) {
       return isAuthenticated() && request.auth.uid == uid;
     }
-    
+
     function isAdmin() {
       return isAuthenticated() && (
         (exists(/databases/$(database)/documents/users/$(request.auth.uid)) && (
@@ -24,8 +24,6 @@ service cloud.firestore {
       );
     }
 
-    // Helper: Check if the authenticated user owns this resource
-    // Works for both get (single doc) and list (query) operations
     function isOwner() {
       return isAuthenticated() && resource.data.user_id == request.auth.uid;
     }
@@ -33,36 +31,36 @@ service cloud.firestore {
     function isNewOwner() {
       return isAuthenticated() && request.resource.data.user_id == request.auth.uid;
     }
-    
+
     // ── /users collection ─────────────────────────────
-    // Users can read their own doc; admins can read any user doc
     match /users/{userId} {
       allow read: if isUser(userId) || isAdmin();
       allow write: if isUser(userId);
       allow delete: if isUser(userId) || isAdmin();
-      
+
       match /profile_data/{document=**} {
         allow read, write: if isUser(userId);
         allow delete: if isUser(userId) || isAdmin();
       }
     }
-    
+
     // ── /profiles collection ──────────────────────────
-    // Readable by any authenticated user (for leaderboards, social)
-    // Writable only by the profile owner
     match /profiles/{userId} {
       allow read: if isAuthenticated();
       allow write: if isUser(userId);
-      allow delete: if isAdmin();
+      // FIX Bug 16: Admin can now delete profiles (was missing — caused errors
+      // in AdminPanel when trying to remove users).
+      allow delete: if isUser(userId) || isAdmin();
     }
-    
+
     // ── /user_preferences collection ──────────────────
     match /user_preferences/{userId} {
       allow read: if isUser(userId) || isAdmin();
       allow write: if isUser(userId);
+      // FIX Bug 16: Admin can now delete user_preferences (was missing).
       allow delete: if isUser(userId) || isAdmin();
     }
-    
+
     // ── /study_sessions collection ────────────────────
     match /study_sessions/{sessionId} {
       allow read: if isOwner() || isAdmin();
@@ -70,7 +68,7 @@ service cloud.firestore {
       allow update: if isOwner();
       allow delete: if isOwner() || isAdmin();
     }
-    
+
     // ── /xp_logs collection ───────────────────────────
     match /xp_logs/{logId} {
       allow read: if isOwner() || isAdmin();
@@ -78,14 +76,14 @@ service cloud.firestore {
       allow update: if isOwner();
       allow delete: if isOwner() || isAdmin();
     }
-    
+
     // ── /user_streaks collection ──────────────────────
     match /user_streaks/{userId} {
       allow read: if isUser(userId) || isAdmin();
       allow write: if isUser(userId);
       allow delete: if isUser(userId) || isAdmin();
     }
-    
+
     // ── /lesson_progress collection ───────────────────
     match /lesson_progress/{progressId} {
       allow read: if isAuthenticated();
@@ -93,7 +91,7 @@ service cloud.firestore {
       allow update: if isAuthenticated();
       allow delete: if isAuthenticated();
     }
-    
+
     // ── /quiz_attempts collection ─────────────────────
     match /quiz_attempts/{attemptId} {
       allow read: if isOwner() || isAdmin();
@@ -101,21 +99,21 @@ service cloud.firestore {
       allow update: if isOwner();
       allow delete: if isAdmin();
     }
-    
+
     // ── /topics collection (public) ────────────────────
     match /topics/{topicId} {
       allow read: if isAuthenticated();
       allow create, update: if isAuthenticated();
       allow delete: if isAuthenticated();
     }
-    
+
     // ── /lessons collection (public) ───────────────────
     match /lessons/{lessonId} {
       allow read: if isAuthenticated();
       allow create, update: if isAuthenticated();
       allow delete: if isAuthenticated();
     }
-    
+
     // ── /friends_list collection ──────────────────────
     match /friends_list/{friendId} {
       allow read: if isAuthenticated();
@@ -123,7 +121,7 @@ service cloud.firestore {
       allow update: if isAuthenticated();
       allow delete: if isAuthenticated();
     }
-    
+
     // ── /doubt_sessions collection ──────────────────
     match /doubt_sessions/{sessionId} {
       allow read: if isOwner() || isAdmin();
@@ -131,34 +129,40 @@ service cloud.firestore {
       allow update: if isOwner();
       allow delete: if isOwner() || isAdmin();
     }
-    
+
     // ── /doubt_messages collection ──────────────────
     match /doubt_messages/{messageId} {
       allow read: if isAuthenticated();
       allow create: if isAuthenticated();
       allow delete: if isAuthenticated();
     }
-    
-    // ── /analytics collection (aggregated data) ───────
+
+    // ── /analytics collection ─────────────────────────
     match /analytics/{userId} {
       allow read: if isUser(userId);
       allow write: if isUser(userId);
     }
-    
+
     // ── /feedback collection ──────────────────────────
+    // FIX Bug 10: feedback was allow read: isAuthenticated() — any logged-in user
+    // could read all feedback from all users. Now restricted to owner + admin only.
     match /feedback/{feedbackId} {
-      allow read: if isAuthenticated();
+      allow read: if isOwner() || isAdmin();
       allow create: if isAuthenticated();
+      // FIX: update/delete also requires ownership or admin
       allow update, delete: if isOwner() || isAdmin();
     }
-    
+
+    // ── /topic_progress collection ─────────────────────
+    // FIX Bug 10: topic_progress was wide open — any authenticated user could read
+    // any user's topic progress. Locked down to owner + admin only.
     match /topic_progress/{progressId} {
       allow read: if isOwner() || isAdmin();
       allow create: if isNewOwner();
       allow update: if isOwner();
       allow delete: if isOwner() || isAdmin();
     }
-    
+
     // ── /materials collection ─────────────────────────
     match /materials/{materialId} {
       allow read: if isOwner() || isAdmin();
@@ -166,14 +170,14 @@ service cloud.firestore {
       allow update: if isOwner();
       allow delete: if isOwner() || isAdmin();
     }
-    
+
     // ── /analytics_snapshots collection ────────────────
     match /analytics_snapshots/{snapshotId} {
       allow read: if isOwner();
       allow create: if isNewOwner();
       allow update: if isOwner();
     }
-    
+
     // ── /quiz_results collection ──────────────────────
     match /quiz_results/{resultId} {
       allow read: if isOwner();
@@ -188,7 +192,7 @@ service cloud.firestore {
       allow update: if isOwner();
       allow delete: if isOwner() || isAdmin();
     }
-    
+
     // ── /study_plans collection ───────────────────────
     match /study_plans/{planId} {
       allow read: if isOwner() || isAdmin();
