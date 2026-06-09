@@ -62,12 +62,40 @@ function getApiKey(): string {
 }
 
 /**
+ * Fetch basic metadata from public oEmbed (very high rate limits, never blocked)
+ */
+async function fetchOEmbedMetadata(videoId: string): Promise<VideoMetadata | null> {
+  try {
+    const url = `https://www.youtube.com/oembed?url=https://www.youtube.com/watch?v=${videoId}&format=json`;
+    const resp = await fetch(url, { signal: AbortSignal.timeout(5000) });
+    if (resp.ok) {
+      const data: any = await resp.json();
+      return {
+        videoId,
+        title: data.title || "YouTube Video",
+        channel: data.author_name || "Unknown Channel",
+        thumbnail: `https://img.youtube.com/vi/${videoId}/maxresdefault.jpg`,
+        duration: null,
+        viewCount: null,
+      };
+    }
+  } catch (err) {
+    console.warn("[YouTube API] Failed to fetch oEmbed metadata fallback:", err);
+  }
+  return null;
+}
+
+/**
  * Fetch video metadata (title, channel, duration, view count, thumbnail)
  */
 async function fetchVideoMetadata(
   videoId: string,
   apiKey: string
 ): Promise<VideoMetadata | null> {
+  // If it's a Supadata key, skip the official Google API (it will fail)
+  if (apiKey.startsWith("AQ.")) {
+    return null;
+  }
   try {
     const url = new URL("https://www.googleapis.com/youtube/v3/videos");
     url.searchParams.set("part", "snippet,contentDetails,statistics");
@@ -282,6 +310,34 @@ async function fetchTranscript(
       return timedtextResult;
     }
 
+    // If it's a Supadata key, call Supadata API
+    if (apiKey.startsWith("AQ.")) {
+      console.log(`[YouTube API] Fetching transcript via Supadata API fallback...`);
+      const response = await fetch(
+        `https://api.supadata.ai/v1/youtube/transcript?videoId=${videoId}&text=true`,
+        {
+          headers: {
+            "x-api-key": apiKey,
+          },
+          signal: AbortSignal.timeout(15000),
+        }
+      );
+
+      if (response.ok) {
+        const data: any = await response.json();
+        const transcript = data.content || "";
+        if (transcript.length > 50) {
+          return {
+            transcript,
+            segments: [{ start: 0, text: transcript }],
+          };
+        }
+      } else {
+        console.warn(`[YouTube API] Supadata API HTTP error: ${response.status}`);
+      }
+      return null;
+    }
+
     // Fallback to YouTube Data API (may have limited access without OAuth)
     const url = new URL("https://www.googleapis.com/youtube/v3/captions");
     url.searchParams.set("part", "snippet");
@@ -359,26 +415,16 @@ export default async function handler(req: any, res: any) {
 
     // Fetch metadata (title, channel, duration, etc.)
     let metadata: VideoMetadata | null = null;
+    let metadataError: string | null = null;
     try {
       metadata = await fetchVideoMetadata(videoId, apiKey);
     } catch (err) {
-      const errorMsg = err instanceof Error ? err.message : String(err);
-      console.warn("[YouTube API] Metadata fetch failed:", errorMsg);
-      
-      // Return error but with 200 status (so frontend can parse the response)
-      return res.status(200).json({
-        videoId,
-        title: "Unable to Fetch Video",
-        channel: "Unknown",
-        thumbnail: `https://img.youtube.com/vi/${videoId}/maxresdefault.jpg`,
-        duration: null,
-        viewCount: null,
-        hasTranscript: false,
-        transcript: "",
-        segments: [],
-        transcriptSource: "none",
-        error: errorMsg,
-      } as TranscriptResponse);
+      metadataError = err instanceof Error ? err.message : String(err);
+      console.warn("[YouTube API] Primary metadata fetch failed, trying oEmbed fallback:", metadataError);
+    }
+
+    if (!metadata) {
+      metadata = await fetchOEmbedMetadata(videoId);
     }
 
     if (!metadata) {
@@ -393,7 +439,7 @@ export default async function handler(req: any, res: any) {
         transcript: "",
         segments: [],
         transcriptSource: "none",
-        error: "Video not found or is private. Please check the video ID.",
+        error: metadataError || "Video not found or is private. Please check the video ID.",
       } as TranscriptResponse);
     }
 
