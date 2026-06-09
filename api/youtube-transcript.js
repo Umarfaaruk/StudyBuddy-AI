@@ -3,9 +3,12 @@
  * ==================================================
  * 1. Primary Strategy: Uses the Android InnerTube API client which requires no key,
  *    works out-of-the-box on localhost, and fetches structured caption tracks.
- * 2. Fallback Strategy: If InnerTube is blocked (common in serverless/cloud hosting like Vercel),
+ * 2. Fallback Strategy A (Groq Whisper): If the video has no native captions/subtitles
+ *    but we successfully loaded the video player metadata, we extract the audio stream
+ *    and transcribe it using Groq's Whisper API.
+ * 3. Fallback Strategy B (Supadata API): If InnerTube is blocked (common in serverless/cloud hosting like Vercel),
  *    falls back to Supadata API if SUPADATA_API_KEY is configured.
- * 3. Metadata: Uses public oEmbed API for video metadata.
+ * 4. Metadata: Uses public oEmbed API for video metadata.
  */
 
 const ANDROID_PLAYER_URL = "https://www.youtube.com/youtubei/v1/player?prettyPrint=false";
@@ -179,6 +182,81 @@ async function fetchOEmbedMetadata(videoId) {
   return null;
 }
 
+// Downloads the first 10MB of the audio stream and transcribes it using Groq Whisper API
+async function tryAudioTranscription(data, metadata, videoId) {
+  try {
+    const formats = data?.streamingData?.adaptiveFormats;
+    if (!Array.isArray(formats)) return null;
+
+    const audioFormat = formats.find(f => f.mimeType?.startsWith("audio/"));
+    if (!audioFormat || !audioFormat.url) return null;
+
+    console.log(`[YouTube API] Found audio format. Fetching stream for videoId: ${videoId}...`);
+    const audioResp = await fetch(audioFormat.url, {
+      headers: {
+        "Range": "bytes=0-9999999", // First 10MB
+        "User-Agent": ANDROID_USER_AGENT
+      },
+      signal: AbortSignal.timeout(15000)
+    });
+
+    if (!audioResp.ok) {
+      throw new Error(`Failed to fetch audio stream: ${audioResp.status}`);
+    }
+
+    const buffer = await audioResp.arrayBuffer();
+    const apiKey = process.env.GROQ_API_KEY || process.env.VITE_GROQ_API_KEY;
+    if (!apiKey) {
+      throw new Error("Missing GROQ_API_KEY");
+    }
+
+    const formData = new FormData();
+    const blob = new Blob([buffer], { type: audioFormat.mimeType.split(";")[0] });
+    formData.append("file", blob, "audio.m4a");
+    formData.append("model", "whisper-large-v3");
+    formData.append("response_format", "verbose_json");
+
+    console.log(`[YouTube API] Sending audio buffer to Groq Whisper...`);
+    const whisperResp = await fetch("https://api.groq.com/openai/v1/audio/transcriptions", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${apiKey}`
+      },
+      body: formData,
+      signal: AbortSignal.timeout(20000)
+    });
+
+    if (!whisperResp.ok) {
+      const errText = await whisperResp.text();
+      throw new Error(`Whisper API error (HTTP ${whisperResp.status}): ${errText}`);
+    }
+
+    const whisperData = await whisperResp.json();
+    if (whisperData.text) {
+      const segments = (whisperData.segments || []).map(s => ({
+        start: s.start || 0,
+        text: s.text || ""
+      }));
+
+      return {
+        videoId,
+        title: metadata.title,
+        channel: metadata.channel,
+        thumbnail: `https://img.youtube.com/vi/${videoId}/maxresdefault.jpg`,
+        hasTranscript: true,
+        transcript: whisperData.text,
+        segments: segments,
+        transcriptSource: "whisper_audio",
+        transcriptStrategy: "groq_whisper",
+        error: null
+      };
+    }
+  } catch (err) {
+    console.warn("[YouTube API] Whisper fallback failed:", err.message);
+  }
+  return null;
+}
+
 export default async function handler(req, res) {
   if (req.method !== "GET") {
     res.setHeader("Allow", "GET");
@@ -201,6 +279,7 @@ export default async function handler(req, res) {
   }
 
   // 1. Try Android InnerTube Scraping (requires no API key)
+  let innerTubeData = null;
   try {
     console.log(`[YouTube API] Trying InnerTube scraper for videoId: ${videoId}`);
     const resp = await fetch(ANDROID_PLAYER_URL, {
@@ -220,13 +299,13 @@ export default async function handler(req, res) {
       throw new Error(`InnerTube HTTP error: ${resp.status}`);
     }
 
-    const data = await resp.json();
-    const playStatus = data.playabilityStatus || {};
+    innerTubeData = await resp.json();
+    const playStatus = innerTubeData.playabilityStatus || {};
     if (playStatus.status && playStatus.status !== "OK") {
       throw new Error(playStatus.reason || "Video unplayable");
     }
 
-    const tracks = data.captions?.playerCaptionsTracklistRenderer?.captionTracks;
+    const tracks = innerTubeData.captions?.playerCaptionsTracklistRenderer?.captionTracks;
     if (Array.isArray(tracks) && tracks.length > 0) {
       const sortedTracks = getSortedCaptionTracks(tracks);
       let selectedSegments = [];
@@ -264,7 +343,16 @@ export default async function handler(req, res) {
     console.warn("[YouTube API] InnerTube scraper failed:", err.message);
   }
 
-  // 2. Try Supadata API Fallback
+  // 2. Try Whisper Transcription Fallback on downloaded audio stream
+  if (innerTubeData) {
+    console.log("[YouTube API] Trying Whisper audio transcription fallback...");
+    const whisperResult = await tryAudioTranscription(innerTubeData, { title: finalTitle, channel: finalChannel }, videoId);
+    if (whisperResult) {
+      return res.status(200).json(whisperResult);
+    }
+  }
+
+  // 3. Try Supadata API Fallback
   const supadataKey = process.env.SUPADATA_API_KEY;
   if (supadataKey && !supadataKey.startsWith("AQ.")) {
     try {
@@ -303,7 +391,7 @@ export default async function handler(req, res) {
     }
   }
 
-  // 3. Fallback: No Transcript Available
+  // 4. Fallback: No Transcript Available
   return res.status(200).json({
     videoId,
     title: finalTitle,
