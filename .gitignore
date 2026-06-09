@@ -37,3 +37,5 @@ scratch/
 .codex-*
 
 # Python reference library (not part of the build)
+
+.vercel
