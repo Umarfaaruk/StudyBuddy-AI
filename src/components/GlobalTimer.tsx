@@ -283,7 +283,7 @@ const GlobalTimer = () => {
       setSaving(false);
       isSavingRef.current = false;
     }
-  }, [user, streak, invalidateProgress, sessionKey]);
+  }, [user, streak, invalidateProgress, sessionKey, currentTopicId]);
 
   // ── Helper: schedule 30-second auto-save after tab switch/blur ──
   const scheduleAutoSave = useCallback(() => {
