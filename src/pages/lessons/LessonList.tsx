@@ -301,8 +301,18 @@ ${materialContent}`;
     try {
       // Step 1: Fetch transcript
       const resp = await fetch(`/api/youtube-transcript?v=${videoId}&t=${Date.now()}`);
-      if (!resp.ok) throw new Error("Failed to fetch video data");
+      if (!resp.ok) {
+        throw new Error(`HTTP ${resp.status}: Failed to fetch video data`);
+      }
       const videoData = await resp.json();
+      
+      // Check for API errors in response body
+      if (videoData.error) {
+        toast.error(`Error fetching video: ${videoData.error}`);
+        setYoutubeGenerating(false);
+        return;
+      }
+      
       const videoTitle = videoData.title || "YouTube Video";
       const videoChannel = videoData.channel || "Unknown Channel";
       const hasTranscript =

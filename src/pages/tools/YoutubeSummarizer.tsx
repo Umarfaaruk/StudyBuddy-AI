@@ -516,16 +516,21 @@ export const YoutubeSummarizer = () => {
 
     try {
       const resp = await fetch(`/api/youtube-transcript?v=${id}&t=${Date.now()}`);
-      if (!resp.ok) throw new Error("Failed to fetch video details");
+      if (!resp.ok) {
+        throw new Error(`HTTP ${resp.status}: Failed to fetch video details`);
+      }
       const data = await resp.json();
 
+      // Check for API errors in the response body
+      if (data.error) {
+        toast.error(`Error: ${data.error}`);
+        setIsLoading(false);
+        return;
+      }
+
       const hasCaptions = data.hasTranscript === true && (data.segments?.length ?? 0) > 0;
-      if (!hasCaptions) {
-        if (data.error) {
-          toast.error(`YouTube API: ${data.error}`);
-        } else {
-          toast.warning("No captions found — summary will be limited to video metadata.");
-        }
+      if (!hasCaptions && !data.error) {
+        toast.warning("No captions found — summary will be limited to video metadata.");
       }
 
       const video: VideoData = {

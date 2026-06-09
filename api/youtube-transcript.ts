@@ -79,19 +79,34 @@ async function fetchVideoMetadata(
     });
 
     if (!response.ok) {
-      console.warn(
-        `[YouTube API] Metadata fetch failed (HTTP ${response.status})`
-      );
-      return null;
+      const errorData = await response.json().catch(() => ({}));
+      const errorMsg = errorData?.error?.message || `HTTP ${response.status}`;
+      
+      if (response.status === 400) {
+        console.warn(`[YouTube API] Invalid video ID: ${videoId}`);
+        throw new Error(`Invalid video ID format: ${videoId}`);
+      }
+      if (response.status === 403) {
+        console.warn("[YouTube API] Invalid or expired API key");
+        throw new Error("YouTube API key is invalid or has expired");
+      }
+      if (response.status === 404) {
+        console.warn(`[YouTube API] Video not found: ${videoId}`);
+        return null;
+      }
+      
+      console.warn(`[YouTube API] Metadata fetch failed: ${errorMsg}`);
+      throw new Error(`Failed to fetch metadata: ${errorMsg}`);
     }
 
     const data: any = await response.json();
-    const video = data.items?.[0];
-    if (!video) {
-      console.warn("[YouTube API] Video not found or private");
+    
+    if (!data.items || data.items.length === 0) {
+      console.warn(`[YouTube API] Video not found or private: ${videoId}`);
       return null;
     }
-
+    
+    const video = data.items[0];
     const snippet = video.snippet || {};
     const details = video.contentDetails || {};
     const stats = video.statistics || {};
@@ -110,8 +125,9 @@ async function fetchVideoMetadata(
       viewCount: parseInt(stats.viewCount || "0", 10) || null,
     };
   } catch (err) {
-    console.warn("[YouTube API] Metadata fetch error:", err instanceof Error ? err.message : String(err));
-    return null;
+    const errorMsg = err instanceof Error ? err.message : String(err);
+    console.error("[YouTube API] Metadata fetch error:", errorMsg);
+    throw err; // Re-throw to let handler catch it
   }
 }
 
@@ -321,13 +337,52 @@ export default async function handler(req: any, res: any) {
   }
 
   try {
-    const apiKey = getApiKey();
+    let apiKey: string;
+    try {
+      apiKey = getApiKey();
+    } catch (err) {
+      console.error("[YouTube API] Configuration error:", err instanceof Error ? err.message : String(err));
+      return res.status(200).json({
+        videoId,
+        title: "Configuration Error",
+        channel: "System",
+        thumbnail: `https://img.youtube.com/vi/${videoId}/maxresdefault.jpg`,
+        duration: null,
+        viewCount: null,
+        hasTranscript: false,
+        transcript: "",
+        segments: [],
+        transcriptSource: "none",
+        error: "Server is not configured. Please set YOUTUBE_API_KEY environment variable.",
+      } as TranscriptResponse);
+    }
 
     // Fetch metadata (title, channel, duration, etc.)
-    const metadata = await fetchVideoMetadata(videoId, apiKey);
+    let metadata: VideoMetadata | null = null;
+    try {
+      metadata = await fetchVideoMetadata(videoId, apiKey);
+    } catch (err) {
+      const errorMsg = err instanceof Error ? err.message : String(err);
+      console.warn("[YouTube API] Metadata fetch failed:", errorMsg);
+      
+      // Return error but with 200 status (so frontend can parse the response)
+      return res.status(200).json({
+        videoId,
+        title: "Unable to Fetch Video",
+        channel: "Unknown",
+        thumbnail: `https://img.youtube.com/vi/${videoId}/maxresdefault.jpg`,
+        duration: null,
+        viewCount: null,
+        hasTranscript: false,
+        transcript: "",
+        segments: [],
+        transcriptSource: "none",
+        error: errorMsg,
+      } as TranscriptResponse);
+    }
 
     if (!metadata) {
-      return res.status(404).json({
+      return res.status(200).json({
         videoId,
         title: "Video Not Found",
         channel: "Unknown Channel",
@@ -339,14 +394,14 @@ export default async function handler(req: any, res: any) {
         segments: [],
         transcriptSource: "none",
         error: "Video not found or is private. Please check the video ID.",
-      });
+      } as TranscriptResponse);
     }
 
     // Attempt to fetch transcript
     const transcriptData = await fetchTranscript(videoId, apiKey);
 
     if (!transcriptData) {
-      // No transcript available - return metadata only
+      // No transcript available - return metadata only with 200 status
       return res.status(200).json({
         ...metadata,
         hasTranscript: false,
@@ -369,8 +424,8 @@ export default async function handler(req: any, res: any) {
   } catch (err) {
     console.error("[YouTube API] Unexpected error:", err);
 
-    // Return partial response with metadata if available
-    return res.status(500).json({
+    // Return error response with 200 status
+    return res.status(200).json({
       videoId,
       title: "Error",
       channel: "Unknown",
