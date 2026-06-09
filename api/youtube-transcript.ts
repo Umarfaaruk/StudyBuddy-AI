@@ -245,21 +245,59 @@ function parseJsonCaptions(raw: string): Segment[] {
 }
 
 /**
+ * Fetch available caption tracks from timedtext list endpoint
+ */
+async function fetchAvailableLanguages(videoId: string): Promise<string[]> {
+  try {
+    const url = `https://www.youtube.com/api/timedtext?v=${videoId}&type=list`;
+    const response = await fetch(url, {
+      headers: {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+      },
+      signal: AbortSignal.timeout(5000),
+    });
+
+    if (response.ok) {
+      const xml = await response.text();
+      const languages: string[] = [];
+      const regex = /lang_code="([^"]+)"/g;
+      let match;
+      while ((match = regex.exec(xml)) !== null) {
+        languages.push(match[1]);
+      }
+      return languages;
+    }
+  } catch (err) {
+    console.warn("[YouTube API] Failed to fetch caption track list:", err);
+  }
+  return [];
+}
+
+/**
  * Try to fetch transcripts using timedtext endpoint (more reliable than captions API)
  */
 async function fetchTranscriptViaTimedtext(
   videoId: string
 ): Promise<{ transcript: string; segments: Segment[] } | null> {
   try {
-    // YouTube's timedtext endpoint - used by embedded players
-    // Priority: English variants first, then auto-generated, then any language
-    const languages = [
-      "en", "en-US", "en-GB", // English variants
-      "en-US-asr", "en-GB-asr", // Auto-generated English
-      "a.en", // Alternative English
+    // 1. Fetch available languages for this video
+    const availableLangs = await fetchAvailableLanguages(videoId);
+    
+    // 2. Define our preferred language order (English variants first, then others)
+    const preferredLangs = ["en", "en-US", "en-GB", "en-US-asr", "en-GB-asr", "a.en"];
+    
+    // Sort available languages so preferred ones are checked first, followed by other active languages
+    const languagesToTry = [
+      ...availableLangs.filter(lang => preferredLangs.includes(lang)),
+      ...availableLangs.filter(lang => !preferredLangs.includes(lang)),
     ];
 
-    for (const lang of languages) {
+    // Fallback to our default list if the list endpoint didn't return anything
+    if (languagesToTry.length === 0) {
+      languagesToTry.push("en", "en-US", "en-GB", "en-US-asr", "en-GB-asr", "a.en");
+    }
+
+    for (const lang of languagesToTry) {
       try {
         const url = `https://www.youtube.com/api/timedtext?v=${videoId}&lang=${lang}&fmt=json3`;
         const response = await fetch(url, {
