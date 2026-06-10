@@ -1,8 +1,10 @@
 import React, { useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { Gamepad2, FileText, BrainCircuit } from "lucide-react";
+import { Gamepad2, FileText, BrainCircuit, Youtube, Loader2, PlayCircle } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Input } from "@/components/ui/input";
+import { toast } from "sonner";
 import { useQuery } from "@tanstack/react-query";
 import { collection, getDocs, query, where } from "firebase/firestore";
 import { db } from "@/lib/firebase";
@@ -10,7 +12,46 @@ import { useAuth } from "@/contexts/AuthContext";
 
 const PracticeArena = () => {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const [difficulty, setDifficulty] = useState("Medium");
+  const [youtubeUrl, setYoutubeUrl] = useState("");
+  const [isProcessingYoutube, setIsProcessingYoutube] = useState(false);
+
+  const handleYoutubeQuiz = async () => {
+    if (!youtubeUrl.trim()) {
+      toast.error("Please enter a YouTube URL");
+      return;
+    }
+
+    try {
+      setIsProcessingYoutube(true);
+      const res = await fetch(`/api/youtube-transcript?url=${encodeURIComponent(youtubeUrl.trim())}`);
+      if (!res.ok) {
+        throw new Error("Failed to process YouTube video");
+      }
+      
+      const data = await res.json();
+      if (!data.hasTranscript || !data.transcript) {
+        toast.error("No transcript found for this video");
+        return;
+      }
+
+      // Navigate to quiz viewer with the transcript as materialContext
+      navigate(`/quiz/youtube-${data.videoId}`, {
+        state: {
+          topicTitle: data.title,
+          subjectName: "YouTube Video",
+          materialContext: data.transcript.substring(0, 5000), // passing limited transcript for quiz generation context
+          difficulty
+        }
+      });
+    } catch (error) {
+      console.error(error);
+      toast.error("Error processing YouTube video");
+    } finally {
+      setIsProcessingYoutube(false);
+    }
+  };
 
   // Fetch user materials
   const { data: materials, isLoading: materialsLoading } = useQuery({
@@ -59,6 +100,36 @@ const PracticeArena = () => {
               {lvl}
             </button>
           ))}
+        </div>
+      </div>
+
+      {/* YouTube Quiz Generator */}
+      <div className="bg-gradient-to-br from-red-50 to-white border border-red-100 rounded-2xl p-5 md:p-6 shadow-sm">
+        <div className="flex items-start gap-4 flex-col md:flex-row md:items-center justify-between">
+          <div>
+            <div className="flex items-center gap-2 mb-1">
+              <Youtube className="h-5 w-5 text-red-600" />
+              <h3 className="text-sm font-bold text-gray-900">Quiz from YouTube</h3>
+            </div>
+            <p className="text-xs text-gray-500">Paste a YouTube link to instantly generate a quiz based on the video.</p>
+          </div>
+          <div className="flex w-full md:w-auto gap-2 items-center">
+            <Input
+              placeholder="https://youtube.com/watch?v=..."
+              value={youtubeUrl}
+              onChange={(e) => setYoutubeUrl(e.target.value)}
+              className="bg-white text-xs max-w-[250px] md:w-[250px]"
+              disabled={isProcessingYoutube}
+            />
+            <Button
+              onClick={handleYoutubeQuiz}
+              disabled={isProcessingYoutube || !youtubeUrl.trim()}
+              className="bg-red-600 hover:bg-red-700 text-white text-xs font-bold gap-1.5 shadow-sm shadow-red-600/20"
+            >
+              {isProcessingYoutube ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <PlayCircle className="h-3.5 w-3.5" />}
+              Generate
+            </Button>
+          </div>
         </div>
       </div>
 
