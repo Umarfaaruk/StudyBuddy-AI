@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from "react";
 import { Link } from "react-router-dom";
 import {
-  Send, Paperclip, X, FileText, Mic, Trash2, Sparkles, Loader2, Copy, Check, Square, Bot,
+  Send, Paperclip, X, FileText, Mic, Trash2, Sparkles, Loader2, Copy, Check, Square, Bot, Camera
 } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
@@ -41,6 +41,7 @@ const DoubtInput = () => {
   const [isListening, setIsListening] = useState(false);
   const [copiedIdx, setCopiedIdx] = useState<number | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const cameraInputRef = useRef<HTMLInputElement>(null);
   const recognitionRef = useRef<any>(null);
   const chatEndRef = useRef<HTMLDivElement>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
@@ -420,6 +421,14 @@ const DoubtInput = () => {
             onChange={handleFileSelect}
           />
           <input
+            ref={cameraInputRef}
+            type="file"
+            accept="image/*"
+            capture="environment"
+            className="hidden"
+            onChange={handleFileSelect}
+          />
+          <input
             ref={inputRef}
             type="text"
             placeholder={streaming ? "AI is responding..." : "Ask me anything…"}
@@ -444,6 +453,14 @@ const DoubtInput = () => {
               title="Voice input"
             >
               <Mic className="h-4 w-4" />
+            </button>
+            <button
+              type="button"
+              onClick={() => cameraInputRef.current?.click()}
+              className="p-2 rounded-full text-muted-foreground hover:bg-muted transition-all"
+              title="Take photo"
+            >
+              <Camera className="h-4 w-4" />
             </button>
             <button
               type="button"

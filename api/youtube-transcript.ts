@@ -95,7 +95,7 @@ async function fetchVideoMetadata(
   apiKey: string
 ): Promise<VideoMetadata | null> {
   // If it's a Supadata key, skip the official Google API (it will fail)
-  if (apiKey.startsWith("AQ.")) {
+  if (apiKey.startsWith("sd_")) {
     return null;
   }
   try {
@@ -109,7 +109,7 @@ async function fetchVideoMetadata(
     });
 
     if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
+      const errorData: any = await response.json().catch(() => ({}));
       const errorMsg = errorData?.error?.message || `HTTP ${response.status}`;
       
       if (response.status === 400) {
@@ -288,10 +288,10 @@ async function fetchTranscript(
     }
 
     // If it's a Supadata key, call Supadata API
-    if (apiKey.startsWith("AQ.")) {
+    if (apiKey.startsWith("sd_")) {
       console.log(`[YouTube API] Fetching transcript via Supadata API fallback...`);
       const response = await fetch(
-        `https://api.supadata.ai/v1/youtube/transcript?videoId=${videoId}&text=true`,
+        `https://api.supadata.ai/v1/youtube/transcript?videoId=${videoId}`,
         {
           headers: {
             "x-api-key": apiKey,
@@ -302,11 +302,27 @@ async function fetchTranscript(
 
       if (response.ok) {
         const data: any = await response.json();
-        const transcript = data.content || "";
+        
+        let transcript = "";
+        const segments: Segment[] = [];
+        
+        if (Array.isArray(data.content)) {
+          for (const item of data.content) {
+            segments.push({
+              start: (item.offset || 0) / 1000,
+              text: item.text || "",
+            });
+          }
+          transcript = segments.map(s => s.text).join(" ");
+        } else if (typeof data.content === "string") {
+          transcript = data.content;
+          segments.push({ start: 0, text: transcript });
+        }
+
         if (transcript.length > 50) {
           return {
             transcript,
-            segments: [{ start: 0, text: transcript }],
+            segments,
           };
         }
       } else {
