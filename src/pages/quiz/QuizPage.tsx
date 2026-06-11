@@ -1,10 +1,12 @@
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useNavigate, useParams, useLocation } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Clock, ArrowRight, Loader2, Lightbulb, BookOpen, Flame, SkipForward, X } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
-import { aiComplete } from "@/lib/aiService";
+import { useQuery } from "@tanstack/react-query";
+import { aiComplete, MODEL_SMALL } from "@/lib/aiService";
+import { QUIZ_SYSTEM_PROMPT, HINT_SYSTEM_PROMPT } from "@/lib/prompts";
 
 interface Question {
   question: string;
@@ -30,7 +32,6 @@ const QuizPage = () => {
   const difficulty = (location.state as any)?.difficulty ?? "Medium";
 
   const [questions, setQuestions] = useState<Question[]>([]);
-  const [loading, setLoading] = useState(true);
   const [current, setCurrent] = useState(0);
   const [selected, setSelected] = useState<number | null>(null);
   const [answers, setAnswers] = useState<(number | null)[]>([]);
@@ -42,16 +43,16 @@ const QuizPage = () => {
   const [hintText, setHintText] = useState("");
   const [hintLoading, setHintLoading] = useState(false);
 
-  const fetched = useRef(false);
-
-  // Generate quiz via OpenRouter API
-  useEffect(() => {
-    if (fetched.current) return;
-    fetched.current = true;
-
-    const run = async () => {
-      try {
-        const baseInstructions = `Return ONLY a valid JSON array with this exact format, no other text:
+  // ---------------------------------------------------------------------------
+  // Quiz generation — cached by React Query.
+  // Same topic + subject + difficulty = instant re-open within 10 minutes.
+  // Uses MODEL_SMALL (8B instant): 3× faster, lower rate-limit pressure,
+  // equal quality for structured JSON output.
+  // ---------------------------------------------------------------------------
+  const { data: generatedQuestions, isLoading: loading, error: quizError } = useQuery<Question[]>({
+    queryKey: ["quiz", topicTitle, subjectName, difficulty, !!materialContext],
+    queryFn: async () => {
+      const baseInstructions = `Return ONLY a valid JSON array with this exact format, no other text:
 [
   {
     "question": "What is...?",
@@ -64,69 +65,71 @@ const QuizPage = () => {
 Rules:
 - Each question must have exactly 4 options
 - "correct" is the 0-based index of the correct option
-- The difficulty level for these questions should be: ${difficulty}
+- Difficulty level: ${difficulty}
 - Make questions educational and clear
 - Include helpful explanations`;
 
-        const prompt = materialContext 
-          ? `Generate exactly 5 multiple-choice quiz questions based on the following study material content.
+      const prompt = materialContext
+        ? `Generate exactly 5 multiple-choice quiz questions based on the following study material.
 
 Material Name: "${topicTitle}"
 Content:
 ${materialContext}
 
 ${baseInstructions}`
-          : `Generate exactly 5 multiple-choice quiz questions about "${topicTitle}"${subjectName ? ` (subject: ${subjectName})` : ""}.
+        : `Generate exactly 5 multiple-choice quiz questions about "${topicTitle}"${subjectName ? ` (subject: ${subjectName})` : ""}.
 
 ${baseInstructions}`;
 
-        const text = await aiComplete({
-          messages: [
-            { role: "system", content: "You are a quiz generator. Return ONLY valid JSON arrays, no other text or markdown." },
-            { role: "user", content: prompt },
-          ],
-          temperature: 0.8,
-          maxTokens: 2048,
-        });
+      const text = await aiComplete({
+        messages: [
+          { role: "system", content: QUIZ_SYSTEM_PROMPT },
+          { role: "user", content: prompt },
+        ],
+        temperature: 0.3, // low = reliable JSON structure, no parse errors
+        maxTokens: 1800,
+        model: MODEL_SMALL, // 8B is fast enough for structured quiz JSON
+      });
 
-        // Extract JSON from response (handle markdown code blocks)
-        let jsonString = text;
-        const match = jsonString.match(/```(?:json)?\s*([\s\S]*?)\s*```/);
-        if (match) {
-          jsonString = match[1];
-        }
+      // Extract JSON from response (handle accidental markdown fences)
+      let jsonString = text;
+      const match = jsonString.match(/```(?:json)?\s*([\s\S]*?)\s*```/);
+      if (match) jsonString = match[1];
 
-        const startIdx = jsonString.search(/\[\s*\{/);
-        const endIdx = jsonString.lastIndexOf(']');
-        
-        if (startIdx === -1 || endIdx === -1) {
-          throw new Error("Failed to parse quiz questions from AI response");
-        }
-        
-        jsonString = jsonString.substring(startIdx, endIdx + 1);
-        const parsed = JSON.parse(jsonString) as Question[];
-        if (!Array.isArray(parsed) || parsed.length === 0) throw new Error("No questions generated");
+      const startIdx = jsonString.search(/\[\s*\{/);
+      const endIdx = jsonString.lastIndexOf("]");
+      if (startIdx === -1 || endIdx === -1) throw new Error("Failed to parse quiz questions from AI response");
 
-        // Validate structure
-        const valid = parsed.filter(
-          (q) => q.question && Array.isArray(q.options) && q.options.length === 4 && typeof q.correct === "number"
-        );
+      jsonString = jsonString.substring(startIdx, endIdx + 1);
+      const parsed = JSON.parse(jsonString) as Question[];
+      if (!Array.isArray(parsed) || parsed.length === 0) throw new Error("No questions generated");
 
-        if (valid.length === 0) throw new Error("Invalid question format from AI");
+      const valid = parsed.filter(
+        (q) => q.question && Array.isArray(q.options) && q.options.length === 4 && typeof q.correct === "number"
+      );
+      if (valid.length === 0) throw new Error("Invalid question format from AI");
+      return valid;
+    },
+    staleTime: 10 * 60 * 1000, // cache for 10 minutes — same topic = no re-fetch
+    gcTime: 30 * 60 * 1000,
+    retry: 2,
+  });
 
-        setQuestions(valid);
-        setAnswers(Array(valid.length).fill(null));
-      } catch (e: unknown) {
-        const msg = e instanceof Error ? e.message : "Something went wrong";
-        toast.error(msg);
-        console.error("[QuizPage] Generation error:", e);
-      } finally {
-        setLoading(false);
-      }
-    };
+  // Sync React Query result into local state (needed for timer/nav logic)
+  useEffect(() => {
+    if (generatedQuestions && generatedQuestions.length > 0) {
+      setQuestions(generatedQuestions);
+      setAnswers(Array(generatedQuestions.length).fill(null));
+    }
+  }, [generatedQuestions]);
 
-    run();
-  }, [topicTitle, subjectName, id, navigate, difficulty, materialContext]);
+  useEffect(() => {
+    if (quizError) {
+      const msg = quizError instanceof Error ? quizError.message : "Something went wrong";
+      toast.error(msg);
+      console.error("[QuizPage] Generation error:", quizError);
+    }
+  }, [quizError]);
 
   // Timer
   useEffect(() => {
@@ -204,7 +207,6 @@ ${baseInstructions}`;
     }
   };
 
-  // AI Hint via OpenRouter
   const handleAskHint = async () => {
     if (hintLoading) return;
     setShowHint(true);
@@ -213,15 +215,16 @@ ${baseInstructions}`;
 
     try {
       const q = questions[current];
-      const prompt = `Give me a helpful hint (NOT the answer) for this ${topicTitle} question: "${q.question}". The hint should guide the student toward the correct answer without revealing it directly. Keep it to 2-3 sentences.`;
+      const prompt = `Give a helpful hint (NOT the answer) for this ${topicTitle} question: "${q.question}". Guide the student toward the correct answer without revealing it. 2-3 sentences.`;
 
       const text = await aiComplete({
         messages: [
-          { role: "system", content: "You are a helpful tutor. Give hints, NOT answers." },
+          { role: "system", content: HINT_SYSTEM_PROMPT },
           { role: "user", content: prompt },
         ],
-        temperature: 0.7,
-        maxTokens: 256,
+        temperature: 0.5,
+        maxTokens: 150,
+        model: MODEL_SMALL,
       });
 
       setHintText(text || "Think about the core concept behind this topic. Re-read the question carefully.");

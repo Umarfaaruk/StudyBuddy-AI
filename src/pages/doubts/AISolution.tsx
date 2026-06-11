@@ -8,6 +8,7 @@ import { db } from "@/lib/firebase";
 import { addDoc, collection } from "firebase/firestore";
 import ReactMarkdown from "react-markdown";
 import { aiStream } from "@/lib/aiService";
+import { DOUBT_SYSTEM_PROMPT } from "@/lib/prompts";
 import { extractYouTubeVideoId } from "@/lib/youtube";
 
 /**
@@ -79,9 +80,11 @@ const AISolution = () => {
               if (resp.ok) {
                 const data = await resp.json();
                 if (data.transcript && data.transcript.trim().length > 50) {
-                  youtubeContext = `\n\nYouTube Video Context:\nTitle: "${data.title || 'Video'}"\nChannel: "${data.channel || 'Unknown'}"\nTranscript:\n${data.transcript.substring(0, 15000)}`;
+                  // Cap transcript at 8 000 chars (was 15 000) — saves ~350 tokens per call
+                  const transcript = data.transcript.substring(0, 8000);
+                  youtubeContext = `\n\nYouTube Video Context:\nTitle: "${data.title || 'Video'}"\nChannel: "${data.channel || 'Unknown'}"\nTranscript:\n${transcript}`;
                 } else {
-                  youtubeContext = `\n\nYouTube Video Context (Note: Full transcript not available, please explain the video's core topic based on its title and channel):\nTitle: "${data.title || 'Video'}"\nChannel: "${data.channel || 'Unknown'}"`;
+                  youtubeContext = `\n\nYouTube Video Context (transcript unavailable — answer based on title and channel):\nTitle: "${data.title || 'Video'}"\nChannel: "${data.channel || 'Unknown'}"`;
                 }
               }
             } catch (err) {
@@ -90,29 +93,15 @@ const AISolution = () => {
           }
         }
 
-        const systemPrompt = `You are an expert, patient tutor helping students solve doubts and understand concepts.
-
-When answering:
-1. Provide a clear, step-by-step explanation
-2. Use analogies and real-world examples
-3. Break down complex topics into simpler parts
-4. Highlight common mistakes students make
-5. Format with markdown: use headers (##), bullet points, numbered lists, and **bold** for emphasis
-6. If math is involved, show each step clearly
-7. End with a brief summary and suggest related topics to explore
-8. CRITICAL: If a YouTube Video Context/Transcript is provided, prioritize it as the primary source of truth. Your explanation and answers must be strictly factual and aligned with the information, details, and concepts presented in the video.
-9. CRITICAL: If the user's prompt is a YouTube URL or requests a video summary, provide a highly accurate, structured summary including Main Thesis, Key Takeaways, Detailed Explanations, and Actionable Lessons. Never state that you don't have the context or that the summary is hypothetical, since the full transcript is provided to you.
-10. CRITICAL: ALWAYS provide dynamic YouTube reference suggestions. At the end of your explanation, append a "📺 Recommended Videos" section with 1-2 highly relevant YouTube search links based on the topic discussed. Use the markdown format: [Watch on YouTube: <Topic>](https://www.youtube.com/results?search_query=<URL_encoded_topic>)`;
-
         let full = "";
         await aiStream(
           {
             messages: [
-              { role: "system", content: systemPrompt },
+              { role: "system", content: DOUBT_SYSTEM_PROMPT },
               { role: "user", content: (question || "") + youtubeContext },
             ],
-            temperature: 0.7,
-            maxTokens: 4096,
+            temperature: 0.6,
+            maxTokens: 2000,
             signal: controller.signal,
           },
           (token) => {

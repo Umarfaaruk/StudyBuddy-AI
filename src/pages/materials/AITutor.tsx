@@ -7,6 +7,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
 import ReactMarkdown from "react-markdown";
 import { aiStream, aiComplete } from "@/lib/aiService";
+import { TUTOR_SYSTEM_PROMPT, getDocSystemPrompt, MAX_DOC_CONTEXT_CHARS, DOC_ANALYSIS_SYSTEM_PROMPT } from "@/lib/prompts";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { collection, query, where, getDocs, addDoc, doc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
@@ -31,50 +32,8 @@ interface Material {
   key_topics: string[];
 }
 
-// Maximum document content to include in the system prompt (avoid token overflow)
-const MAX_DOC_CONTEXT_CHARS = 12_000;
-
-const GENERAL_SYSTEM_PROMPT = `You are an expert, patient tutor helping students solve doubts and understand concepts.
-
-When answering:
-1. Provide a clear, step-by-step explanation
-2. Use analogies and real-world examples
-3. Break down complex topics into simpler parts
-4. Highlight common mistakes students make
-5. Format with markdown: use headers (##), bullet points, numbered lists, and **bold** for emphasis
-6. If math is involved, show each step clearly
-7. End with a brief summary and suggest related topics to explore
-8. Keep responses focused and educational`;
-
-const getFileBasedSystemPrompt = (fileName: string, documentContent: string): string => {
-  const truncatedContent = documentContent.length > MAX_DOC_CONTEXT_CHARS
-    ? documentContent.substring(0, MAX_DOC_CONTEXT_CHARS) +
-      `\n\n[... Document truncated. Total length: ${documentContent.length} characters. The above represents the first ${MAX_DOC_CONTEXT_CHARS} characters.]`
-    : documentContent;
-
-  return `You are EduOnx AI Tutor specialized in helping students understand their uploaded study materials.
-
-IMPORTANT: You MUST answer questions STRICTLY BASED on the provided document content.
-- If the answer is in the document, provide a clear, comprehensive answer from the document
-- If the question requires information NOT in the document, say: "This topic is not covered in ${fileName}. Based on the document, here's what I can tell you: [answer from document if relevant]"
-- Always cite which part of the document your answer comes from
-- Never make up information or go beyond the document scope
-
-Document: ${fileName}
-Document Content:
-"""
-${truncatedContent}
-"""
-
-Guidelines for responses:
-- Explain concepts in simple, clear language
-- Use step-by-step explanations for complex topics
-- Provide examples from the document when available
-- Ask clarifying follow-up questions if the question is vague
-- Use markdown formatting: headers (##), bullet points, numbered lists, **bold**, and \`code\` blocks
-- Keep responses focused on the document content
-- End with key takeaways from the document`;
-};
+// Max conversation history sent to AI — keeps token count low for long chats
+const MAX_HISTORY_MESSAGES = 6;
 
 /**
  * Generate simple key topics from extracted text
@@ -128,25 +87,26 @@ async function analyzeWithAI(
   if (text.length < 50) return fallback;
 
   try {
-    const truncated = text.substring(0, 15000);
+    // Use first 8 000 chars for analysis — enough for a good summary
+    const truncated = text.substring(0, 8000);
     const prompt = `Analyze this study material and return a JSON object with:
-1. "summary": A comprehensive 3-5 sentence summary
-2. "keyTopics": An array of 5-10 key topics/concepts covered
+1. "summary": A 2-3 sentence summary
+2. "keyTopics": An array of 5-8 key topics/concepts
 
 Material (from file "${fileName}"):
 """
 ${truncated}
 """
 
-Return ONLY valid JSON, no markdown or other text.`;
+Return ONLY valid JSON.`;
 
     const raw = await aiComplete({
       messages: [
-        { role: "system", content: "You are a document analysis assistant. Return ONLY valid JSON, no other text." },
+        { role: "system", content: DOC_ANALYSIS_SYSTEM_PROMPT },
         { role: "user", content: prompt },
       ],
-      temperature: 0.3,
-      maxTokens: 1024,
+      temperature: 0.2,
+      maxTokens: 512,
     });
 
     const jsonMatch = raw.match(/\{[\s\S]*\}/);
@@ -410,13 +370,18 @@ const AITutor = ({ hideHeader = false }: { hideHeader?: boolean } = {}) => {
     abortControllerRef.current = controller;
     setStreaming(true);
 
+    // Trim history to last MAX_HISTORY_MESSAGES to keep token count low.
+    // The system prompt already contains the full document context, so early
+    // messages add cost without helping quality.
+    const trimmedHistory = history.slice(-MAX_HISTORY_MESSAGES);
+
     const systemPrompt = selectedMaterial
-      ? getFileBasedSystemPrompt(selectedMaterial.file_name, selectedMaterial.extracted_text)
-      : GENERAL_SYSTEM_PROMPT;
+      ? getDocSystemPrompt(selectedMaterial.file_name, selectedMaterial.extracted_text)
+      : TUTOR_SYSTEM_PROMPT;
 
     const apiMessages: { role: "system" | "user" | "assistant"; content: string }[] = [
       { role: "system", content: systemPrompt },
-      ...history.map((m) => ({
+      ...trimmedHistory.map((m) => ({
         role: m.role as "user" | "assistant",
         content: m.content,
       })),
@@ -430,8 +395,8 @@ const AITutor = ({ hideHeader = false }: { hideHeader?: boolean } = {}) => {
       await aiStream(
         {
           messages: apiMessages,
-          temperature: 0.7,
-          maxTokens: 4096,
+          temperature: 0.6,
+          maxTokens: 1500,
           signal: controller.signal,
         },
         (token) => {
@@ -926,59 +891,7 @@ const AITutor = ({ hideHeader = false }: { hideHeader?: boolean } = {}) => {
             </div>
           )}
 
-          {/* Quick Study Tools Sidebar Widget */}
-          <div className="bg-white border border-gray-150 rounded-2xl p-4 shadow-sm space-y-4">
-            <h4 className="text-xs font-bold text-gray-400 uppercase tracking-wider flex items-center gap-1.5">
-              <Wrench className="h-3.5 w-3.5 text-blue-500" /> Quick Study Tools
-            </h4>
-            
-            <div className="space-y-3">
-              {/* YouTube Summarizer */}
-              <div className="group border border-gray-100 rounded-xl p-3 hover:border-blue-200 hover:bg-blue-50/20 transition-all">
-                <div className="flex items-start gap-2.5">
-                  <div className="h-8 w-8 rounded-lg bg-red-50 text-red-500 flex items-center justify-center shrink-0">
-                    <Youtube className="h-4.5 w-4.5" />
-                  </div>
-                  <div>
-                    <h5 className="text-xs font-bold text-gray-800">YouTube Video Summarizer</h5>
-                    <p className="text-[10px] text-gray-400 mt-0.5">Generate notes instantly from study videos.</p>
-                    <Link to="/tools" className="text-[10px] font-semibold text-[#1D4ED8] hover:underline inline-flex items-center gap-0.5 mt-1.5">
-                      Open Summarizer &rarr;
-                    </Link>
-                  </div>
-                </div>
-              </div>
 
-              {/* Concept Explorer / AI Tutor */}
-              <div className="group border border-gray-100 rounded-xl p-3 hover:border-blue-200 hover:bg-blue-50/20 transition-all">
-                <div className="flex items-start gap-2.5">
-                  <div className="h-8 w-8 rounded-lg bg-purple-50 text-purple-500 flex items-center justify-center shrink-0">
-                    <Brain className="h-4.5 w-4.5" />
-                  </div>
-                  <div>
-                    <h5 className="text-xs font-bold text-gray-800">AI Tutor</h5>
-                    <p className="text-[10px] text-gray-400 mt-0.5">Drill down and visualize topics with AI maps.</p>
-                    <Link to="/tools" className="text-[10px] font-semibold text-[#1D4ED8] hover:underline inline-flex items-center gap-0.5 mt-1.5">
-                      Open AI Tutor &rarr;
-                    </Link>
-                  </div>
-                </div>
-              </div>
-
-              {/* Snap Enhance */}
-              <div className="group border border-gray-100 rounded-xl p-3 hover:border-blue-200 hover:bg-blue-50/20 transition-all">
-                <div className="flex items-start gap-2.5">
-                  <div className="h-8 w-8 rounded-lg bg-amber-50 text-amber-500 flex items-center justify-center shrink-0">
-                    <Sparkles className="h-4.5 w-4.5" />
-                  </div>
-                  <div>
-                    <h5 className="text-xs font-bold text-gray-800">Snap Enhance</h5>
-                    <p className="text-[10px] text-gray-400 mt-0.5">Select any text on any page in the app to enhance or simplify it using our global AI toolkit.</p>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
         </div>
       </div>
     </div>

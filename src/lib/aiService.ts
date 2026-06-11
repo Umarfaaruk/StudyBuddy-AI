@@ -15,7 +15,15 @@
  */
 
 const GROQ_PROXY_URL = "/api/groq";
-const MODEL = "llama-3.3-70b-versatile";
+
+/**
+ * Model selection:
+ *   MODEL_LARGE — 70B, best quality. Use for: chat, doubt solving, YT summaries.
+ *   MODEL_SMALL — 8B instant, 3× faster + lower rate-limit pressure.
+ *                 Use for: quiz JSON generation, study planner JSON, doc analysis.
+ */
+export const MODEL_LARGE = "llama-3.3-70b-versatile";
+export const MODEL_SMALL = "llama-3.1-8b-instant";
 
 const MAX_RETRIES = 3;
 const BASE_DELAY_MS = 2000; // 2 seconds initial backoff
@@ -72,6 +80,8 @@ interface AIRequestOptions {
   temperature?: number;
   maxTokens?: number;
   signal?: AbortSignal;
+  /** Override the default model. Pass MODEL_SMALL for JSON-generation tasks. */
+  model?: string;
 }
 
 function buildHeaders(): Record<string, string> {
@@ -97,7 +107,7 @@ async function handleErrorResponse(resp: Response): Promise<never> {
  * Returns the full response text.
  */
 export async function aiComplete(options: AIRequestOptions): Promise<string> {
-  const { messages, temperature = 0.7, maxTokens = 4096, signal } = options;
+  const { messages, temperature = 0.7, maxTokens = 4096, signal, model = MODEL_LARGE } = options;
 
   for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
     const resp = await fetch(GROQ_PROXY_URL, {
@@ -105,7 +115,7 @@ export async function aiComplete(options: AIRequestOptions): Promise<string> {
       headers: buildHeaders(),
       signal,
       body: JSON.stringify({
-        model: MODEL,
+        model: model,
         messages,
         temperature,
         max_tokens: maxTokens,
@@ -148,7 +158,7 @@ export async function aiStream(
   options: AIRequestOptions,
   onToken: (token: string) => void
 ): Promise<string> {
-  const { messages, temperature = 0.7, maxTokens = 4096, signal } = options;
+  const { messages, temperature = 0.7, maxTokens = 4096, signal, model = MODEL_LARGE } = options;
 
   for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
     const resp = await fetch(GROQ_PROXY_URL, {
@@ -156,7 +166,7 @@ export async function aiStream(
       headers: buildHeaders(),
       signal,
       body: JSON.stringify({
-        model: MODEL,
+        model: model,
         messages,
         temperature,
         max_tokens: maxTokens,

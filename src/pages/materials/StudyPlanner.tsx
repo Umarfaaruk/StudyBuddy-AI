@@ -3,7 +3,8 @@ import { useQuery } from "@tanstack/react-query";
 import { collection, getDocs, query, where, addDoc, updateDoc, doc, getDoc, writeBatch } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { useAuth } from "@/contexts/AuthContext";
-import { aiComplete } from "@/lib/aiService";
+import { aiComplete, MODEL_SMALL } from "@/lib/aiService";
+import { PLANNER_SYSTEM_PROMPT } from "@/lib/prompts";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Loader2, Calendar, RefreshCw, FileText, CheckCircle2, CalendarDays, Sparkles, Target, Clock, BookOpen, Zap, BrainCircuit } from "lucide-react";
@@ -178,9 +179,13 @@ Return ONLY a valid JSON object (no markdown wrappers, no commentary):
 Limit the response to match the number of days (${daysDiff} days), max 14 entries. If the plan spans more than 14 days, group days into weekly milestone blocks. Each milestone/day must still contain specific tasks and a corresponding lesson content.`;
 
         const res = await aiComplete({
-          messages: [{ role: "user", content: prompt }],
-          temperature: 0.5,
+          messages: [
+            { role: "system", content: PLANNER_SYSTEM_PROMPT },
+            { role: "user", content: prompt },
+          ],
+          temperature: 0.4, // low = reliable JSON, fewer parse errors on retries
           maxTokens: 4000,
+          model: MODEL_SMALL, // 8B instant — fine for structured planner JSON
         });
 
         let jsonString = res;
