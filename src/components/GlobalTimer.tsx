@@ -66,6 +66,10 @@ const GlobalTimer = () => {
   const lastActivityRef = useRef<number>(Date.now());
   const inactivityTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const tabSwitchSaveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // BUG FIX: topic id read inside long-lived effects via ref, so backups and
+  // unload-saves always record the topic the student is CURRENTLY on, not the
+  // topic from when the effect mounted (stale closure).
+  const currentTopicIdRef = useRef<string | null>(null);
 
   // Keep refs in sync with state
   useEffect(() => { 
@@ -140,6 +144,11 @@ const GlobalTimer = () => {
     return lessonMatch?.[1] || quizMatch?.[1] || materialMatch?.[1] || null;
   }, [pathname]);
 
+  // Keep ref in sync so effects below always see the live topic id
+  useEffect(() => {
+    currentTopicIdRef.current = currentTopicId;
+  }, [currentTopicId]);
+
   // ── Process retry queue on mount ──────────────
   useEffect(() => {
     if (user && recovered) {
@@ -185,7 +194,7 @@ const GlobalTimer = () => {
           seconds: secondsRef.current,
           startedAt: startedAtRef.current,
           timestamp: Date.now(),
-          topicId: currentTopicId,
+          topicId: currentTopicIdRef.current,
         }));
       } catch (e) {
         // Quota exceeded — try cleanup
@@ -324,7 +333,7 @@ const GlobalTimer = () => {
                 seconds: secondsRef.current,
                 startedAt: startedAtRef.current,
                 timestamp: Date.now(),
-                topicId: currentTopicId,
+                topicId: currentTopicIdRef.current,
               }));
             } catch {}
           }
@@ -363,7 +372,7 @@ const GlobalTimer = () => {
               seconds: secondsRef.current,
               startedAt: startedAtRef.current,
               timestamp: Date.now(),
-              topicId: currentTopicId,
+              topicId: currentTopicIdRef.current,
             }));
           } catch {}
         }
@@ -439,7 +448,7 @@ const GlobalTimer = () => {
           startedAt: startedAtRef.current,
           timestamp: Date.now(),
           pendingSave: true,
-          topicId: currentTopicId,
+          topicId: currentTopicIdRef.current,
         };
 
         // Primary: save to localStorage for recovery on next visit

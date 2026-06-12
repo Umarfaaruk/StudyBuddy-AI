@@ -212,7 +212,12 @@ const AdminPanel = () => {
         email: (p.email as string) || "—",
         avatar_url: p.avatar_url as string | undefined,
         grade_level: p.grade_level as string | undefined,
-        joined: (p.created_at as string) || (p.updated_at as string) || "—",
+        // ACCURACY FIX: normalize through parseFirestoreDate so the join date
+        // renders correctly whether stored as an ISO string or a Firestore
+        // Timestamp (prevents "Invalid Date" in the admin user list).
+        joined:
+          (parseFirestoreDate({ created_at: p.created_at }) ??
+            parseFirestoreDate({ updated_at: p.updated_at }))?.toISOString() ?? "—",
         xp: xpByUser[uid] || 0,
         streak: streakByUser[uid]?.current || 0,
         longestStreak: streakByUser[uid]?.longest || 0,

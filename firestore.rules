@@ -223,5 +223,25 @@ service cloud.firestore {
       allow update: if isAuthenticated() && resource.data.user_id == request.auth.uid;
       allow delete: if isAuthenticated() && resource.data.user_id == request.auth.uid;
     }
+
+    // ── /follows collection (Leaderboard follow feature) ──
+    // BUG FIX: this collection had no rule, so Firestore's default-deny
+    // silently blocked every follow/unfollow and the "following" list.
+    match /follows/{followId} {
+      // You can read follow edges you are part of (your follows + your followers)
+      allow read: if isAuthenticated() && (
+        resource.data.follower_id == request.auth.uid ||
+        resource.data.following_id == request.auth.uid
+      );
+      // You may only create a follow as yourself, never following yourself
+      allow create: if isAuthenticated()
+        && request.resource.data.follower_id == request.auth.uid
+        && request.resource.data.following_id is string
+        && request.resource.data.following_id != request.auth.uid;
+      // Only the follower can remove their own follow
+      allow delete: if isAuthenticated() && resource.data.follower_id == request.auth.uid;
+      // Follow edges are immutable — delete and recreate instead
+      allow update: if false;
+    }
   }
 }
