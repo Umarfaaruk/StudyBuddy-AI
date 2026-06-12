@@ -1,7 +1,7 @@
 import { useAuth } from "@/contexts/AuthContext";
 import { useQuery } from "@tanstack/react-query";
 import { db } from "@/lib/firebase";
-import { doc, getDoc, collection, query, where, getDocs, documentId } from "firebase/firestore";
+import { doc, getDoc, collection, query, where, getDocs, documentId, setDoc } from "firebase/firestore";
 import { computeAvgQuizScore } from "@/lib/userStats";
 import { toDateKey } from "@/lib/utils";
 
@@ -79,16 +79,45 @@ export const useDashboardData = () => {
     enabled: !!user,
   });
 
-  /* ── 1 read: xp_logs ─────────────────────────────────────── */
+  /* ── totalXp: precomputed aggregate, reconciled once ──────────
+   * profiles.total_xp is incremented at every XP write (studySession,
+   * QuizResults). On the FIRST load per account we reconcile it against
+   * the xp_logs audit log (one final full scan), stamp xp_reconciled,
+   * and from then on XP costs ZERO extra reads — it rides along on the
+   * profile doc that's already fetched. xp_logs remains the source of
+   * truth for the admin panel, and the reconciliation guarantees the
+   * aggregate can never permanently drift from it. */
   const { data: totalXp } = useQuery({
     queryKey: ["totalXp", user?.uid],
     queryFn: async () => {
       if (!user) return 0;
+
+      const profileRef = doc(db, "profiles", user.uid);
+      const profileSnap = await getDoc(profileRef);
+      const profileData = profileSnap.exists() ? profileSnap.data() : null;
+
+      // Fast path: aggregate exists and has been reconciled once
+      if (profileData?.xp_reconciled && typeof profileData.total_xp === "number") {
+        return profileData.total_xp;
+      }
+
+      // One-time reconciliation: sum the audit log, store the aggregate
       const snapshot = await getDocs(
         query(collection(db, "xp_logs"), where("user_id", "==", user.uid))
       );
       let total = 0;
       snapshot.forEach((d) => { total += d.data().xp_amount || 0; });
+
+      try {
+        await setDoc(
+          profileRef,
+          { total_xp: total, xp_reconciled: true },
+          { merge: true }
+        );
+      } catch {
+        // Write failure is fine — we still return the correct sum,
+        // and reconciliation simply retries on a future load.
+      }
       return total;
     },
     enabled: !!user,

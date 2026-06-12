@@ -6,7 +6,7 @@ import {
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { db } from "@/lib/firebase";
-import { collection, deleteDoc, doc, query, where, onSnapshot, getDocs } from "firebase/firestore";
+import { collection, onSnapshot } from "firebase/firestore";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
 import {
@@ -270,22 +270,21 @@ const AdminPanel = () => {
   const feedbackLoading = isLoading;
   const statsError = null;
 
-  // FIX: Correct delete order + parallel Firestore cleanup + double-fire guard.
-  //
-  // Previous bugs:
-  // 1. Firestore was deleted BEFORE Firebase Auth — if Auth deletion failed,
-  //    the user could log back in and their data would be recreated automatically.
-  // 2. Docs were deleted sequentially in a for-loop; now done in parallel.
-  // 3. No guard against double-clicking the delete button firing two requests.
+  // COMPLETE-DELETION FIX: all data cleanup now happens SERVER-SIDE in
+  // /api/admin-delete-user via the Firebase Admin SDK, which bypasses
+  // Firestore security rules. The previous client-side cleanup was being
+  // silently blocked by rules for several collections (analytics,
+  // notifications, analytics_snapshots) and missed follows/friends_list
+  // and Storage avatars entirely. The server now deletes: the Auth
+  // account, every Firestore doc across 18 collection queries (including
+  // the social graph in both directions), 5 doc-id collections, and the
+  // user's Storage files — and reports exactly what was removed.
   const handleDeleteUser = async (uid: string) => {
     // Guard: prevent double-fire if a delete is already in progress
     if (deletingUserId) return;
     setDeletingUserId(uid);
 
     try {
-      // ── STEP 1: Delete Firebase Auth account FIRST ──────────────────────────
-      // If this fails, we abort entirely and don't touch Firestore.
-      // This prevents the user from re-logging in and recreating their profile.
       const { getAuth: getClientAuth } = await import("firebase/auth");
       const currentUser = getClientAuth().currentUser;
       if (!currentUser) {
@@ -302,53 +301,19 @@ const AdminPanel = () => {
       const result = await resp.json();
 
       if (!resp.ok) {
-        // Auth deletion failed — abort, don't touch Firestore
-        toast.error(`Could not delete auth account: ${result.error || "Unknown error"}`);
+        toast.error(`Could not delete user: ${result.error || "Unknown error"}`);
         return;
       }
 
-      // ── STEP 2: Auth deleted — now clean up Firestore in parallel ───────────
-      const collectionsToClean = [
-        { name: "xp_logs",             field: "user_id" },
-        { name: "study_sessions",      field: "user_id" },
-        { name: "quiz_attempts",       field: "user_id" },
-        { name: "materials",           field: "user_id" },
-        { name: "doubt_sessions",      field: "user_id" },
-        { name: "doubt_messages",      field: "user_id" },
-        { name: "flashcards",          field: "user_id" },
-        { name: "study_plans",         field: "user_id" },
-        { name: "saved_notes",         field: "user_id" },
-        { name: "feedback",            field: "userId" },
-        { name: "analytics_snapshots", field: "user_id" },
-        { name: "lesson_progress",     field: "user_id" },
-        { name: "topic_progress",      field: "user_id" },
-        { name: "notifications",       field: "user_id" },
-      ];
-
-      // Delete all subcollection docs in parallel
-      await Promise.all(
-        collectionsToClean.map(async (col) => {
-          try {
-            const q = query(collection(db, col.name), where(col.field, "==", uid));
-            const snap = await getDocs(q);
-            await Promise.all(snap.docs.map((d) => deleteDoc(doc(db, col.name, d.id))));
-          } catch (err: any) {
-            // Log but don't abort — Auth is already deleted, best effort cleanup
-            console.warn(`[Admin] Could not clean "${col.name}" for ${uid}:`, err?.message);
-          }
-        })
-      );
-
-      // Delete documents where the doc ID itself equals the uid (parallel)
-      await Promise.all([
-        deleteDoc(doc(db, "analytics",        uid)).catch(() => {}),
-        deleteDoc(doc(db, "user_streaks",     uid)).catch(() => {}),
-        deleteDoc(doc(db, "user_preferences", uid)).catch(() => {}),
-        deleteDoc(doc(db, "profiles",         uid)).catch(() => {}),
-        deleteDoc(doc(db, "users",            uid)).catch(() => {}),
-      ]);
-
-      toast.success(`User deleted successfully.`);
+      if (Array.isArray(result.failures) && result.failures.length > 0) {
+        // Auth + most data removed, but some cleanup steps reported errors —
+        // surface it instead of pretending everything succeeded.
+        toast.warning(
+          `User deleted (${result.deletedDocs ?? 0} records removed), but ${result.failures.length} cleanup step(s) reported issues. Check Vercel logs.`
+        );
+      } else {
+        toast.success(`User fully deleted — ${result.deletedDocs ?? 0} records removed.`);
+      }
     } catch (err: any) {
       console.error("[Admin] Delete user error:", err);
       toast.error("Failed to delete user. Check console for details.");

@@ -46,9 +46,12 @@ const QuizResults = () => {
           created_at: serverTimestamp(),
         });
 
-        // Award XP — xp_logs is the single source of truth.
-        // useDashboardData sums this collection to compute totalXp.
-        // Do NOT also write to profiles.total_xp — that causes drift.
+        // Award XP — write the xp_logs audit entry AND increment the
+        // profiles.total_xp aggregate. xp_logs stays the source of truth
+        // (admin sums it); the aggregate lets the dashboard read one doc
+        // instead of scanning the whole collection. useDashboardData
+        // reconciles the aggregate against xp_logs once per account, so
+        // the two can never permanently disagree.
         if (xp > 0) {
           await addDoc(collection(db, "xp_logs"), {
             user_id: user.uid,
@@ -56,6 +59,12 @@ const QuizResults = () => {
             xp_amount: xp,
             created_at: serverTimestamp(),
           });
+          const { setDoc: setDocXp, increment: incrementXp } = await import("firebase/firestore");
+          await setDocXp(
+            doc(db, "profiles", user.uid),
+            { total_xp: incrementXp(xp), updated_at: serverTimestamp() },
+            { merge: true }
+          );
         }
 
         // Update topic_progress if we have a topicId

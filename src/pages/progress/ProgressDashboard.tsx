@@ -14,7 +14,7 @@ import { toDateKey } from "@/lib/utils";
 
 const ProgressDashboard = () => {
   const { user } = useAuth();
-  const { streak, avgScore, progressAnalytics, weakTopics, isLoading } = useDashboardData();
+  const { streak, avgScore, progressAnalytics, weakTopics, totalXp, isLoading } = useDashboardData();
   const [expandedDate, setExpandedDate] = useState<string | null>(null);
   const [dayDetails, setDayDetails] = useState<any>(null);
   const [loadingDetails, setLoadingDetails] = useState(false);
@@ -180,7 +180,10 @@ const ProgressDashboard = () => {
 
   const retentionPct = avgScore ?? 0;
   const completionPct = Math.min(100, Math.round((sessionCount / Math.max(sessionCount, 30)) * 100));
-  const totalXP = sessionCount * 50 + (avgScore ?? 0) * 10 + currentStreak * 25;
+  // ACCURACY FIX: real XP from xp_logs/aggregate (same number the
+  // Dashboard and Admin panel show) — was previously a made-up formula
+  // that never matched the rest of the app.
+  const totalXP = totalXp ?? 0;
   const weekBarData = (chartData ?? Array.from({ length: 7 }, (_, i) => ({ day: ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"][i], hours: 0 })));
 
   const handleShare = async () => {
