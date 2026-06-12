@@ -1,6 +1,7 @@
 import { Component, ErrorInfo, ReactNode } from "react";
 import { AlertTriangle } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { reportError } from "@/lib/errorMonitor";
 
 interface Props {
   children: ReactNode;
@@ -24,6 +25,8 @@ class ErrorBoundary extends Component<Props, State> {
 
   componentDidCatch(error: Error, info: ErrorInfo) {
     console.error("ErrorBoundary caught:", error, info);
+    // Ship to production monitoring (Vercel logs) with the component stack
+    reportError(error, "react.boundary", info.componentStack?.slice(0, 300) ?? undefined);
   }
 
   render() {

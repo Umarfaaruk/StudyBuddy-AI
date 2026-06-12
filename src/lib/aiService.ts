@@ -28,6 +28,55 @@ export const MODEL_SMALL = "llama-3.1-8b-instant";
 const MAX_RETRIES = 3;
 const BASE_DELAY_MS = 2000; // 2 seconds initial backoff
 
+/* ──────────────────────────────────────────────────────────────────────────
+ * CLIENT-SIDE REQUEST QUEUE (scalability)
+ * =======================================
+ * Groq's free tier allows a limited number of requests/min. Without a queue,
+ * a user with several tabs or rapid actions fires parallel requests that all
+ * 429 together and retry together (thundering herd). This semaphore caps
+ * concurrent in-flight AI requests at 2 per browser tab; extra requests wait
+ * their turn (FIFO) instead of failing. Combined with the exponential backoff
+ * below, the app degrades to "slightly slower" under load instead of crashing.
+ * ────────────────────────────────────────────────────────────────────────── */
+const MAX_CONCURRENT_AI_REQUESTS = 2;
+let activeRequests = 0;
+const waitQueue: Array<() => void> = [];
+
+function acquireSlot(signal?: AbortSignal): Promise<void> {
+  return new Promise((resolve, reject) => {
+    if (signal?.aborted) {
+      reject(new DOMException("Aborted", "AbortError"));
+      return;
+    }
+    const tryAcquire = () => {
+      if (signal?.aborted) {
+        reject(new DOMException("Aborted", "AbortError"));
+        return;
+      }
+      activeRequests++;
+      resolve();
+    };
+    if (activeRequests < MAX_CONCURRENT_AI_REQUESTS) {
+      tryAcquire();
+    } else {
+      waitQueue.push(tryAcquire);
+      signal?.addEventListener("abort", () => {
+        const idx = waitQueue.indexOf(tryAcquire);
+        if (idx !== -1) {
+          waitQueue.splice(idx, 1);
+          reject(new DOMException("Aborted", "AbortError"));
+        }
+      }, { once: true });
+    }
+  });
+}
+
+function releaseSlot(): void {
+  activeRequests = Math.max(0, activeRequests - 1);
+  const next = waitQueue.shift();
+  if (next) next();
+}
+
 /**
  * Sleep helper that respects AbortSignal.
  * Rejects immediately if the signal is already aborted or gets aborted during sleep.
@@ -106,7 +155,7 @@ async function handleErrorResponse(resp: Response): Promise<never> {
  * Non-streaming AI completion with automatic retry on rate limits.
  * Returns the full response text.
  */
-export async function aiComplete(options: AIRequestOptions): Promise<string> {
+async function aiCompleteInner(options: AIRequestOptions): Promise<string> {
   const { messages, temperature = 0.7, maxTokens = 4096, signal, model = MODEL_LARGE } = options;
 
   for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
@@ -154,7 +203,7 @@ export async function aiComplete(options: AIRequestOptions): Promise<string> {
  * Calls onToken for each chunk of text received.
  * Returns the full accumulated response.
  */
-export async function aiStream(
+async function aiStreamInner(
   options: AIRequestOptions,
   onToken: (token: string) => void
 ): Promise<string> {
@@ -305,4 +354,32 @@ export async function aiVisionComplete(
   }
 
   throw new Error("Unexpected error in AI vision completion");
+}
+
+/**
+ * Public API: non-streaming completion, queued through the concurrency
+ * limiter so bursts of simultaneous calls never overwhelm the rate limit.
+ */
+export async function aiComplete(options: AIRequestOptions): Promise<string> {
+  await acquireSlot(options.signal);
+  try {
+    return await aiCompleteInner(options);
+  } finally {
+    releaseSlot();
+  }
+}
+
+/**
+ * Public API: streaming completion, queued through the concurrency limiter.
+ */
+export async function aiStream(
+  options: AIRequestOptions,
+  onToken: (token: string) => void
+): Promise<string> {
+  await acquireSlot(options.signal);
+  try {
+    return await aiStreamInner(options, onToken);
+  } finally {
+    releaseSlot();
+  }
 }
