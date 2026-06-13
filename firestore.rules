@@ -33,10 +33,16 @@ service cloud.firestore {
     }
 
     // ── /users collection ─────────────────────────────
+    // SECURITY: the `users` collection is the source of truth for admin status
+    // (is_admin / role), and isAdmin() trusts it. The client only ever READS
+    // this collection, so write/delete are locked to admins (provisioned via
+    // the Firebase Console, which bypasses rules). This closes the privilege-
+    // escalation hole where a user could write { is_admin: true } to their own
+    // /users/{uid} doc and instantly become an administrator.
     match /users/{userId} {
       allow read: if isUser(userId) || isAdmin();
-      allow write: if isUser(userId);
-      allow delete: if isUser(userId) || isAdmin();
+      allow write: if isAdmin();
+      allow delete: if isAdmin();
 
       match /profile_data/{document=**} {
         allow read, write: if isUser(userId);
@@ -45,9 +51,18 @@ service cloud.firestore {
     }
 
     // ── /profiles collection ──────────────────────────
+    // SECURITY: profiles are self-writable (signup, onboarding, XP, etc.), but
+    // a user must NEVER be able to grant themselves admin by writing is_admin
+    // or role onto their own profile. Those two fields are blocked on create
+    // and update for normal users; only an admin may change them.
     match /profiles/{userId} {
       allow read: if isAuthenticated();
-      allow write: if isUser(userId);
+      allow create: if isUser(userId)
+        && !request.resource.data.keys().hasAny(['is_admin', 'role']);
+      allow update: if isAdmin() || (
+        isUser(userId)
+        && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['is_admin', 'role'])
+      );
       // FIX Bug 16: Admin can now delete profiles (was missing — caused errors
       // in AdminPanel when trying to remove users).
       allow delete: if isUser(userId) || isAdmin();
@@ -85,11 +100,14 @@ service cloud.firestore {
     }
 
     // ── /lesson_progress collection ───────────────────
+    // SECURITY: was wide open to any authenticated user. Locked to the owner —
+    // every lesson_progress doc carries user_id (set in LessonViewer), and the
+    // only client query filters by user_id.
     match /lesson_progress/{progressId} {
-      allow read: if isAuthenticated();
-      allow create: if isAuthenticated();
-      allow update: if isAuthenticated();
-      allow delete: if isAuthenticated();
+      allow read: if isOwner() || isAdmin();
+      allow create: if isNewOwner();
+      allow update: if isOwner();
+      allow delete: if isOwner() || isAdmin();
     }
 
     // ── /quiz_attempts collection ─────────────────────
@@ -100,26 +118,57 @@ service cloud.firestore {
       allow delete: if isAdmin();
     }
 
-    // ── /topics collection (public) ────────────────────
+    // ── /topics collection ─────────────────────────────
+    // SECURITY: official/seeded topics may only be written by admins, so a
+    // student can no longer delete or corrupt the shared curriculum. Users may
+    // still create/manage their OWN custom topics (is_custom == true, owned by
+    // them) for the "Create Course from YouTube / material" feature.
     match /topics/{topicId} {
       allow read: if isAuthenticated();
-      allow create, update: if isAuthenticated();
-      allow delete: if isAuthenticated();
+      allow create: if isAdmin() || (
+        isAuthenticated()
+        && request.resource.data.is_custom == true
+        && request.resource.data.user_id == request.auth.uid
+      );
+      allow update, delete: if isAdmin() || (
+        isAuthenticated()
+        && resource.data.is_custom == true
+        && resource.data.user_id == request.auth.uid
+      );
     }
 
-    // ── /lessons collection (public) ───────────────────
+    // ── /lessons collection ─────────────────────────────
+    // SECURITY: same model as topics. Official lessons (no is_custom/user_id)
+    // are admin-only; custom lessons are stamped with is_custom + user_id at
+    // creation so the owner can manage them without a parent-topic lookup.
     match /lessons/{lessonId} {
       allow read: if isAuthenticated();
-      allow create, update: if isAuthenticated();
-      allow delete: if isAuthenticated();
+      allow create: if isAdmin() || (
+        isAuthenticated()
+        && request.resource.data.is_custom == true
+        && request.resource.data.user_id == request.auth.uid
+      );
+      allow update, delete: if isAdmin() || (
+        isAuthenticated()
+        && resource.data.is_custom == true
+        && resource.data.user_id == request.auth.uid
+      );
     }
 
     // ── /friends_list collection ──────────────────────
+    // SECURITY: only the two parties in a relationship may see or change it.
+    // Each doc has requester_id + addressee_id; the client queries on those.
     match /friends_list/{friendId} {
-      allow read: if isAuthenticated();
-      allow create: if isAuthenticated();
-      allow update: if isAuthenticated();
-      allow delete: if isAuthenticated();
+      allow read: if isAuthenticated() && (
+        resource.data.requester_id == request.auth.uid ||
+        resource.data.addressee_id == request.auth.uid
+      );
+      allow create: if isAuthenticated()
+        && request.resource.data.requester_id == request.auth.uid;
+      allow update, delete: if isAuthenticated() && (
+        resource.data.requester_id == request.auth.uid ||
+        resource.data.addressee_id == request.auth.uid
+      );
     }
 
     // ── /doubt_sessions collection ──────────────────
@@ -131,10 +180,15 @@ service cloud.firestore {
     }
 
     // ── /doubt_messages collection ──────────────────
+    // SECURITY: was readable/deletable by ANY authenticated user, exposing every
+    // student's private doubt Q&A. Each message now carries user_id (stamped at
+    // creation in DoubtInput/AISolution) and reads are owner-scoped. The client
+    // query filters by user_id so it remains permitted.
     match /doubt_messages/{messageId} {
-      allow read: if isAuthenticated();
-      allow create: if isAuthenticated();
-      allow delete: if isAuthenticated();
+      allow read: if isOwner() || isAdmin();
+      allow create: if isNewOwner();
+      allow update: if false; // messages are immutable
+      allow delete: if isOwner() || isAdmin();
     }
 
     // ── /analytics collection ─────────────────────────

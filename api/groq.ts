@@ -16,6 +16,8 @@
  *     retry hint rather than guessing.
  */
 
+import { requireAuth } from "./_firebaseAdmin";
+
 const GROQ_URL = "https://api.groq.com/openai/v1/chat/completions";
 
 /** Only models the app uses. Anything else is rejected with 400. */
@@ -61,6 +63,10 @@ export default async function handler(req: any, res: any) {
     res.setHeader("Allow", "POST");
     return res.status(405).json({ error: "Method not allowed" });
   }
+
+  // ── Authentication: only signed-in EduOnx users may spend our AI quota ──
+  const caller = await requireAuth(req, res);
+  if (!caller) return; // requireAuth already wrote the 401 response
 
   try {
     const rawBody = typeof req.body === "string" ? req.body : JSON.stringify(req.body ?? {});

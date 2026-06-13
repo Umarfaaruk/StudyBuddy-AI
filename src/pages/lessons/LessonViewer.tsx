@@ -203,16 +203,14 @@ const LessonViewer = () => {
     queryFn: async () => {
       if (!topicId || !user) return [];
       try {
-        const progressSnap = await getDocs(
-          query(
-            collection(db, "lesson_progress"),
-            where("user_id", "==", user.uid),
-            where("topic_id", "==", topicId)
-          )
-        );
-        return progressSnap.docs.map(doc => ({
-          id: doc.id,
-          ...doc.data()
+        // The progress doc ID is deterministic (`${uid}_${topicId}`), so a single
+        // getDoc is faster and cheaper than a filtered collection query.
+        const progressRef = doc(db, "lesson_progress", `${user.uid}_${topicId}`);
+        const snap = await getDoc(progressRef);
+        if (!snap.exists()) return [];
+        return [{
+          id: snap.id,
+          ...snap.data()
         } as {
           id: string;
           user_id: string;
@@ -220,7 +218,7 @@ const LessonViewer = () => {
           lesson_id: string;
           completed: boolean;
           [key: string]: any;
-        }));
+        }];
       } catch (error) {
         console.error("[LessonViewer] Progress fetch error:", error);
         return [];

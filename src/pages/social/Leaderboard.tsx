@@ -56,19 +56,6 @@ const Leaderboard = () => {
     }
   };
 
-  const { data: myXp } = useQuery({
-    queryKey: ["my-xp", user?.uid],
-    queryFn: async () => {
-      if (!user) return 0;
-      const q = query(collection(db, "xp_logs"), where("user_id", "==", user.uid));
-      const snap = await getDocs(q);
-      let total = 0;
-      snap.forEach((d) => { total += d.data().xp_amount || 0; });
-      return total;
-    },
-    enabled: !!user,
-  });
-
   const { data: myProfile } = useQuery({
     queryKey: ["my-profile", user?.uid],
     queryFn: async () => {
@@ -120,7 +107,9 @@ const Leaderboard = () => {
 
   const myName = myProfile?.full_name || user?.displayName || "You";
   const myInitials = myName.split(" ").map((n: string) => n[0]).join("").slice(0, 2).toUpperCase();
-  const xp = myXp ?? 0;
+  // Use the precomputed total_xp aggregate already loaded on the profile,
+  // instead of scanning and summing the entire xp_logs history (N reads/click).
+  const xp = (myProfile?.total_xp as number) ?? 0;
   const nextMilestone = Math.ceil(xp / 500) * 500 || 500;
 
   // If user not in global list, add them

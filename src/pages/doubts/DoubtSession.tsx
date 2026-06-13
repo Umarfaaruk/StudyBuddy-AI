@@ -2,7 +2,7 @@ import { Link, useParams } from "react-router-dom";
 import { ArrowLeft, Sparkles, User } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { db } from "@/lib/firebase";
-import { collection, query, where, orderBy, getDocs } from "firebase/firestore";
+import { collection, query, where, getDocs } from "firebase/firestore";
 import { useAuth } from "@/contexts/AuthContext";
 import { Skeleton } from "@/components/ui/skeleton";
 import ReactMarkdown from "react-markdown";
@@ -16,22 +16,26 @@ const DoubtSession = () => {
     queryFn: async () => {
       if (!user || !id) return [];
       try {
+        // Equality-only query (no orderBy) avoids needing a composite index.
+        // Messages are sorted client-side by created_at below.
         const q = query(
           collection(db, "doubt_messages"),
-          where("doubt_session_id", "==", id),
-          orderBy("created_at")
+          where("user_id", "==", user.uid),
+          where("doubt_session_id", "==", id)
         );
         const snap = await getDocs(q);
-        return snap.docs.map((d) => ({ 
-          id: d.id, 
-          ...d.data() 
-        } as {
-          id: string;
-          role: "user" | "assistant";
-          message_text: string;
-          created_at: string;
-          doubt_session_id: string;
-        }));
+        return snap.docs
+          .map((d) => ({
+            id: d.id,
+            ...d.data()
+          } as {
+            id: string;
+            role: "user" | "assistant";
+            message_text: string;
+            created_at: string;
+            doubt_session_id: string;
+          }))
+          .sort((a, b) => (a.created_at < b.created_at ? -1 : a.created_at > b.created_at ? 1 : 0));
       } catch (error) {
         console.error("[DoubtSession] Query error:", error);
         return [];

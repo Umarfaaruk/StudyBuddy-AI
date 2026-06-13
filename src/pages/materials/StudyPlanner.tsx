@@ -241,6 +241,10 @@ Limit the response to match the number of days (${daysDiff} days), max 14 entrie
           title: lesson.title,
           content: lesson.content,
           order: lesson.day || i + 1,
+          // Ownership stamp — lets Firestore rules allow only the owner to
+          // write custom lessons without a parent-topic lookup.
+          is_custom: true,
+          user_id: user.uid,
           created_at: new Date()
         });
       });

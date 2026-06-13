@@ -1,0 +1,23 @@
+/**
+ * AUTH HEADERS HELPER
+ * ===================
+ * Attaches the current user's Firebase ID token as a Bearer token so our
+ * serverless endpoints (/api/groq, /api/youtube-transcript, /api/ndli) can
+ * verify the caller is a real, logged-in EduOnx user before doing paid work.
+ *
+ * Returns an empty object when no user is signed in or the token can't be
+ * fetched — the server will then reject the request with 401, which is the
+ * correct behavior (these endpoints require authentication).
+ */
+import { auth } from "@/lib/firebase";
+
+export async function getAuthHeaders(): Promise<Record<string, string>> {
+  const user = auth.currentUser;
+  if (!user) return {};
+  try {
+    const token = await user.getIdToken();
+    return { Authorization: `Bearer ${token}` };
+  } catch {
+    return {};
+  }
+}

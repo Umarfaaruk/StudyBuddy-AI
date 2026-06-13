@@ -111,8 +111,11 @@ const AppLayout = () => {
     staleTime: 1000 * 60 * 5,
   });
 
+  // Shares the SAME query key as AdminRoute (["admin-check", uid]) so the admin
+  // check runs once and is served from cache here instead of firing a second
+  // pair of Firestore reads for the sidebar.
   const { data: isAdmin } = useQuery({
-    queryKey: ["is-admin-sidebar", user?.uid],
+    queryKey: ["admin-check", user?.uid],
     queryFn: async () => {
       if (!user) return false;
       try {
@@ -128,7 +131,8 @@ const AppLayout = () => {
       return false;
     },
     enabled: !!user,
-    staleTime: 1000 * 60 * 10,
+    staleTime: 1000 * 60 * 5,
+    gcTime: 1000 * 60 * 10,
   });
 
   const displayName = profile?.full_name || user?.displayName || "Student";

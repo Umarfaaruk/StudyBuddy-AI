@@ -228,12 +228,14 @@ const DoubtInput = () => {
           }
           await addDoc(collection(db, "doubt_messages"), {
             doubt_session_id: sessionIdRef.current,
+            user_id: user.uid,
             role: "user",
             message_text: userContent,
             created_at: new Date().toISOString(),
           });
           await addDoc(collection(db, "doubt_messages"), {
             doubt_session_id: sessionIdRef.current,
+            user_id: user.uid,
             role: "assistant",
             message_text: full,
             created_at: new Date().toISOString(),

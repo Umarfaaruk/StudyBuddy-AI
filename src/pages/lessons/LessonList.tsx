@@ -11,6 +11,7 @@ import { db } from "@/lib/firebase";
 import { aiComplete } from "@/lib/aiService";
 import { toast } from "sonner";
 import { extractYouTubeVideoId } from "@/lib/youtube";
+import { getAuthHeaders } from "@/lib/authHeaders";
 
 const StudyPlanner = lazy(() => import("@/pages/materials/StudyPlanner"));
 
@@ -270,6 +271,10 @@ ${materialContent}`;
           title: lesson.title,
           content: lesson.content,
           order: i + 1,
+          // Ownership stamp — lets Firestore rules allow the owner (and only
+          // the owner) to write custom lessons without a parent-topic lookup.
+          is_custom: true,
+          user_id: user.uid,
           created_at: new Date()
         });
       });
@@ -300,7 +305,9 @@ ${materialContent}`;
 
     try {
       // Step 1: Fetch transcript
-      const resp = await fetch(`/api/youtube-transcript?v=${videoId}&t=${Date.now()}`);
+      const resp = await fetch(`/api/youtube-transcript?v=${videoId}&t=${Date.now()}`, {
+        headers: await getAuthHeaders(),
+      });
       if (!resp.ok) {
         throw new Error(`HTTP ${resp.status}: Failed to fetch video data`);
       }
@@ -446,6 +453,9 @@ ${condensedContent.substring(0, 15000)}`;
           title: lesson.title,
           content: lesson.content,
           order: i + 1,
+          // Ownership stamp — see note above.
+          is_custom: true,
+          user_id: user.uid,
           created_at: new Date()
         });
       });

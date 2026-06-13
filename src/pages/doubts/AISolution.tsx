@@ -8,6 +8,7 @@ import { db } from "@/lib/firebase";
 import { addDoc, collection } from "firebase/firestore";
 import ReactMarkdown from "react-markdown";
 import { aiStream } from "@/lib/aiService";
+import { getAuthHeaders } from "@/lib/authHeaders";
 import { DOUBT_SYSTEM_PROMPT } from "@/lib/prompts";
 import { extractYouTubeVideoId } from "@/lib/youtube";
 
@@ -75,7 +76,8 @@ const AISolution = () => {
           if (videoId) {
             try {
               const resp = await fetch(`/api/youtube-transcript?v=${videoId}&t=${Date.now()}`, {
-                signal: controller.signal
+                signal: controller.signal,
+                headers: await getAuthHeaders(),
               });
               if (resp.ok) {
                 const data = await resp.json();
@@ -128,12 +130,14 @@ const AISolution = () => {
             });
             await addDoc(collection(db, "doubt_messages"), {
               doubt_session_id: sessionRef.id,
+              user_id: user.uid,
               role: "user",
               message_text: question + (youtubeUrl ? `\n\nYouTube URL: ${youtubeUrl}` : ""),
               created_at: new Date().toISOString(),
             });
             await addDoc(collection(db, "doubt_messages"), {
               doubt_session_id: sessionRef.id,
+              user_id: user.uid,
               role: "assistant",
               message_text: full,
               created_at: new Date().toISOString(),

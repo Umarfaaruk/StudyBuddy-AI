@@ -1,4 +1,5 @@
 import { YoutubeTranscript } from "youtube-transcript";
+import { requireAuth } from "./_firebaseAdmin";
 
 
 /**
@@ -373,6 +374,10 @@ export default async function handler(req: any, res: any) {
     res.setHeader("Allow", "GET");
     return res.status(405).json({ error: "Method not allowed" });
   }
+
+  // ── Authentication: block anonymous scrapers from burning function quota ──
+  const caller = await requireAuth(req, res);
+  if (!caller) return; // requireAuth already wrote the 401 response
 
   const { v: videoId } = req.query;
 

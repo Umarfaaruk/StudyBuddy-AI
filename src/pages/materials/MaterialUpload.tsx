@@ -9,6 +9,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
 import { collection, query, where, orderBy, getDocs, deleteDoc, doc, addDoc, updateDoc } from "firebase/firestore";
 import { aiComplete } from "@/lib/aiService";
+import { getAuthHeaders } from "@/lib/authHeaders";
 
 /**
  * CLIENT-SIDE TEXT EXTRACTION
@@ -1047,7 +1048,9 @@ const NDLISearch = () => {
     setFallbackMsg(null);
 
     try {
-      const resp = await fetch(`/api/ndli?q=${encodeURIComponent(query.trim())}&type=${type}&page=1`);
+      const resp = await fetch(`/api/ndli?q=${encodeURIComponent(query.trim())}&type=${type}&page=1`, {
+        headers: await getAuthHeaders(),
+      });
       const data = await resp.json();
 
       setResults(data.items || []);

@@ -9,6 +9,7 @@ import { useQuery } from "@tanstack/react-query";
 import { collection, getDocs, query, where } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { useAuth } from "@/contexts/AuthContext";
+import { getAuthHeaders } from "@/lib/authHeaders";
 
 const PracticeArena = () => {
   const { user } = useAuth();
@@ -25,7 +26,9 @@ const PracticeArena = () => {
 
     try {
       setIsProcessingYoutube(true);
-      const res = await fetch(`/api/youtube-transcript?url=${encodeURIComponent(youtubeUrl.trim())}`);
+      const res = await fetch(`/api/youtube-transcript?url=${encodeURIComponent(youtubeUrl.trim())}`, {
+        headers: await getAuthHeaders(),
+      });
       if (!res.ok) {
         throw new Error("Failed to process YouTube video");
       }

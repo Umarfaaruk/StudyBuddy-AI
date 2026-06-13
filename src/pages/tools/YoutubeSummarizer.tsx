@@ -21,6 +21,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { aiComplete, aiStream } from "@/lib/aiService";
+import { getAuthHeaders } from "@/lib/authHeaders";
 import { extractYouTubeVideoId } from "@/lib/youtube";
 import ReactMarkdown from "react-markdown";
 
@@ -470,7 +471,9 @@ export const YoutubeSummarizer = () => {
     resetSession();
 
     try {
-      const resp = await fetch(`/api/youtube-transcript?v=${id}&t=${Date.now()}`);
+      const resp = await fetch(`/api/youtube-transcript?v=${id}&t=${Date.now()}`, {
+        headers: await getAuthHeaders(),
+      });
       if (!resp.ok) {
         throw new Error(`HTTP ${resp.status}: Failed to fetch video details`);
       }

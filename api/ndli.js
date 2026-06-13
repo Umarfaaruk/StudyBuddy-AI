@@ -7,6 +7,8 @@
  * Endpoint: /api/ndli?q=<query>&type=<ebook|notebook|all>&page=<num>
  */
 
+import { requireAuth } from "./_firebaseAdmin";
+
 const OPEN_LIBRARY_API = "https://openlibrary.org/search.json";
 
 export default async function handler(req, res) {
@@ -14,6 +16,10 @@ export default async function handler(req, res) {
   if (req.method !== "GET") {
     return res.status(405).json({ error: "Method not allowed" });
   }
+
+  // ── Authentication: only signed-in users may proxy through our function ──
+  const caller = await requireAuth(req, res);
+  if (!caller) return; // requireAuth already wrote the 401 response
 
   const { q, type = "all", page = "1" } = req.query;
 

@@ -14,6 +14,8 @@
  *   with exponential backoff (2s → 4s → 8s), up to 3 retries.
  */
 
+import { getAuthHeaders } from "@/lib/authHeaders";
+
 const GROQ_PROXY_URL = "/api/groq";
 
 /**
@@ -133,9 +135,10 @@ interface AIRequestOptions {
   model?: string;
 }
 
-function buildHeaders(): Record<string, string> {
+async function buildHeaders(): Promise<Record<string, string>> {
   return {
     "Content-Type": "application/json",
+    ...(await getAuthHeaders()),
   };
 }
 
@@ -161,7 +164,7 @@ async function aiCompleteInner(options: AIRequestOptions): Promise<string> {
   for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
     const resp = await fetch(GROQ_PROXY_URL, {
       method: "POST",
-      headers: buildHeaders(),
+      headers: await buildHeaders(),
       signal,
       body: JSON.stringify({
         model: model,
@@ -212,7 +215,7 @@ async function aiStreamInner(
   for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
     const resp = await fetch(GROQ_PROXY_URL, {
       method: "POST",
-      headers: buildHeaders(),
+      headers: await buildHeaders(),
       signal,
       body: JSON.stringify({
         model: model,
@@ -324,7 +327,7 @@ export async function aiVisionComplete(
   for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
     const resp = await fetch(GROQ_PROXY_URL, {
       method: "POST",
-      headers: buildHeaders(),
+      headers: await buildHeaders(),
       signal,
       body: JSON.stringify({
         model: "meta-llama/llama-4-scout-17b-16e-instruct", // Vision model
