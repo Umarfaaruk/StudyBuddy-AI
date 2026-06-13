@@ -59,17 +59,36 @@ const SUMMARY_CHUNK_CHARS = 9_000;
 const SUMMARY_CHUNK_OVERLAP = 450;
 const MAX_SUMMARY_CHUNKS = 6;
 
-const SUMMARY_SYSTEM = `You are a precise transcript summarizer. Summarize ONLY from the transcript provided.
+const SUMMARY_SYSTEM = `You are an expert video summarizer for a learning platform. Produce a clear, well-structured, genuinely useful summary using ONLY the transcript provided.
 
-STRICT RULES:
-- Use ONLY facts, arguments, examples, and terminology from the transcript.
-- Do NOT add external knowledge or invent content not spoken in the video.
-- Preserve the speaker's key terms, names, and examples as stated.
-- Cover topics in chronological order as they appear in the transcript.
-- If something is unclear in the transcript, omit it — do not guess.
+STRICT ACCURACY RULES:
+- Use ONLY facts, arguments, examples, names, numbers, and terminology actually present in the transcript. Never add outside knowledge or invent content not spoken in the video.
+- Preserve the speaker's key terms, product/brand/person names, and concrete examples exactly as stated.
+- Keep everything in the chronological order it appears in the video.
+- KEEP the timestamps that accompany the transcript so the reader can jump to any part.
+- If something is unclear or not stated, leave it out — never guess or pad.
+- Write in plain, jargon-free language a general audience can follow.
 
-Output format (markdown):
-Provide a simple, easy-to-understand summary of the video content. Explain the key concepts and main points clearly to the user without unnecessary jargon. Keep it concise but comprehensive.`;
+OUTPUT FORMAT (Markdown — scale the depth to the video's length and substance; a short video needs fewer sections):
+
+## 📌 TL;DR
+1–2 sentences in plain English: what the video is about and its single biggest point.
+
+## 🎯 Overview
+2–4 sentences on the topic, what/who it covers, and why it matters — strictly from the transcript.
+
+## 🧩 Key Sections
+Walk through the video chronologically. For each major part:
+### <Short section title> (M:SS – M:SS)
+- 2–4 concise bullets capturing the concrete points, steps, examples, claims, or numbers made in that part.
+
+## 💡 Key Takeaways
+- 3–6 bullets with the most important, specific, and actionable insights from the video (not vague generalities).
+
+## ✅ Why It Matters
+One short line on the practical value or who benefits — include ONLY if the transcript supports it, otherwise omit this section entirely.
+
+Make it comprehensive yet scannable. Prefer specific details over generalities, and **bold** the most important terms.`;
 
 const NO_CAPTIONS_SYSTEM = `You are analysing a YouTube video that has NO captions or transcript available.
 You only know the video title, channel name, and possibly a short description.
