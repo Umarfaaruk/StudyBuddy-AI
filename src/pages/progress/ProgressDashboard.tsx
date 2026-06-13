@@ -31,16 +31,24 @@ const ProgressDashboard = () => {
       
       // 1. Fetch topics mapping — only the topics this user can have progress on
       // (public + their own custom), instead of every user's custom topics.
+      // SELF-HEALING: falls back to reading all topics if the is_custom backfill
+      // hasn't run yet (see scripts/backfill-topic-flags.mjs), so labels never
+      // go missing.
       const [publicTopicsSnap, customTopicsSnap] = await Promise.all([
         getDocs(query(collection(db, "topics"), where("is_custom", "==", false))),
-        getDocs(query(
-          collection(db, "topics"),
-          where("is_custom", "==", true),
-          where("user_id", "==", user.uid)
-        )),
+        getDocs(query(collection(db, "topics"), where("user_id", "==", user.uid))),
       ]);
+      let topicDocs;
+      if (publicTopicsSnap.empty) {
+        const allSnap = await getDocs(collection(db, "topics"));
+        topicDocs = allSnap.docs;
+      } else {
+        const byId = new Map<string, any>();
+        for (const d of [...publicTopicsSnap.docs, ...customTopicsSnap.docs]) byId.set(d.id, d);
+        topicDocs = [...byId.values()];
+      }
       const topicMap = new Map<string, { subject: string; title: string }>();
-      [...publicTopicsSnap.docs, ...customTopicsSnap.docs].forEach(d => {
+      topicDocs.forEach(d => {
         const data = d.data();
         topicMap.set(d.id, {
           subject: data.subject || data.subjectName || "General",

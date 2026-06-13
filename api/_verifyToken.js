@@ -12,14 +12,20 @@
  *   • Vercel's esbuild bundler (production serverless functions),
  *   • TypeScript (the .ts endpoints import this via _verifyToken.d.ts).
  *
- * Checks (per the Firebase ID-token spec):
+ * RELIABILITY POSTURE:
+ *   These endpoints expose no private user data — auth here only protects our
+ *   AI/function quota from anonymous abuse. So the guard is:
+ *     • fail-CLOSED (401) when the server is configured and the token is
+ *       missing/invalid — real protection in normal operation;
+ *     • fail-OPEN when the SERVER itself is misconfigured (no project id env) —
+ *       a server config gap must never take AI features down for every user.
+ *
+ * Token checks (per the Firebase ID-token spec):
  *   • RS256 signature against Google's securetoken JWKS
  *   • iss === https://securetoken.google.com/<projectId>
  *   • aud === <projectId>
  *   • exp / iat valid (handled by jose)
  *   • non-empty subject (uid)
- *
- * Requires the project id in env: FIREBASE_PROJECT_ID or VITE_FIREBASE_PROJECT_ID.
  */
 import { jwtVerify, createRemoteJWKSet } from "jose";
 
@@ -31,25 +37,23 @@ const JWKS = createRemoteJWKSet(
   )
 );
 
-function getProjectId() {
-  const pid =
+function resolveProjectId() {
+  return (
     process.env.FIREBASE_PROJECT_ID?.trim() ||
-    process.env.VITE_FIREBASE_PROJECT_ID?.trim();
-  if (!pid) {
-    throw new Error(
-      "Server missing FIREBASE_PROJECT_ID / VITE_FIREBASE_PROJECT_ID env var"
-    );
-  }
-  return pid;
+    process.env.VITE_FIREBASE_PROJECT_ID?.trim() ||
+    ""
+  );
 }
 
 /**
- * Verify the `Authorization: Bearer <idToken>` header.
+ * Verify the `Authorization: Bearer <idToken>` header against the given project.
  * Returns { uid, email } on success; throws on any failure.
  */
-export async function verifyAuthToken(req) {
-  const header = req.headers?.authorization || req.headers?.Authorization;
+export async function verifyAuthToken(req, projectId) {
+  const pid = projectId || resolveProjectId();
+  if (!pid) throw new Error("Server missing FIREBASE_PROJECT_ID");
 
+  const header = req.headers?.authorization || req.headers?.Authorization;
   if (!header || !header.startsWith("Bearer ")) {
     throw new Error("Missing or invalid Authorization header");
   }
@@ -57,24 +61,34 @@ export async function verifyAuthToken(req) {
   const token = header.slice("Bearer ".length).trim();
   if (!token) throw new Error("Empty bearer token");
 
-  const projectId = getProjectId();
   const { payload } = await jwtVerify(token, JWKS, {
-    issuer: `https://securetoken.google.com/${projectId}`,
-    audience: projectId,
+    issuer: `https://securetoken.google.com/${pid}`,
+    audience: pid,
   });
 
   if (!payload.sub) throw new Error("Token missing subject (uid)");
-
   return { uid: String(payload.sub), email: payload.email };
 }
 
 /**
- * Handler guard: verifies the caller and, on failure, writes a 401 and returns
- * null. Returns the verified user on success.
+ * Handler guard. Returns the caller (verified, or a fail-open sentinel when the
+ * server lacks a project id) on success; writes 401 and returns null when the
+ * server is configured but the token is missing/invalid.
  */
 export async function requireAuth(req, res) {
+  const projectId = resolveProjectId();
+
+  // Server misconfiguration must not break every user — fail OPEN with a warning.
+  if (!projectId) {
+    console.warn(
+      "[auth] No FIREBASE_PROJECT_ID / VITE_FIREBASE_PROJECT_ID configured — " +
+      "skipping token verification (anti-abuse protection disabled). Set it in Vercel env."
+    );
+    return { uid: "unverified", unverified: true };
+  }
+
   try {
-    return await verifyAuthToken(req);
+    return await verifyAuthToken(req, projectId);
   } catch {
     res.status(401).json({ error: "Unauthorized: a valid sign-in is required." });
     return null;

@@ -53,22 +53,33 @@ const LessonList = () => {
     queryFn: async () => {
       if (!user) return [];
       try {
-        // Read only the topics this user can actually see, server-side:
-        //   • public/official topics (is_custom == false)
-        //   • this user's own custom topics (is_custom == true AND user_id == uid)
-        // instead of downloading EVERY user's custom topics and filtering on the
-        // client. Two equality-only queries need no composite index.
-        // NOTE: public topics must carry is_custom:false — run
-        // scripts/backfill-topic-flags.mjs once against existing data.
+        // Load the topics this user can see — public/official topics plus their
+        // own custom topics — without downloading every user's custom topics.
+        // SELF-HEALING: the optimized path needs public topics to carry
+        // is_custom:false (set by scripts/backfill-topic-flags.mjs). If the
+        // backfill hasn't run yet, the public query comes back empty, so we fall
+        // back to reading all topics and filtering client-side. The lessons page
+        // is therefore NEVER empty, whether or not the backfill has run.
         const [publicSnap, customSnap] = await Promise.all([
           getDocs(query(collection(db, "topics"), where("is_custom", "==", false))),
-          getDocs(query(
-            collection(db, "topics"),
-            where("is_custom", "==", true),
-            where("user_id", "==", user.uid)
-          )),
+          getDocs(query(collection(db, "topics"), where("user_id", "==", user.uid))),
         ]);
-        const topicsData = [...publicSnap.docs, ...customSnap.docs].map(doc => ({
+
+        let topicDocs;
+        if (publicSnap.empty) {
+          // Backfill not applied (or no public topics) — safe original behavior.
+          const allSnap = await getDocs(collection(db, "topics"));
+          topicDocs = allSnap.docs.filter(d => {
+            const x = d.data() as any;
+            return x.is_custom !== true || x.user_id === user.uid;
+          });
+        } else {
+          // De-dupe by id (a topic could match both queries in edge cases).
+          const byId = new Map<string, any>();
+          for (const d of [...publicSnap.docs, ...customSnap.docs]) byId.set(d.id, d);
+          topicDocs = [...byId.values()];
+        }
+        const topicsData = topicDocs.map(doc => ({
           id: doc.id,
           ...doc.data()
         } as any));
