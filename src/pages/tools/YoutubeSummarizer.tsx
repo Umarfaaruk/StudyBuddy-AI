@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from "react";
+import { useNavigate } from "react-router-dom";
 import {
   Youtube,
   Loader2,
@@ -435,6 +436,7 @@ function CopyButton({ text }: { text: string }) {
 
 /* ─── Main component ────────────────────────────────────── */
 export const YoutubeSummarizer = () => {
+  const navigate = useNavigate();
   const [url, setUrl] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
@@ -633,7 +635,32 @@ export const YoutubeSummarizer = () => {
     }
   };
 
+  // "Quiz Me" doesn't generate a static Q&A inline anymore — it sends the user to
+  // the Practice Arena, which builds a real interactive quiz from this video's
+  // transcript (same flow as Practice Arena's "Quiz from YouTube").
+  const goToPracticeArenaQuiz = () => {
+    if (!videoData) return;
+    const transcript = (videoData.transcript || "").trim();
+    if (!videoData.hasCaptions || transcript.length < 50) {
+      toast.error("This video has no transcript — a quiz can't be generated from it.");
+      return;
+    }
+    toast.success("Opening Practice Arena to build your quiz…");
+    navigate(`/quiz/youtube-${videoData.id}`, {
+      state: {
+        topicTitle: videoData.title,
+        subjectName: "YouTube Video",
+        materialContext: transcript.substring(0, 5000),
+        difficulty: "Medium",
+      },
+    });
+  };
+
   const handleTabClick = (actionId: ActionId) => {
+    if (actionId === "quiz") {
+      goToPracticeArenaQuiz();
+      return;
+    }
     setActiveAction(actionId);
     if (!actionContent[actionId] && actionId !== "chat" && !isGenerating) {
       runAction(actionId);
