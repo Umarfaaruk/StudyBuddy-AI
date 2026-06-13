@@ -21,6 +21,8 @@
  *   • Never throws — a failure to report can never cause its own error
  */
 
+import { captureException } from "@/lib/sentry";
+
 const MAX_REPORTS_PER_SESSION = 10;
 const seenErrors = new Set<string>();
 let reportCount = 0;
@@ -79,6 +81,9 @@ export function reportError(
       userAgent: navigator.userAgent.slice(0, 200),
       timestamp: new Date().toISOString(),
     });
+
+    // Also forward to Sentry when configured (no-op otherwise).
+    captureException(err, { source, context });
   } catch { /* never let reporting cause errors */ }
 }
 

@@ -53,8 +53,22 @@ const LessonList = () => {
     queryFn: async () => {
       if (!user) return [];
       try {
-        const topicsSnap = await getDocs(collection(db, "topics"));
-        const topicsData = topicsSnap.docs.map(doc => ({
+        // Read only the topics this user can actually see, server-side:
+        //   • public/official topics (is_custom == false)
+        //   • this user's own custom topics (is_custom == true AND user_id == uid)
+        // instead of downloading EVERY user's custom topics and filtering on the
+        // client. Two equality-only queries need no composite index.
+        // NOTE: public topics must carry is_custom:false — run
+        // scripts/backfill-topic-flags.mjs once against existing data.
+        const [publicSnap, customSnap] = await Promise.all([
+          getDocs(query(collection(db, "topics"), where("is_custom", "==", false))),
+          getDocs(query(
+            collection(db, "topics"),
+            where("is_custom", "==", true),
+            where("user_id", "==", user.uid)
+          )),
+        ]);
+        const topicsData = [...publicSnap.docs, ...customSnap.docs].map(doc => ({
           id: doc.id,
           ...doc.data()
         } as any));
@@ -81,14 +95,8 @@ const LessonList = () => {
           topicProgressSnap.docs.map(doc => [doc.data().topic_id, doc.data()])
         );
 
-        const filteredTopicsData = topicsData.filter(topic => {
-          if (topic.is_custom) {
-            return topic.user_id === user.uid;
-          }
-          return true;
-        });
-
-        return filteredTopicsData.map(topic => {
+        // topicsData is already scoped to public + this user's custom topics.
+        return topicsData.map(topic => {
           const progress = progressMap.get(topic.id);
           const completed = progress?.completed_lessons?.length ?? 0;
           const total = topic.lesson_count ?? 0;

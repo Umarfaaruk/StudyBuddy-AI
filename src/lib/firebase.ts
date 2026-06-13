@@ -36,3 +36,22 @@ const app = initializeApp(firebaseConfig);
 export const auth = getAuth(app);
 export const db = getFirestore(app);
 export const storage = getStorage(app);
+
+// ── Firebase Performance Monitoring ───────────────────────────────────────
+// Auto-traces page loads and outgoing network requests, and supports custom
+// traces (e.g. AI stream latency) via `trace(perf, name)`. Loaded lazily and
+// only in the browser in production builds, so it adds zero dev-time noise and
+// stays out of the critical render path. Uses the existing Firebase project —
+// no extra account or DSN required.
+export let perf: import("firebase/performance").FirebasePerformance | undefined;
+if (typeof window !== "undefined" && import.meta.env.PROD) {
+  import("firebase/performance")
+    .then(({ getPerformance }) => {
+      try {
+        perf = getPerformance(app);
+      } catch {
+        /* non-fatal — monitoring must never break the app */
+      }
+    })
+    .catch(() => { /* chunk load failure is non-fatal */ });
+}

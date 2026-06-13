@@ -29,10 +29,18 @@ const ProgressDashboard = () => {
     queryFn: async () => {
       if (!user) return [];
       
-      // 1. Fetch topics mapping
-      const topicsSnap = await getDocs(collection(db, "topics"));
+      // 1. Fetch topics mapping — only the topics this user can have progress on
+      // (public + their own custom), instead of every user's custom topics.
+      const [publicTopicsSnap, customTopicsSnap] = await Promise.all([
+        getDocs(query(collection(db, "topics"), where("is_custom", "==", false))),
+        getDocs(query(
+          collection(db, "topics"),
+          where("is_custom", "==", true),
+          where("user_id", "==", user.uid)
+        )),
+      ]);
       const topicMap = new Map<string, { subject: string; title: string }>();
-      topicsSnap.forEach(d => {
+      [...publicTopicsSnap.docs, ...customTopicsSnap.docs].forEach(d => {
         const data = d.data();
         topicMap.set(d.id, {
           subject: data.subject || data.subjectName || "General",

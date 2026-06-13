@@ -273,65 +273,99 @@ async function fetchTranscriptViaTimedtext(
 }
 
 /**
- * Fetch transcripts using YouTube Data API captions.list
- * Note: This requires OAuth for downloads; used primarily to check availability
+ * Resolve a Supadata API key, if one is configured.
+ * Prefers the dedicated SUPADATA_API_KEY; for backward compatibility also
+ * accepts a Supadata key ("sd_…") accidentally placed in YOUTUBE_API_KEY.
+ */
+function getSupadataKey(): string | null {
+  const dedicated = process.env.SUPADATA_API_KEY?.trim();
+  if (dedicated) return dedicated;
+  const yt = process.env.YOUTUBE_API_KEY?.trim();
+  if (yt && yt.startsWith("sd_")) return yt;
+  return null;
+}
+
+/**
+ * Fetch a transcript from Supadata — a hosted captions API that is NOT blocked
+ * by YouTube's anti-scraping checks, so it works reliably from Vercel's shared
+ * serverless IPs (unlike the youtube-transcript scraping package).
+ */
+async function fetchTranscriptViaSupadata(
+  videoId: string,
+  apiKey: string
+): Promise<{ transcript: string; segments: Segment[] } | null> {
+  try {
+    console.log(`[YouTube API] Fetching transcript via Supadata API...`);
+    const response = await fetch(
+      `https://api.supadata.ai/v1/youtube/transcript?videoId=${videoId}`,
+      {
+        headers: { "x-api-key": apiKey },
+        signal: AbortSignal.timeout(15000),
+      }
+    );
+
+    if (!response.ok) {
+      console.warn(`[YouTube API] Supadata API HTTP error: ${response.status}`);
+      return null;
+    }
+
+    const data: any = await response.json();
+    let transcript = "";
+    const segments: Segment[] = [];
+
+    if (Array.isArray(data.content)) {
+      for (const item of data.content) {
+        segments.push({ start: (item.offset || 0) / 1000, text: item.text || "" });
+      }
+      transcript = segments.map((s) => s.text).join(" ");
+    } else if (typeof data.content === "string") {
+      transcript = data.content;
+      segments.push({ start: 0, text: transcript });
+    }
+
+    return transcript.length > 50 ? { transcript, segments } : null;
+  } catch (err) {
+    console.warn(
+      "[YouTube API] Supadata fetch error:",
+      err instanceof Error ? err.message : String(err)
+    );
+    return null;
+  }
+}
+
+/**
+ * Fetch a transcript, preferring the most reliable source available.
+ *
+ * Order matters in serverless: YouTube blocks the scraping package from Vercel's
+ * shared IPs (403/429), so when a Supadata key is configured we try that FIRST
+ * and only fall back to the free scraper. With no provider key, we degrade to
+ * the scraper (works locally / on un-flagged IPs) plus a captions availability
+ * check via the YouTube Data API.
  */
 async function fetchTranscript(
   videoId: string,
   apiKey: string
 ): Promise<{ transcript: string; segments: Segment[] } | null> {
   try {
-    // First, try the more reliable timedtext endpoint (no auth needed)
+    // 1) Reliable hosted provider first (if configured).
+    const supadataKey = getSupadataKey();
+    if (supadataKey) {
+      const viaProvider = await fetchTranscriptViaSupadata(videoId, supadataKey);
+      if (viaProvider) return viaProvider;
+    }
+
+    // 2) Free scraping package — works off-Vercel, often blocked on Vercel.
     const timedtextResult = await fetchTranscriptViaTimedtext(videoId);
     if (timedtextResult) {
       return timedtextResult;
     }
 
-    // If it's a Supadata key, call Supadata API
+    // 3) If the configured key is a Supadata key there's nothing more to try.
     if (apiKey.startsWith("sd_")) {
-      console.log(`[YouTube API] Fetching transcript via Supadata API fallback...`);
-      const response = await fetch(
-        `https://api.supadata.ai/v1/youtube/transcript?videoId=${videoId}`,
-        {
-          headers: {
-            "x-api-key": apiKey,
-          },
-          signal: AbortSignal.timeout(15000),
-        }
-      );
-
-      if (response.ok) {
-        const data: any = await response.json();
-        
-        let transcript = "";
-        const segments: Segment[] = [];
-        
-        if (Array.isArray(data.content)) {
-          for (const item of data.content) {
-            segments.push({
-              start: (item.offset || 0) / 1000,
-              text: item.text || "",
-            });
-          }
-          transcript = segments.map(s => s.text).join(" ");
-        } else if (typeof data.content === "string") {
-          transcript = data.content;
-          segments.push({ start: 0, text: transcript });
-        }
-
-        if (transcript.length > 50) {
-          return {
-            transcript,
-            segments,
-          };
-        }
-      } else {
-        console.warn(`[YouTube API] Supadata API HTTP error: ${response.status}`);
-      }
       return null;
     }
 
-    // Fallback to YouTube Data API (may have limited access without OAuth)
+    // 4) YouTube Data API captions availability check (download needs OAuth)
     const url = new URL("https://www.googleapis.com/youtube/v3/captions");
     url.searchParams.set("part", "snippet");
     url.searchParams.set("videoId", videoId);
