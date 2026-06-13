@@ -33,6 +33,13 @@ function getAdminApp() {
 
   try {
     const serviceAccount = JSON.parse(serviceAccountKey);
+    // Normalize escaped newlines in the PEM private key. Service-account JSON is
+    // commonly stored as a single line with literal "\n" sequences (in Vercel
+    // env vars or a quoted .env value); without this, cert() throws
+    // "Failed to parse private key: DECODER routines::unsupported".
+    if (serviceAccount.private_key) {
+      serviceAccount.private_key = serviceAccount.private_key.replace(/\\n/g, "\n");
+    }
     return initializeApp({
       credential: cert(serviceAccount),
       storageBucket:
