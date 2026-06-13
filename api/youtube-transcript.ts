@@ -1,5 +1,5 @@
 import { YoutubeTranscript } from "youtube-transcript";
-import { requireAuth } from "./_verifyToken";
+import { requireAuth } from "./_verifyToken.js";
 
 
 /**

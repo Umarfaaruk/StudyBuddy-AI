@@ -16,7 +16,7 @@
  *     retry hint rather than guessing.
  */
 
-import { requireAuth } from "./_verifyToken";
+import { requireAuth } from "./_verifyToken.js";
 
 const GROQ_URL = "https://api.groq.com/openai/v1/chat/completions";
 
