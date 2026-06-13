@@ -7,7 +7,7 @@
  * Endpoint: /api/ndli?q=<query>&type=<ebook|notebook|all>&page=<num>
  */
 
-import { requireAuth } from "./_firebaseAdmin";
+import { requireAuth } from "./_verifyToken";
 
 const OPEN_LIBRARY_API = "https://openlibrary.org/search.json";
 

@@ -29,6 +29,7 @@
     "firebase-admin": "^13.10.0",
     "framer-motion": "^12.34.2",
     "gsap": "^3.14.2",
+    "jose": "^6.2.3",
     "lucide-react": "^0.462.0",
     "next-themes": "^0.3.0",
     "pdfjs-dist": "^4.4.168",

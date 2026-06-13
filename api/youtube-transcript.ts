@@ -1,5 +1,5 @@
 import { YoutubeTranscript } from "youtube-transcript";
-import { requireAuth } from "./_firebaseAdmin";
+import { requireAuth } from "./_verifyToken";
 
 
 /**
