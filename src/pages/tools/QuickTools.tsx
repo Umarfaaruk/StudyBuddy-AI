@@ -25,11 +25,11 @@ const QuickTools = () => {
   return (
     <div className="p-6 md:p-8 max-w-[1600px] mx-auto space-y-8">
       <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4">
-        <div className="flex items-start gap-4">
+        <div className="flex items-start gap-4 min-w-0">
           <div className="h-12 w-12 rounded-2xl bg-primary/10 flex items-center justify-center shrink-0 ring-1 ring-primary/10">
             <Bot className="h-6 w-6 text-primary" />
           </div>
-          <div>
+          <div className="min-w-0">
             <h1 className="font-display text-2xl md:text-3xl font-bold text-foreground tracking-tight">
               AI Tools
             </h1>

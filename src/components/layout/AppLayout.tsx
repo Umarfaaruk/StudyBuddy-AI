@@ -147,7 +147,7 @@ const AppLayout = () => {
 
       {/* Desktop Sidebar */}
       {!isDeepFocus && (
-        <aside className={`hidden md:flex flex-col fixed inset-y-0 left-0 z-30 border-r border-white/[0.06] transition-all duration-300 ${sidebarCollapsed ? "w-[76px]" : "w-[272px]"}`}>
+        <aside className={`hidden lg:flex flex-col fixed inset-y-0 left-0 z-30 border-r border-white/[0.06] transition-all duration-300 ${sidebarCollapsed ? "w-[76px]" : "w-[272px]"}`}>
           <div className="absolute inset-0 bg-[#0F172A]" />
           <div className="absolute inset-0 bg-gradient-to-b from-primary/[0.08] via-transparent to-transparent pointer-events-none" />
 
@@ -237,7 +237,7 @@ const AppLayout = () => {
       {/* Mobile menu */}
       <AnimatePresence>
         {!isDeepFocus && mobileMenuOpen && (
-          <div className="md:hidden fixed inset-0 z-50 flex">
+          <div className="lg:hidden fixed inset-0 z-50 flex">
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
@@ -306,7 +306,7 @@ const AppLayout = () => {
 
       {/* Mobile header */}
       {!isDeepFocus && (
-        <div className="md:hidden fixed top-0 left-0 right-0 z-20 bg-[#0F172A]/95 backdrop-blur-md border-b border-white/10 flex items-center justify-between px-4 h-14">
+        <div className="lg:hidden fixed top-0 left-0 right-0 z-20 bg-[#0F172A]/95 backdrop-blur-md border-b border-white/10 flex items-center justify-between px-4 h-14">
           <button type="button" onClick={() => setMobileMenuOpen(true)} className="p-2 -ml-1 text-white/60 hover:text-white">
             <Menu className="h-5 w-5" />
           </button>
@@ -319,7 +319,7 @@ const AppLayout = () => {
 
       {/* Mobile bottom nav */}
       {!isDeepFocus && (
-        <nav className="md:hidden fixed bottom-0 left-0 right-0 z-30 bg-[#0F172A]/95 backdrop-blur-md border-t border-white/10 flex safe-area-pb">
+        <nav className="lg:hidden fixed bottom-0 left-0 right-0 z-30 bg-[#0F172A]/95 backdrop-blur-md border-t border-white/10 flex safe-area-pb">
           {mobileNavLinks.map((link) => {
             const active = isActive(link.to);
             return (
@@ -348,16 +348,16 @@ const AppLayout = () => {
 
       {/* Main content */}
       <main
-        className={`flex-1 transition-all duration-300 ${
-          isDeepFocus ? "pt-12 pb-0" : `pt-14 md:pt-0 ${sidebarCollapsed ? "md:ml-[76px]" : "md:ml-[272px]"} pb-20 md:pb-0`
+        className={`flex-1 min-w-0 transition-all duration-300 ${
+          isDeepFocus ? "pt-12 pb-0" : `pt-14 lg:pt-0 ${sidebarCollapsed ? "lg:ml-[76px]" : "lg:ml-[272px]"} pb-20 lg:pb-0`
         }`}
       >
-        <div className={`${isDeepFocus ? "" : "md:p-3 md:h-screen md:flex md:flex-col"}`}>
+        <div className={`${isDeepFocus ? "" : "lg:p-3 lg:h-screen lg:flex lg:flex-col"}`}>
           <div
             className={`${
               isDeepFocus
                 ? ""
-                : "main-canvas md:rounded-[1.75rem] md:flex-1 md:overflow-y-auto md:shadow-[0_20px_60px_-15px_rgba(0,0,0,0.35)] md:ring-1 md:ring-white/10 scrollbar-thin"
+                : "main-canvas lg:rounded-[1.75rem] lg:flex-1 lg:overflow-y-auto lg:shadow-[0_20px_60px_-15px_rgba(0,0,0,0.35)] lg:ring-1 lg:ring-white/10 scrollbar-thin"
             }`}
           >
             <PageTransition />

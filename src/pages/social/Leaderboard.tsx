@@ -198,9 +198,9 @@ const Leaderboard = () => {
         </div>
       </div>
 
-      <div className="grid lg:grid-cols-[1fr_300px] gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_300px] gap-6">
         {/* Main leaderboard area */}
-        <div className="space-y-6">
+        <div className="space-y-6 min-w-0">
 
           {/* ───── Podium Section ───── */}
           {top3.length >= 3 && (
@@ -214,9 +214,10 @@ const Leaderboard = () => {
                     <div
                       key={`podium-${u.rank}`}
                       className={`flex flex-col items-center transition-all duration-500 ${
-                        isFirst ? "scale-110 -translate-y-4 z-10" : "scale-100"
+                        isFirst
+                          ? "scale-110 -translate-y-4 z-10 min-w-[96px] md:min-w-[160px]"
+                          : "scale-100 min-w-[80px] md:min-w-[130px]"
                       }`}
-                      style={{ minWidth: isFirst ? 160 : 130 }}
                     >
                       {/* Crown for #1 */}
                       {isFirst && (
@@ -265,7 +266,7 @@ const Leaderboard = () => {
           {/* ───── Ranked List (4+) ───── */}
           <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
             {/* Header */}
-            <div className="grid grid-cols-[50px_1fr_120px_90px] md:grid-cols-[50px_1fr_140px_100px] gap-4 px-5 py-3 bg-gray-50/80 border-b border-gray-100">
+            <div className="grid grid-cols-[28px_minmax(0,1fr)_auto_auto] lg:grid-cols-[50px_minmax(0,1fr)_140px_100px] gap-2 md:gap-4 px-3 md:px-5 py-3 bg-gray-50/80 border-b border-gray-100">
               <span className="text-[11px] font-bold text-gray-400 uppercase tracking-wider">Rank</span>
               <span className="text-[11px] font-bold text-gray-400 uppercase tracking-wider">Student</span>
               <span className="text-[11px] font-bold text-gray-400 uppercase tracking-wider text-right">XP Points</span>
@@ -283,7 +284,7 @@ const Leaderboard = () => {
                 (rest.length > 0 ? rest : displayUsers).map((u) => (
                   <div
                     key={`row-${u.name}-${u.rank}`}
-                    className={`grid grid-cols-[50px_1fr_120px_90px] md:grid-cols-[50px_1fr_140px_100px] gap-4 items-center px-5 py-3.5 transition-all duration-200 group ${
+                    className={`grid grid-cols-[28px_minmax(0,1fr)_auto_auto] lg:grid-cols-[50px_minmax(0,1fr)_140px_100px] gap-2 md:gap-4 items-center px-3 md:px-5 py-3.5 transition-all duration-200 group ${
                       u.isYou
                         ? "bg-[#1D4ED8]/5 border-l-4 border-l-[#1D4ED8]"
                         : "hover:bg-gray-50/80 border-l-4 border-l-transparent"
@@ -350,7 +351,7 @@ const Leaderboard = () => {
         </div>
 
         {/* ───── Right Sidebar ───── */}
-        <div className="space-y-5">
+        <div className="space-y-5 min-w-0">
 
           {/* Academy Completion */}
           <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 flex flex-col items-center">

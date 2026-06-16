@@ -443,7 +443,7 @@ const DoubtInput = () => {
               }
             }}
             disabled={streaming}
-            className="flex-1 bg-transparent text-[15px] text-foreground placeholder:text-muted-foreground outline-none py-1.5 disabled:opacity-50"
+            className="flex-1 min-w-0 bg-transparent text-[15px] text-foreground placeholder:text-muted-foreground outline-none py-1.5 disabled:opacity-50"
           />
           <div className="flex items-center gap-1.5">
             <button

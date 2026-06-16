@@ -144,12 +144,31 @@
     @apply border-border;
   }
 
+  /* ── Global horizontal-overflow guard ───────────────────────────────
+     Prevents the whole-page sideways scroll / misalignment that happens
+     when a decorative or wide element pokes past the viewport. The old
+     rule only set this on <body>; the <html> element could still scroll
+     horizontally (confirmed: 375px viewport scrolling to 410px). Guarding
+     both elements pins every page to the device width on all screens. */
+  html,
+  body {
+    overflow-x: hidden;
+    max-width: 100%;
+  }
+
   body {
     @apply text-foreground antialiased;
     background-color: #0F172A;
     font-family: 'Inter', sans-serif;
     font-feature-settings: "cv02", "cv03", "cv04", "cv11";
     scroll-behavior: smooth;
+    /* Long unbreakable strings (URLs, IDs) wrap instead of widening layout */
+    overflow-wrap: break-word;
+  }
+
+  #root {
+    max-width: 100%;
+    overflow-x: hidden;
   }
 
   h1, h2, h3, h4 {
@@ -245,28 +264,26 @@
 
 /* ── Mobile Optimizations ──────────────────────────────────────── */
 @media (max-width: 767px) {
-  /* Ensure minimum touch targets */
-  button, a, [role="button"] {
-    min-height: 44px;
-    min-width: 44px;
-  }
-
-  /* Fix horizontal overflow */
+  /* Smooth momentum scrolling for intentionally-scrollable rows */
   .overflow-x-auto { -webkit-overflow-scrolling: touch; }
-  body { overflow-x: hidden; }
 
   /* Responsive text scaling */
   h1 { font-size: 1.5rem !important; }
   h2 { font-size: 1.25rem !important; }
 
-  /* Better mobile card padding */
+  /* Tighter card padding on small screens */
   .p-6 { padding: 1rem; }
   .p-8 { padding: 1.25rem; }
-  .md\\:p-8 { padding: 1rem; }
 
-  /* Mobile bottom nav safe area */
+  /* Mobile bottom nav safe area (iOS home indicator) */
   nav.safe-area-pb { padding-bottom: max(0.5rem, env(safe-area-inset-bottom)); }
 
-  /* Fix select dropdowns on mobile */
-  select { font-size: 16px !important; /* prevents iOS zoom */ }
+  /* 16px form fields prevent iOS Safari from auto-zooming (which shifts layout) */
+  select, input, textarea { font-size: 16px !important; }
 }
+
+/* NOTE: the old blanket `button, a, [role="button"] { min-width: 44px;
+   min-height: 44px }` rule was removed — it forced tiny icon buttons, inline
+   links, tabs and flex children to 44px, distorting alignment across the app
+   (e.g. the timer's small control button rendered 44px wide). Touch-target
+   sizing is handled per component where it actually matters. */

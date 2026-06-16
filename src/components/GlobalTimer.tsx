@@ -632,7 +632,7 @@ const GlobalTimer = () => {
   return (
     <div
       ref={timerRef}
-      className={`${position ? '' : 'fixed top-[60px] right-3 md:top-auto md:bottom-4 md:left-[72px] md:right-auto'} z-40 flex items-center gap-2 bg-slate-900/90 backdrop-blur-sm text-white px-3 py-1.5 rounded-lg border border-white/10 shadow-xl pointer-events-auto hover:bg-slate-800/90 transition-colors`}
+      className={`${position ? '' : 'fixed top-[60px] right-3 lg:top-auto lg:bottom-4 lg:left-[72px] lg:right-auto'} z-40 flex items-center gap-2 bg-slate-900/90 backdrop-blur-sm text-white px-3 py-1.5 rounded-lg border border-white/10 shadow-xl pointer-events-auto hover:bg-slate-800/90 transition-colors`}
       style={timerStyle}
       title={`${statusLabel} — ${fmt(seconds)} — Drag to reposition`}
     >
