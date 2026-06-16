@@ -161,7 +161,7 @@ const Dashboard = () => {
           <div className="grid grid-cols-2 gap-3">
             {[
               { icon: Bot, label: "AI Document Tutor", desc: "Chat with your study AI", to: "/materials/tutor", color: "from-violet-500 to-violet-600" },
-              { icon: MessageCircleQuestion, label: "Ask Doubt", desc: "Get instant answers", to: "/doubts", color: "from-blue-500 to-blue-600" },
+              { icon: MessageCircleQuestion, label: "Ask Doubt", desc: "Get instant answers", to: "/doubts", color: "from-[#29ABE2] to-[#29ABE2]" },
               { icon: Sparkles, label: "Flashcards", desc: "Generate study cards", to: "/materials/flashcards", color: "from-amber-500 to-orange-500" },
               { icon: Gamepad2, label: "Quick Quiz", desc: "Test your knowledge", to: "/quiz", color: "from-emerald-500 to-emerald-600" },
             ].map((tool) => (

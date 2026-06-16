@@ -495,7 +495,7 @@ ${condensedContent.substring(0, 15000)}`;
   return (
     <div className="p-6 md:p-8 max-w-4xl mx-auto space-y-8">
       {/* Banner */}
-      <div className="relative overflow-hidden bg-gradient-to-br from-[#29ABE2] to-[#1E96CC] rounded-3xl p-8 md:p-10 shadow-lg text-white">
+      <div className="relative overflow-hidden bg-gradient-to-br from-[#29ABE2] to-[#29ABE2] rounded-3xl p-8 md:p-10 shadow-lg text-white">
         <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
           <div>
             <div className="inline-block px-3 py-1 bg-white/20 rounded-full text-[10px] font-bold tracking-widest uppercase mb-4 backdrop-blur-sm">
@@ -730,7 +730,7 @@ ${condensedContent.substring(0, 15000)}`;
                       </div>
                       <div className="h-2 bg-gray-100 rounded-full overflow-hidden w-full">
                         <div
-                          className={`h-full rounded-full transition-all duration-500 ${t.pct === 100 ? "bg-emerald-500" : "bg-gradient-to-r from-[#29ABE2] to-[#1E96CC]"}`}
+                          className={`h-full rounded-full transition-all duration-500 ${t.pct === 100 ? "bg-emerald-500" : "bg-gradient-to-r from-[#29ABE2] to-[#29ABE2]"}`}
                           style={{ width: `${t.pct}%` }}
                         />
                       </div>
@@ -790,13 +790,13 @@ ${condensedContent.substring(0, 15000)}`;
             </Button>
           </div>
           {youtubeGenerating && (
-            <div className="mt-4 flex items-center gap-3 p-3 bg-blue-50 border border-blue-100 rounded-xl animate-in fade-in duration-300">
-              <div className="h-8 w-8 rounded-lg bg-blue-100 flex items-center justify-center flex-shrink-0">
+            <div className="mt-4 flex items-center gap-3 p-3 bg-[#29ABE2] border border-[#29ABE2] rounded-xl animate-in fade-in duration-300">
+              <div className="h-8 w-8 rounded-lg bg-[#29ABE2] flex items-center justify-center flex-shrink-0">
                 <Loader2 className="h-4 w-4 animate-spin text-[#29ABE2]" />
               </div>
               <div>
-                <p className="text-xs font-semibold text-blue-900">AI is analyzing the video...</p>
-                <p className="text-[10px] text-blue-600 mt-0.5">Fetching transcript → Summarizing content → Generating lessons</p>
+                <p className="text-xs font-semibold text-[#29ABE2]">AI is analyzing the video...</p>
+                <p className="text-[10px] text-[#29ABE2] mt-0.5">Fetching transcript → Summarizing content → Generating lessons</p>
               </div>
             </div>
           )}
@@ -815,7 +815,7 @@ ${condensedContent.substring(0, 15000)}`;
                 Turn your uploaded PDFs and text into structured, step-by-step lessons.
               </p>
             </div>
-            <Link to="/materials" className="hidden sm:flex items-center gap-2 text-sm font-medium text-[#29ABE2] hover:text-[#1E96CC] bg-[#DBEAFE] px-4 py-2 rounded-xl transition-colors">
+            <Link to="/materials" className="hidden sm:flex items-center gap-2 text-sm font-medium text-[#29ABE2] hover:text-[#29ABE2] bg-[#DBEAFE] px-4 py-2 rounded-xl transition-colors">
               <Plus className="h-4 w-4" />
               New Material
             </Link>
@@ -828,8 +828,8 @@ ${condensedContent.substring(0, 15000)}`;
               return (
                 <div key={m.id} className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100 flex flex-col justify-between gap-5 hover:shadow-md transition-shadow">
                   <div className="flex items-start gap-3">
-                    <div className="h-10 w-10 rounded-xl bg-indigo-50 flex items-center justify-center flex-shrink-0">
-                      <FileText className="h-5 w-5 text-indigo-500" />
+                    <div className="h-10 w-10 rounded-xl bg-[#29ABE2] flex items-center justify-center flex-shrink-0">
+                      <FileText className="h-5 w-5 text-[#29ABE2]" />
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="text-sm font-semibold text-gray-900 line-clamp-2 leading-tight" title={m.file_name}>{m.file_name}</div>

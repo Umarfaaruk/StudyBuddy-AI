@@ -10,7 +10,7 @@ const HeroSection = () => (
       <div className="grid lg:grid-cols-2 gap-16 items-center">
         {/* Left */}
         <div className="space-y-8">
-          <div className="inline-flex items-center gap-2 bg-primary/20 border border-primary/30 rounded-full px-4 py-1.5 text-xs font-semibold text-blue-300">
+          <div className="inline-flex items-center gap-2 bg-primary/20 border border-primary/30 rounded-full px-4 py-1.5 text-xs font-semibold text-[#29ABE2]">
             <span className="h-1.5 w-1.5 rounded-full bg-primary animate-pulse" />
             AI-Powered Learning Platform
           </div>

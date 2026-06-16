@@ -52,7 +52,7 @@ const ProfileModal = ({
         className="relative w-full max-w-sm bg-white rounded-2xl shadow-2xl overflow-hidden"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="bg-gradient-to-br from-[#29ABE2] to-[#1E96CC] px-6 pt-7 pb-10 text-center relative">
+        <div className="bg-gradient-to-br from-[#29ABE2] to-[#29ABE2] px-6 pt-7 pb-10 text-center relative">
           <button onClick={onClose} className="absolute top-3 right-3 h-8 w-8 rounded-lg bg-white/15 hover:bg-white/25 flex items-center justify-center text-white" aria-label="Close">
             <X className="h-4 w-4" />
           </button>
@@ -86,7 +86,7 @@ const ProfileModal = ({
                   ) : fs.status === "pending_received" ? (
                     <button onClick={() => { onAccept(fs.recordId!, uid); onClose(); }} className="w-full inline-flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-xl text-sm font-semibold bg-green-500 text-white hover:bg-green-600 transition-all"><Check className="h-4 w-4" /> Accept friend request</button>
                   ) : (
-                    <button onClick={() => { onAddFriend(uid); }} className="w-full inline-flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-xl text-sm font-semibold bg-[#29ABE2] text-white hover:bg-[#1E96CC] transition-all"><UserPlus className="h-4 w-4" /> Send friend request</button>
+                    <button onClick={() => { onAddFriend(uid); }} className="w-full inline-flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-xl text-sm font-semibold bg-[#29ABE2] text-white hover:bg-[#29ABE2] transition-all"><UserPlus className="h-4 w-4" /> Send friend request</button>
                   )}
                 </div>
               )}
@@ -298,7 +298,7 @@ const Leaderboard = () => {
               onClick={() => setTimeFilter(f.key)}
               className={`px-5 py-2 rounded-full text-sm font-semibold transition-all duration-200 ${
                 timeFilter === f.key
-                  ? "bg-[#29ABE2] text-white shadow-lg shadow-blue-200"
+                  ? "bg-[#29ABE2] text-white shadow-lg shadow-[#29ABE2]/25"
                   : "text-gray-500 hover:text-gray-700 hover:bg-gray-200/60"
               }`}
             >
@@ -347,7 +347,7 @@ const Leaderboard = () => {
               className="pl-9"
             />
           </div>
-          <Button onClick={handleSearch} disabled={searching} className="bg-[#29ABE2] hover:bg-[#1E96CC] text-white gap-1.5 shrink-0">
+          <Button onClick={handleSearch} disabled={searching} className="bg-[#29ABE2] hover:bg-[#29ABE2] text-white gap-1.5 shrink-0">
             {searching ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
             <span className="hidden sm:inline">Search</span>
           </Button>
@@ -380,7 +380,7 @@ const Leaderboard = () => {
                   ) : fs.status === "pending_received" ? (
                     <button onClick={() => handleAccept(fs.recordId!, p.uid)} className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[11px] font-semibold bg-green-500 text-white hover:bg-green-600 shrink-0"><Check className="h-3 w-3" /> Accept</button>
                   ) : (
-                    <button onClick={() => handleAddFriend(p.uid)} className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[11px] font-semibold bg-[#29ABE2] text-white hover:bg-[#1E96CC] shrink-0"><UserPlus className="h-3 w-3" /> Add</button>
+                    <button onClick={() => handleAddFriend(p.uid)} className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[11px] font-semibold bg-[#29ABE2] text-white hover:bg-[#29ABE2] shrink-0"><UserPlus className="h-3 w-3" /> Add</button>
                   )}
                 </div>
               );
@@ -504,7 +504,7 @@ const Leaderboard = () => {
                     <div className="flex items-center gap-3">
                       <div className={`h-9 w-9 rounded-full flex items-center justify-center text-xs font-bold shrink-0 transition-transform duration-200 group-hover:scale-110 ${
                         u.isYou
-                          ? "bg-gradient-to-br from-[#29ABE2] to-[#1E96CC] text-white shadow-md shadow-blue-200"
+                          ? "bg-gradient-to-br from-[#29ABE2] to-[#29ABE2] text-white shadow-md shadow-[#29ABE2]/25"
                           : "bg-gray-100 text-gray-600"
                       }`}>
                         {u.avatar}
@@ -566,7 +566,7 @@ const Leaderboard = () => {
                             return (
                               <button
                                 onClick={() => handleAddFriend(u.uid)}
-                                className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[11px] font-semibold bg-[#29ABE2] text-white hover:bg-[#1E96CC] shadow-sm transition-all"
+                                className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[11px] font-semibold bg-[#29ABE2] text-white hover:bg-[#29ABE2] shadow-sm transition-all"
                               >
                                 <UserPlus className="h-3 w-3" /> Add
                               </button>
@@ -606,7 +606,7 @@ const Leaderboard = () => {
                 <defs>
                   <linearGradient id="progressGradient" x1="0%" y1="0%" x2="100%" y2="0%">
                     <stop offset="0%" stopColor="#29ABE2" />
-                    <stop offset="100%" stopColor="#1E96CC" />
+                    <stop offset="100%" stopColor="#29ABE2" />
                   </linearGradient>
                 </defs>
               </svg>
@@ -621,7 +621,7 @@ const Leaderboard = () => {
           </div>
 
           {/* Apex Architect Award */}
-          <div className="bg-gradient-to-br from-[#29ABE2] to-[#1A7BA8] rounded-2xl shadow-lg shadow-blue-200/50 p-6 text-white relative overflow-hidden">
+          <div className="bg-gradient-to-br from-[#29ABE2] to-[#29ABE2] rounded-2xl shadow-lg shadow-[#29ABE2]/25/50 p-6 text-white relative overflow-hidden">
             {/* Decorative background circles */}
             <div className="absolute -top-6 -right-6 w-24 h-24 rounded-full bg-white/10" />
             <div className="absolute -bottom-8 -left-8 w-32 h-32 rounded-full bg-white/5" />
@@ -633,7 +633,7 @@ const Leaderboard = () => {
                 </div>
                 <div>
                   <h4 className="font-bold text-sm">Apex Architect</h4>
-                  <p className="text-[10px] text-blue-200">Top Achievement</p>
+                  <p className="text-[10px] text-[#29ABE2]">Top Achievement</p>
                 </div>
               </div>
 
@@ -642,7 +642,7 @@ const Leaderboard = () => {
                 <div className="flex items-center gap-3">
                   <span className="text-2xl">🏆</span>
                   <div className="text-center">
-                    <p className="text-xs font-semibold text-blue-100">Rank #{myRank}</p>
+                    <p className="text-xs font-semibold text-[#29ABE2]">Rank #{myRank}</p>
                     <p className="text-lg font-black">{xp.toLocaleString()} XP</p>
                   </div>
                   <span className="text-2xl">🏆</span>
@@ -651,7 +651,7 @@ const Leaderboard = () => {
 
               <div className="flex items-center gap-2 mt-3 pt-3 border-t border-white/20">
                 <Flame className="h-4 w-4 text-orange-300" />
-                <span className="text-xs font-semibold text-blue-100">
+                <span className="text-xs font-semibold text-[#29ABE2]">
                   {streak?.current_streak ?? 0} day streak
                 </span>
                 <Star className="h-3 w-3 text-yellow-300 ml-auto" />

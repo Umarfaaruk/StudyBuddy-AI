@@ -305,7 +305,7 @@ const LessonViewer = () => {
         return <code key={idx} className="text-[#29ABE2] bg-[#DBEAFE] px-1.5 py-0.5 rounded-md text-xs font-mono border border-[#29ABE2]/10">{part.slice(1, -1)}</code>;
       const linkMatch = part.match(/^\[([^\]]+)\]\(([^)]+)\)$/);
       if (linkMatch)
-        return <a key={idx} href={linkMatch[2]} target="_blank" rel="noopener noreferrer" className="text-[#29ABE2] hover:text-[#1E96CC] font-medium underline underline-offset-2">{linkMatch[1]}</a>;
+        return <a key={idx} href={linkMatch[2]} target="_blank" rel="noopener noreferrer" className="text-[#29ABE2] hover:text-[#29ABE2] font-medium underline underline-offset-2">{linkMatch[1]}</a>;
       return part;
     });
   };
@@ -495,7 +495,7 @@ const LessonViewer = () => {
           className={`gap-2 flex-1 min-h-[48px] rounded-xl font-semibold transition-all shadow-sm ${
             isCompleted
               ? "bg-emerald-50 text-emerald-600 border border-emerald-200 hover:bg-emerald-100"
-              : "bg-gradient-to-r from-[#29ABE2] to-[#1E96CC] text-white hover:opacity-90"
+              : "bg-gradient-to-r from-[#29ABE2] to-[#29ABE2] text-white hover:opacity-90"
           }`}
           disabled={isCompleted || markComplete.isPending}
         >

@@ -483,19 +483,19 @@ const AITutor = ({ hideHeader = false }: { hideHeader?: boolean } = {}) => {
     <div className={`flex flex-col w-full overflow-hidden bg-white ${hideHeader ? "h-[600px] rounded-xl" : "h-[calc(100vh-80px)]"}`}>
       {/* Premium Revamped Header */}
       {!hideHeader && (
-        <div className="relative overflow-hidden bg-gradient-to-r from-blue-600 via-blue-700 to-indigo-800 text-white px-6 py-6 shadow-sm shrink-0">
+        <div className="relative overflow-hidden bg-gradient-to-r from-[#29ABE2] via-[#29ABE2] to-[#29ABE2] text-white px-6 py-6 shadow-sm shrink-0">
           <div className="absolute top-0 right-0 w-64 h-64 bg-white/5 rounded-full -translate-y-16 translate-x-16" />
           <div className="absolute bottom-0 left-0 w-32 h-32 bg-white/5 rounded-full translate-y-8 -translate-x-8" />
           
           <div className="relative flex flex-col md:flex-row md:items-center justify-between gap-4">
             <div className="space-y-1.5">
-              <div className="inline-flex items-center gap-1.5 bg-white/10 px-2.5 py-1 rounded-full text-[10px] font-semibold uppercase tracking-wider text-blue-200 backdrop-blur-sm">
+              <div className="inline-flex items-center gap-1.5 bg-white/10 px-2.5 py-1 rounded-full text-[10px] font-semibold uppercase tracking-wider text-[#29ABE2] backdrop-blur-sm">
                 <Sparkles className="h-3 w-3" /> AI Study Assistant
               </div>
               <h1 className="text-2xl md:text-3xl font-extrabold tracking-tight flex items-center gap-2">
                 AI Study Tutor
               </h1>
-              <p className="text-blue-100/90 text-xs md:text-sm max-w-xl">
+              <p className="text-[#29ABE2]/90 text-xs md:text-sm max-w-xl">
                 {selectedMaterial
                   ? `Ask questions about "${selectedMaterial.file_name}" to unlock concepts, summarize details, or clarify doubts.`
                   : "Upload study materials or select a file to receive personalized tutoring based on your content."}
@@ -660,7 +660,7 @@ const AITutor = ({ hideHeader = false }: { hideHeader?: boolean } = {}) => {
                 ) : (
                   <div className="text-center space-y-6 max-w-2xl mx-auto w-full px-4">
                     <div className="space-y-2">
-                      <div className="h-16 w-16 rounded-2xl bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center mx-auto shadow-md">
+                      <div className="h-16 w-16 rounded-2xl bg-gradient-to-br from-[#29ABE2] to-[#29ABE2] flex items-center justify-center mx-auto shadow-md">
                         <Bot className="h-8 w-8 text-white animate-pulse" />
                       </div>
                       <h2 className="text-xl font-extrabold text-gray-900 tracking-tight">
@@ -685,7 +685,7 @@ const AITutor = ({ hideHeader = false }: { hideHeader?: boolean } = {}) => {
                             setQuestion(q);
                             setTimeout(() => inputRef.current?.focus(), 50);
                           }}
-                          className="text-left px-4 py-3.5 rounded-2xl bg-white border border-gray-100 hover:border-blue-300 hover:bg-blue-50/10 hover:shadow-sm transition-all text-xs font-semibold text-gray-600 hover:text-blue-700"
+                          className="text-left px-4 py-3.5 rounded-2xl bg-white border border-gray-100 hover:border-[#29ABE2] hover:bg-[#29ABE2]/10 hover:shadow-sm transition-all text-xs font-semibold text-gray-600 hover:text-[#29ABE2]"
                         >
                           {q}
                         </button>
@@ -696,8 +696,8 @@ const AITutor = ({ hideHeader = false }: { hideHeader?: boolean } = {}) => {
                     <div
                       className={`w-full max-w-lg mx-auto rounded-2xl border-2 border-dashed p-5 text-center transition-all duration-200 cursor-pointer bg-white/50 ${
                         isDragOver
-                          ? "border-blue-600 bg-blue-50/50 scale-[1.01]"
-                          : "border-gray-200 hover:border-blue-400/60 hover:bg-white"
+                          ? "border-[#29ABE2] bg-[#29ABE2]/50 scale-[1.01]"
+                          : "border-gray-200 hover:border-[#29ABE2]/60 hover:bg-white"
                       }`}
                       onClick={() => fileInputRef.current?.click()}
                       onDragOver={(e) => {
@@ -708,7 +708,7 @@ const AITutor = ({ hideHeader = false }: { hideHeader?: boolean } = {}) => {
                       onDrop={handleDrop}
                     >
                       <div className="flex items-center justify-center gap-3">
-                        <div className="h-9 w-9 rounded-xl bg-blue-50 flex items-center justify-center text-blue-600 shrink-0">
+                        <div className="h-9 w-9 rounded-xl bg-[#29ABE2] flex items-center justify-center text-[#29ABE2] shrink-0">
                           <Upload className="h-4.5 w-4.5" />
                         </div>
                         <div className="text-left">
@@ -841,7 +841,7 @@ const AITutor = ({ hideHeader = false }: { hideHeader?: boolean } = {}) => {
                   <Button
                     onClick={handleSend}
                     disabled={!question.trim()}
-                    className="h-8 w-8 p-0 bg-[#29ABE2] text-white hover:bg-[#1E96CC] rounded-lg shadow-sm"
+                    className="h-8 w-8 p-0 bg-[#29ABE2] text-white hover:bg-[#29ABE2] rounded-lg shadow-sm"
                   >
                     <Send className="h-3.5 w-3.5" />
                   </Button>
@@ -864,7 +864,7 @@ const AITutor = ({ hideHeader = false }: { hideHeader?: boolean } = {}) => {
           {selectedMaterial && selectedMaterial.key_topics.length > 0 ? (
             <div className="bg-white border border-gray-150 rounded-2xl p-4 shadow-sm space-y-3">
               <h4 className="text-xs font-bold text-gray-400 uppercase tracking-wider flex items-center gap-1.5">
-                <MessageCircleQuestion className="h-3.5 w-3.5 text-blue-500" /> Suggested Questions
+                <MessageCircleQuestion className="h-3.5 w-3.5 text-[#29ABE2]" /> Suggested Questions
               </h4>
               <div className="flex flex-col gap-2">
                 {selectedMaterial.key_topics.slice(0, 3).map((topic, idx) => {
@@ -881,7 +881,7 @@ const AITutor = ({ hideHeader = false }: { hideHeader?: boolean } = {}) => {
                         setQuestion(q);
                         inputRef.current?.focus();
                       }}
-                      className="text-left text-xs text-gray-600 hover:text-blue-600 hover:bg-blue-50/50 p-2.5 rounded-xl border border-gray-100 hover:border-blue-200/40 transition-all font-medium"
+                      className="text-left text-xs text-gray-600 hover:text-[#29ABE2] hover:bg-[#29ABE2]/50 p-2.5 rounded-xl border border-gray-100 hover:border-[#29ABE2]/40 transition-all font-medium"
                     >
                       {q}
                     </button>
@@ -892,7 +892,7 @@ const AITutor = ({ hideHeader = false }: { hideHeader?: boolean } = {}) => {
           ) : (
             <div className="bg-white border border-gray-150 rounded-2xl p-4 shadow-sm space-y-3">
               <h4 className="text-xs font-bold text-gray-400 uppercase tracking-wider flex items-center gap-1.5">
-                <MessageCircleQuestion className="h-3.5 w-3.5 text-blue-500" /> General Doubts
+                <MessageCircleQuestion className="h-3.5 w-3.5 text-[#29ABE2]" /> General Doubts
               </h4>
               <div className="flex flex-col gap-2">
                 {[
@@ -906,7 +906,7 @@ const AITutor = ({ hideHeader = false }: { hideHeader?: boolean } = {}) => {
                       setQuestion(item.q);
                       inputRef.current?.focus();
                     }}
-                    className="text-left text-xs text-gray-600 hover:text-blue-600 hover:bg-blue-50/50 p-2.5 rounded-xl border border-gray-100 hover:border-blue-200/40 transition-all font-medium"
+                    className="text-left text-xs text-gray-600 hover:text-[#29ABE2] hover:bg-[#29ABE2]/50 p-2.5 rounded-xl border border-gray-100 hover:border-[#29ABE2]/40 transition-all font-medium"
                   >
                     {item.label}
                   </button>

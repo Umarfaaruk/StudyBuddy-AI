@@ -360,8 +360,8 @@ const AdminPanel = () => {
         {
           feature: "Quizzes",
           activeUsers: platformStats?.users.filter((u) => u.quizCount > 0).length || 0,
-          color: "from-blue-400 to-blue-600",
-          bgColor: "bg-blue-500",
+          color: "from-[#29ABE2] to-[#29ABE2]",
+          bgColor: "bg-[#29ABE2]",
           icon: "🎯",
         },
         {
@@ -388,8 +388,8 @@ const AdminPanel = () => {
         {
           feature: "Study Plans",
           activeUsers: platformStats?.users.filter((u) => u.studyPlanCount > 0).length || 0,
-          color: "from-cyan-400 to-cyan-600",
-          bgColor: "bg-cyan-500",
+          color: "from-[#29ABE2] to-[#29ABE2]",
+          bgColor: "bg-[#29ABE2]",
           icon: "📋",
         },
       ]
@@ -403,7 +403,7 @@ const AdminPanel = () => {
     <div className="p-4 md:p-8 max-w-7xl mx-auto space-y-6">
       {/* Header */}
       <div className="flex items-center gap-3">
-        <div className="h-11 w-11 rounded-xl bg-gradient-to-br from-[#29ABE2] to-[#3FB0E8] flex items-center justify-center shadow-lg shadow-[#29ABE2]/20">
+        <div className="h-11 w-11 rounded-xl bg-gradient-to-br from-[#29ABE2] to-[#29ABE2] flex items-center justify-center shadow-lg shadow-[#29ABE2]/20">
           <ShieldCheck className="h-5 w-5 text-white" />
         </div>
         <div>
@@ -539,7 +539,7 @@ const AdminPanel = () => {
                     {u.avatar_url ? (
                       <img src={u.avatar_url} alt={u.name} className="h-9 w-9 rounded-full object-cover ring-2 ring-gray-100" />
                     ) : (
-                      <div className="h-9 w-9 rounded-full bg-gradient-to-br from-[#29ABE2]/20 to-[#3FB0E8]/10 flex items-center justify-center ring-2 ring-[#29ABE2]/10">
+                      <div className="h-9 w-9 rounded-full bg-gradient-to-br from-[#29ABE2]/20 to-[#29ABE2]/10 flex items-center justify-center ring-2 ring-[#29ABE2]/10">
                         <span className="text-sm font-bold text-[#29ABE2]">{u.name.charAt(0).toUpperCase()}</span>
                       </div>
                     )}
@@ -689,7 +689,7 @@ const AdminPanel = () => {
               <div key={f.id} className="bg-white rounded-2xl p-4 md:p-5 shadow-sm border border-gray-100 hover:shadow-md transition-all duration-200">
                 <div className="flex items-start justify-between gap-3 md:gap-4">
                   <div className="flex items-center gap-3 min-w-0">
-                    <div className="h-9 w-9 rounded-full bg-gradient-to-br from-[#29ABE2]/20 to-[#3FB0E8]/10 flex items-center justify-center flex-shrink-0 ring-2 ring-[#29ABE2]/10">
+                    <div className="h-9 w-9 rounded-full bg-gradient-to-br from-[#29ABE2]/20 to-[#29ABE2]/10 flex items-center justify-center flex-shrink-0 ring-2 ring-[#29ABE2]/10">
                       <span className="text-sm font-bold text-[#29ABE2]">{f.userName.charAt(0).toUpperCase()}</span>
                     </div>
                     <div className="min-w-0">
@@ -707,7 +707,7 @@ const AdminPanel = () => {
                       f.source === "ai_chat"
                         ? "bg-purple-50 text-purple-600"
                         : f.source === "enforced_modal"
-                        ? "bg-blue-50 text-blue-600"
+                        ? "bg-[#29ABE2] text-[#29ABE2]"
                         : "bg-gray-50 text-gray-500"
                     }`}>
                       {f.source === "ai_chat" ? "AI Chat" : f.source === "enforced_modal" ? "Weekly" : "Manual"}

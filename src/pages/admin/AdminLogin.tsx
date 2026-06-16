@@ -118,7 +118,7 @@ const AdminLogin = () => {
       <div className="relative w-full max-w-md">
         {/* Logo & Title */}
         <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center h-16 w-16 rounded-2xl bg-gradient-to-br from-[#29ABE2] to-[#3FB0E8] shadow-xl shadow-[#29ABE2]/25 mb-5">
+          <div className="inline-flex items-center justify-center h-16 w-16 rounded-2xl bg-gradient-to-br from-[#29ABE2] to-[#29ABE2] shadow-xl shadow-[#29ABE2]/25 mb-5">
             <ShieldCheck className="h-8 w-8 text-white" />
           </div>
           <h1 className="text-2xl font-bold text-white tracking-tight">Admin Access</h1>
@@ -198,7 +198,7 @@ const AdminLogin = () => {
             {/* UID Display */}
             {debugUid && (
               <div className="p-3.5 rounded-xl bg-[#29ABE2]/10 border border-[#29ABE2]/20">
-                <p className="text-[10px] font-bold uppercase tracking-wider text-[#7CC9EF] mb-1.5">Your Firebase UID</p>
+                <p className="text-[10px] font-bold uppercase tracking-wider text-[#29ABE2] mb-1.5">Your Firebase UID</p>
                 <div className="flex items-center gap-2">
                   <code className="flex-1 text-xs text-white bg-black/30 rounded-lg px-3 py-2 font-mono break-all select-all">
                     {debugUid}
@@ -225,7 +225,7 @@ const AdminLogin = () => {
             <button
               type="submit"
               disabled={loading}
-              className="w-full h-12 bg-gradient-to-r from-[#29ABE2] to-[#3FB0E8] hover:from-[#1A7BA8] hover:to-[#1E96CC] text-white text-sm font-bold rounded-xl transition-all shadow-lg shadow-[#29ABE2]/25 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-full h-12 bg-gradient-to-r from-[#29ABE2] to-[#29ABE2] hover:from-[#29ABE2] hover:to-[#29ABE2] text-white text-sm font-bold rounded-xl transition-all shadow-lg shadow-[#29ABE2]/25 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {loading ? (
                 <Loader2 className="h-4 w-4 animate-spin" />

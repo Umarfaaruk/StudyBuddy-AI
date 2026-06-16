@@ -189,7 +189,7 @@ const EduOnxAIChat = () => {
       {!isOpen && (
         <button
           onClick={() => setIsOpen(true)}
-          className="fixed bottom-6 right-6 z-50 h-14 w-14 rounded-full bg-gradient-to-br from-[#29ABE2] to-[#1E96CC] text-white shadow-xl shadow-blue-300/40 flex items-center justify-center hover:scale-110 hover:shadow-2xl hover:shadow-blue-400/50 transition-all duration-300 group md:bottom-8 md:right-8"
+          className="fixed bottom-6 right-6 z-50 h-14 w-14 rounded-full bg-gradient-to-br from-[#29ABE2] to-[#29ABE2] text-white shadow-xl shadow-[#29ABE2]/25/40 flex items-center justify-center hover:scale-110 hover:shadow-2xl hover:shadow-[#29ABE2]/25/50 transition-all duration-300 group md:bottom-8 md:right-8"
           aria-label="Open EduOnx AI chat"
         >
           <Bot className="h-6 w-6 group-hover:rotate-12 transition-transform duration-300" />
@@ -212,7 +212,7 @@ const EduOnxAIChat = () => {
           }
         >
           {/* Header — doubles as the drag handle (move it anywhere, like the timer) */}
-          <div className="flex items-center justify-between px-4 py-3 bg-gradient-to-r from-[#29ABE2] to-[#1E96CC] text-white flex-shrink-0">
+          <div className="flex items-center justify-between px-4 py-3 bg-gradient-to-r from-[#29ABE2] to-[#29ABE2] text-white flex-shrink-0">
             <div
               className="flex items-center gap-2 min-w-0 flex-1 cursor-grab active:cursor-grabbing select-none"
               onMouseDown={handleDragStart}
@@ -327,7 +327,7 @@ const EduOnxAIChat = () => {
               <button
                 onClick={handleSend}
                 disabled={!input.trim() || isLoading}
-                className="h-9 w-9 rounded-lg bg-[#29ABE2] text-white flex items-center justify-center hover:bg-[#1E96CC] disabled:opacity-40 disabled:cursor-not-allowed transition-all flex-shrink-0"
+                className="h-9 w-9 rounded-lg bg-[#29ABE2] text-white flex items-center justify-center hover:bg-[#29ABE2] disabled:opacity-40 disabled:cursor-not-allowed transition-all flex-shrink-0"
               >
                 <Send className="h-3.5 w-3.5" />
               </button>

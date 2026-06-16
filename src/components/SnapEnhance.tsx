@@ -155,7 +155,7 @@ const SnapEnhance = () => {
               <div className="flex items-center gap-2 mt-3 pt-3 border-t border-gray-100">
                 <button
                   onClick={handleCopy}
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#29ABE2] text-white text-xs font-semibold hover:bg-[#1E96CC] transition-colors"
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#29ABE2] text-white text-xs font-semibold hover:bg-[#29ABE2] transition-colors"
                 >
                   {copied ? <Check className="h-3 w-3" /> : <Copy className="h-3 w-3" />}
                   {copied ? "Copied!" : "Copy"}

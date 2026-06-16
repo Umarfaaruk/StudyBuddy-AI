@@ -190,7 +190,7 @@ const PracticeArena = () => {
                     >
                       <Button
                         size="sm"
-                        className="w-full bg-[#29ABE2] hover:bg-[#1E96CC] text-white text-xs font-bold gap-1.5 rounded-lg shadow-sm shadow-[#29ABE2]/20 transition-all duration-200"
+                        className="w-full bg-[#29ABE2] hover:bg-[#29ABE2] text-white text-xs font-bold gap-1.5 rounded-lg shadow-sm shadow-[#29ABE2]/20 transition-all duration-200"
                       >
                         <Gamepad2 className="h-3.5 w-3.5" /> Quiz
                       </Button>
@@ -220,7 +220,7 @@ const PracticeArena = () => {
               <p className="text-sm text-gray-500 mb-1 font-medium">No materials uploaded yet</p>
               <p className="text-xs text-gray-400 mb-5">Upload a PDF or text to start practicing!</p>
               <Link to="/materials">
-                <Button size="sm" className="bg-[#29ABE2] hover:bg-[#1E96CC] text-white font-bold rounded-lg px-6 shadow-sm shadow-[#29ABE2]/20">
+                <Button size="sm" className="bg-[#29ABE2] hover:bg-[#29ABE2] text-white font-bold rounded-lg px-6 shadow-sm shadow-[#29ABE2]/20">
                   Upload Material
                 </Button>
               </Link>

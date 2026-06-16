@@ -19,7 +19,7 @@ const GamificationSection = () => (
                 { rank: "🥉", name: "Jordan P.", xp: "1,890", badge: "Streak King" },
                 { rank: "4", name: "You", xp: "1,760", badge: "Rising Star", isYou: true },
               ].map((user, i) => (
-                <div key={i} className={`flex items-center gap-4 px-4 py-3 rounded-xl ${user.isYou ? "bg-blue-50 border border-blue-100" : "bg-slate-50"}`}>
+                <div key={i} className={`flex items-center gap-4 px-4 py-3 rounded-xl ${user.isYou ? "bg-[#29ABE2] border border-[#29ABE2]" : "bg-slate-50"}`}>
                   <span className="text-lg w-8 text-center">{user.rank}</span>
                   <div className="flex-1">
                     <span className={`text-sm font-medium ${user.isYou ? "text-primary" : "text-slate-800"}`}>{user.name}</span>
@@ -56,7 +56,7 @@ const GamificationSection = () => (
 
         {/* Right text */}
         <div className="space-y-6">
-          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-blue-400">Social & Gamified</p>
+          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-[#29ABE2]">Social & Gamified</p>
           <h2 className="text-3xl md:text-4xl font-bold text-white tracking-tight">
             Study together. Improve faster.
           </h2>

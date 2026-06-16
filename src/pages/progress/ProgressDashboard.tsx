@@ -275,7 +275,7 @@ const ProgressDashboard = () => {
             <div className="h-1.5 bg-gray-100 rounded-full mt-4 overflow-hidden">
               <div
                 className="h-full rounded-full transition-all duration-700"
-                style={{ width: `${retentionPct}%`, background: 'linear-gradient(90deg, #29ABE2, #1E96CC)' }}
+                style={{ width: `${retentionPct}%`, background: 'linear-gradient(90deg, #29ABE2, #29ABE2)' }}
               />
             </div>
           </div>
@@ -325,7 +325,7 @@ const ProgressDashboard = () => {
               <p className="text-xs text-gray-400 mt-0.5">Weekly study hours breakdown</p>
             </div>
             <div className="flex items-center gap-2">
-              <span className="h-2.5 w-2.5 rounded-full" style={{ background: 'linear-gradient(135deg, #29ABE2, #1E96CC)' }} />
+              <span className="h-2.5 w-2.5 rounded-full" style={{ background: 'linear-gradient(135deg, #29ABE2, #29ABE2)' }} />
               <span className="text-[11px] text-gray-400 font-medium">This Week</span>
             </div>
           </div>
@@ -343,7 +343,7 @@ const ProgressDashboard = () => {
                       style={{
                         height: `${pct}%`,
                         background: d.hours > 0
-                          ? `linear-gradient(180deg, #29ABE2 0%, #1E96CC 100%)`
+                          ? `linear-gradient(180deg, #29ABE2 0%, #29ABE2 100%)`
                           : '#E5E7EB',
                         opacity: d.hours > 0 ? 0.85 + (idx * 0.02) : 1,
                       }}
@@ -378,7 +378,7 @@ const ProgressDashboard = () => {
                 <defs>
                   <linearGradient id="progressGradient" x1="0%" y1="0%" x2="100%" y2="100%">
                     <stop offset="0%" stopColor="#29ABE2" />
-                    <stop offset="100%" stopColor="#1E96CC" />
+                    <stop offset="100%" stopColor="#29ABE2" />
                   </linearGradient>
                 </defs>
                 <text x="50" y="47" textAnchor="middle" className="fill-white text-xl font-extrabold" style={{ fontSize: '22px', fontWeight: 800 }}>
@@ -483,7 +483,7 @@ const ProgressDashboard = () => {
               <p className="text-xs text-gray-400">Complete study sessions and quizzes to receive personalized insights.</p>
             )}
           </div>
-          <Button asChild className="w-full mt-4 bg-[#29ABE2] hover:bg-[#1E96CC] text-white rounded-xl text-sm font-semibold h-10">
+          <Button asChild className="w-full mt-4 bg-[#29ABE2] hover:bg-[#29ABE2] text-white rounded-xl text-sm font-semibold h-10">
             <Link to="/timer">Start Study Session</Link>
           </Button>
         </div>
@@ -491,7 +491,7 @@ const ProgressDashboard = () => {
         {/* Next Unlock — purple gradient card */}
         <div
           className="rounded-2xl p-6 text-white relative overflow-hidden flex flex-col justify-between"
-          style={{ background: 'linear-gradient(135deg, #29ABE2 0%, #1E96CC 50%, #1A7BA8 100%)' }}
+          style={{ background: 'linear-gradient(135deg, #29ABE2 0%, #29ABE2 50%, #29ABE2 100%)' }}
         >
           <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full -translate-y-12 translate-x-12" />
           <div className="absolute bottom-0 left-0 w-20 h-20 bg-white/5 rounded-full translate-y-8 -translate-x-8" />
@@ -573,17 +573,17 @@ const ProgressDashboard = () => {
           </div>
 
           {/* Improving Trajectory Card */}
-          <div className="bg-blue-50/60 border border-blue-100 rounded-2xl p-5 shadow-[0_1px_2px_rgba(0,0,0,0.02)]">
-            <div className="flex items-center gap-2 text-blue-700 font-semibold mb-3">
-              <TrendingUp className="h-4.5 w-4.5 text-blue-500" />
+          <div className="bg-[#29ABE2]/60 border border-[#29ABE2] rounded-2xl p-5 shadow-[0_1px_2px_rgba(0,0,0,0.02)]">
+            <div className="flex items-center gap-2 text-[#29ABE2] font-semibold mb-3">
+              <TrendingUp className="h-4.5 w-4.5 text-[#29ABE2]" />
               <span>On the Rise (Trend &gt; 10%)</span>
             </div>
             {improvingTopics.length > 0 ? (
               <div className="space-y-2">
                 {improvingTopics.map((s: any) => (
-                  <div key={s.subject} className="flex justify-between items-center bg-white px-3 py-2 rounded-xl border border-blue-100/50 shadow-sm">
+                  <div key={s.subject} className="flex justify-between items-center bg-white px-3 py-2 rounded-xl border border-[#29ABE2]/50 shadow-sm">
                     <span className="text-sm font-medium text-gray-700">{s.subject}</span>
-                    <span className="text-xs font-semibold text-blue-600 flex items-center gap-0.5">
+                    <span className="text-xs font-semibold text-[#29ABE2] flex items-center gap-0.5">
                       <ArrowUpRight className="h-3 w-3" /> +{Math.round(s.trend)}%
                     </span>
                   </div>
@@ -615,7 +615,7 @@ const ProgressDashboard = () => {
               </div>
             )}
             {improvingTopics.map((s: any) => (
-              <div key={s.subject} className="bg-blue-50/30 border border-blue-100/40 rounded-xl px-4 py-3 text-xs text-gray-600 leading-relaxed">
+              <div key={s.subject} className="bg-[#29ABE2]/30 border border-[#29ABE2]/40 rounded-xl px-4 py-3 text-xs text-gray-600 leading-relaxed">
                 <span className="font-bold text-gray-800 block mb-1">Keep Momentum: {s.subject}</span>
                 Your scores in {s.subject} are trending upwards (+{Math.round(s.trend)}%). Consolidate your gains by attempting a harder quiz or creating flashcards for final retention.
               </div>
@@ -703,7 +703,7 @@ const ProgressDashboard = () => {
                           </div>
                           <div className="h-3 bg-gray-100 rounded-lg overflow-hidden">
                             <div
-                              className="h-full bg-blue-500 rounded-lg animate-all duration-300"
+                              className="h-full bg-[#29ABE2] rounded-lg animate-all duration-300"
                               style={{ width: `${Math.min(100, (s.studyMinutes / 300) * 100)}%` }}
                             />
                           </div>
@@ -841,7 +841,7 @@ const ProgressDashboard = () => {
                   <div className="h-1.5 bg-gray-200 rounded-full mt-2.5 overflow-hidden">
                     <div
                       className="h-full rounded-full transition-all"
-                      style={{ width: `${Math.min(100, (entry.minutes / 60) * 100)}%`, background: 'linear-gradient(90deg, #29ABE2, #1E96CC)' }}
+                      style={{ width: `${Math.min(100, (entry.minutes / 60) * 100)}%`, background: 'linear-gradient(90deg, #29ABE2, #29ABE2)' }}
                     />
                   </div>
                 </button>

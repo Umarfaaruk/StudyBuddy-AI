@@ -147,7 +147,7 @@ const FeedbackEnforcer = () => {
     <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm animate-in fade-in duration-300">
       <div className="bg-white rounded-2xl shadow-2xl w-[440px] max-w-[calc(100vw-32px)] overflow-hidden animate-in zoom-in-95 slide-in-from-bottom-4 duration-300">
         {/* Header */}
-        <div className="bg-gradient-to-r from-[#29ABE2] to-[#1E96CC] px-6 py-5 text-white">
+        <div className="bg-gradient-to-r from-[#29ABE2] to-[#29ABE2] px-6 py-5 text-white">
           <div className="flex items-center gap-3">
             <div className="h-10 w-10 rounded-xl bg-white/20 flex items-center justify-center">
               <MessageSquare className="h-5 w-5" />
@@ -209,7 +209,7 @@ const FeedbackEnforcer = () => {
           <button
             onClick={handleSubmit}
             disabled={isSubmitting || rating === 0}
-            className="w-full h-11 rounded-xl bg-[#29ABE2] text-white font-semibold text-sm hover:bg-[#1E96CC] disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 transition-all"
+            className="w-full h-11 rounded-xl bg-[#29ABE2] text-white font-semibold text-sm hover:bg-[#29ABE2] disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 transition-all"
           >
             {isSubmitting ? (
               <>

@@ -510,8 +510,8 @@ const MaterialUpload = () => {
 
   const getFileTypeColor = (material: any) => {
     if (material?.content_type?.includes("pdf")) return "text-red-500 bg-red-500/10";
-    if (material?.content_type?.startsWith("image/")) return "text-blue-500 bg-blue-500/10";
-    if (material?.content_type === "text/plain" || material?.file_name?.endsWith(".txt") || material?.file_name?.endsWith(".md")) return "text-blue-500 bg-blue-500/10";
+    if (material?.content_type?.startsWith("image/")) return "text-[#29ABE2] bg-[#29ABE2]/10";
+    if (material?.content_type === "text/plain" || material?.file_name?.endsWith(".txt") || material?.file_name?.endsWith(".md")) return "text-[#29ABE2] bg-[#29ABE2]/10";
     return "text-muted-foreground bg-muted";
   };
 
@@ -548,7 +548,7 @@ const MaterialUpload = () => {
       {/* ── TOP SECTION: Hero Banner + Stat Cards ──────────────── */}
       <div className="grid grid-cols-1 lg:grid-cols-5 gap-4">
         {/* Purple Gradient Banner */}
-        <div className="lg:col-span-3 bg-gradient-to-br from-[#29ABE2] to-[#1E96CC] rounded-2xl p-6 md:p-8 relative overflow-hidden min-h-[200px] flex flex-col justify-between">
+        <div className="lg:col-span-3 bg-gradient-to-br from-[#29ABE2] to-[#29ABE2] rounded-2xl p-6 md:p-8 relative overflow-hidden min-h-[200px] flex flex-col justify-between">
           {/* Decorative elements */}
           <div className="absolute top-4 left-4 w-14 h-14 rounded-full border-2 border-dashed border-white/30 flex items-center justify-center">
             <BookOpenCheck className="h-6 w-6 text-white/80" />
@@ -567,7 +567,7 @@ const MaterialUpload = () => {
             <button
               onClick={() => fileInputRef.current?.click()}
               disabled={uploading}
-              className="inline-flex items-center gap-2 bg-white text-[#1E96CC] font-semibold text-sm px-5 py-2.5 rounded-full hover:bg-white/90 transition-all shadow-lg shadow-blue-900/20 disabled:opacity-60"
+              className="inline-flex items-center gap-2 bg-white text-[#29ABE2] font-semibold text-sm px-5 py-2.5 rounded-full hover:bg-white/90 transition-all shadow-lg shadow-[#29ABE2]/25/20 disabled:opacity-60"
             >
               <Upload className="h-4 w-4" />
               Upload Files
@@ -811,7 +811,7 @@ const MaterialUpload = () => {
           <p className="text-xs text-gray-400 mt-1">Upload your study materials to get started</p>
           <button
             onClick={() => fileInputRef.current?.click()}
-            className="mt-5 inline-flex items-center gap-2 bg-[#29ABE2] text-white font-semibold text-sm px-5 py-2.5 rounded-full hover:bg-[#1E96CC] transition-all shadow-md shadow-[#29ABE2]/20"
+            className="mt-5 inline-flex items-center gap-2 bg-[#29ABE2] text-white font-semibold text-sm px-5 py-2.5 rounded-full hover:bg-[#29ABE2] transition-all shadow-md shadow-[#29ABE2]/20"
           >
             <Upload className="h-4 w-4" /> Upload File
           </button>
@@ -860,7 +860,7 @@ const MaterialUpload = () => {
               {/* Dark Thumbnail Area */}
               <div className="h-44 bg-[#0F172A] relative overflow-hidden">
                 {/* Gradient decorative overlay */}
-                <div className="absolute inset-0 bg-gradient-to-br from-[#29ABE2]/20 via-transparent to-[#1E96CC]/10" />
+                <div className="absolute inset-0 bg-gradient-to-br from-[#29ABE2]/20 via-transparent to-[#29ABE2]/10" />
                 <div className="absolute bottom-0 left-0 right-0 h-1/2 bg-gradient-to-t from-[#0F172A] to-transparent" />
 
                 {/* Image preview or file icon */}
@@ -907,7 +907,7 @@ const MaterialUpload = () => {
                   )}
                   {(f.processing_status === "ready" || f.processing_status === "completed") && (
                     <Link to={`/materials/learn/${f.id}`}>
-                      <button className="text-[11px] font-semibold text-[#29ABE2] hover:text-[#1E96CC] flex items-center gap-1 transition-colors">
+                      <button className="text-[11px] font-semibold text-[#29ABE2] hover:text-[#29ABE2] flex items-center gap-1 transition-colors">
                         Learn <ArrowRight className="h-3 w-3" />
                       </button>
                     </Link>
@@ -973,7 +973,7 @@ const MaterialUpload = () => {
 
               {(f.processing_status === "ready" || f.processing_status === "completed") && (
                 <Link to={`/materials/learn/${f.id}`}>
-                  <button className="text-xs font-semibold text-[#29ABE2] hover:text-[#1E96CC] flex items-center gap-1 px-3 py-1.5 rounded-xl border border-[#29ABE2]/20 hover:bg-[#29ABE2]/5 transition-all">
+                  <button className="text-xs font-semibold text-[#29ABE2] hover:text-[#29ABE2] flex items-center gap-1 px-3 py-1.5 rounded-xl border border-[#29ABE2]/20 hover:bg-[#29ABE2]/5 transition-all">
                     Learn <ArrowRight className="h-3 w-3" />
                   </button>
                 </Link>
