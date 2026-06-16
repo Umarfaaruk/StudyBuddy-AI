@@ -241,7 +241,7 @@ const ProgressDashboard = () => {
           <Button
             variant="outline"
             size="sm"
-            className="gap-2 rounded-xl border-gray-200 text-gray-500 hover:border-[#1D4ED8] hover:text-[#1D4ED8]"
+            className="gap-2 rounded-xl border-gray-200 text-gray-500 hover:border-[#29ABE2] hover:text-[#29ABE2]"
             onClick={handleShare}
           >
             {copiedShare ? <Check className="h-4 w-4 text-green-500" /> : <Share2 className="h-4 w-4" />}
@@ -266,16 +266,16 @@ const ProgressDashboard = () => {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
           {/* RETENTION card */}
           <div className="bg-white rounded-2xl p-6 shadow-[0_1px_3px_rgba(0,0,0,0.04)] border border-gray-100 relative overflow-hidden group hover:shadow-md transition-shadow">
-            <div className="absolute top-0 right-0 w-24 h-24 bg-[#1D4ED8]/5 rounded-full -translate-y-8 translate-x-8" />
+            <div className="absolute top-0 right-0 w-24 h-24 bg-[#29ABE2]/5 rounded-full -translate-y-8 translate-x-8" />
             <p className="text-[11px] font-bold uppercase tracking-widest text-gray-400 mb-1">Retention</p>
             <div className="flex items-end gap-2">
               <span className="text-4xl font-extrabold text-gray-900">{retentionPct}%</span>
-              <span className="text-xs text-[#1D4ED8] font-semibold pb-1.5">avg score</span>
+              <span className="text-xs text-[#29ABE2] font-semibold pb-1.5">avg score</span>
             </div>
             <div className="h-1.5 bg-gray-100 rounded-full mt-4 overflow-hidden">
               <div
                 className="h-full rounded-full transition-all duration-700"
-                style={{ width: `${retentionPct}%`, background: 'linear-gradient(90deg, #1D4ED8, #2563EB)' }}
+                style={{ width: `${retentionPct}%`, background: 'linear-gradient(90deg, #29ABE2, #1E96CC)' }}
               />
             </div>
           </div>
@@ -325,7 +325,7 @@ const ProgressDashboard = () => {
               <p className="text-xs text-gray-400 mt-0.5">Weekly study hours breakdown</p>
             </div>
             <div className="flex items-center gap-2">
-              <span className="h-2.5 w-2.5 rounded-full" style={{ background: 'linear-gradient(135deg, #1D4ED8, #2563EB)' }} />
+              <span className="h-2.5 w-2.5 rounded-full" style={{ background: 'linear-gradient(135deg, #29ABE2, #1E96CC)' }} />
               <span className="text-[11px] text-gray-400 font-medium">This Week</span>
             </div>
           </div>
@@ -343,7 +343,7 @@ const ProgressDashboard = () => {
                       style={{
                         height: `${pct}%`,
                         background: d.hours > 0
-                          ? `linear-gradient(180deg, #1D4ED8 0%, #2563EB 100%)`
+                          ? `linear-gradient(180deg, #29ABE2 0%, #1E96CC 100%)`
                           : '#E5E7EB',
                         opacity: d.hours > 0 ? 0.85 + (idx * 0.02) : 1,
                       }}
@@ -377,8 +377,8 @@ const ProgressDashboard = () => {
                 />
                 <defs>
                   <linearGradient id="progressGradient" x1="0%" y1="0%" x2="100%" y2="100%">
-                    <stop offset="0%" stopColor="#1D4ED8" />
-                    <stop offset="100%" stopColor="#2563EB" />
+                    <stop offset="0%" stopColor="#29ABE2" />
+                    <stop offset="100%" stopColor="#1E96CC" />
                   </linearGradient>
                 </defs>
                 <text x="50" y="47" textAnchor="middle" className="fill-white text-xl font-extrabold" style={{ fontSize: '22px', fontWeight: 800 }}>
@@ -440,8 +440,8 @@ const ProgressDashboard = () => {
         {/* AI Smart Insights card */}
         <div className="bg-white rounded-2xl p-6 shadow-[0_1px_3px_rgba(0,0,0,0.04)] border border-gray-100 flex flex-col">
           <div className="flex items-center gap-2 mb-4">
-            <div className="h-8 w-8 rounded-xl bg-[#1D4ED8]/10 flex items-center justify-center">
-              <Lightbulb className="h-4 w-4 text-[#1D4ED8]" />
+            <div className="h-8 w-8 rounded-xl bg-[#29ABE2]/10 flex items-center justify-center">
+              <Lightbulb className="h-4 w-4 text-[#29ABE2]" />
             </div>
             <h3 className="font-bold text-gray-900">AI Smart Insights</h3>
           </div>
@@ -449,7 +449,7 @@ const ProgressDashboard = () => {
             {todayMinutes > 0 || sessionCount > 0 ? (
               <>
                 <div className="bg-gray-50 rounded-xl px-4 py-3">
-                  <p className="text-[10px] font-bold uppercase tracking-wider text-[#1D4ED8] mb-1">Productivity</p>
+                  <p className="text-[10px] font-bold uppercase tracking-wider text-[#29ABE2] mb-1">Productivity</p>
                   <p className="text-xs text-gray-600 leading-relaxed">
                     {todayMinutes >= 30
                       ? "Great focus today! You've studied for over 30 minutes. Keep up the momentum!"
@@ -459,7 +459,7 @@ const ProgressDashboard = () => {
                   </p>
                 </div>
                 <div className="bg-gray-50 rounded-xl px-4 py-3">
-                  <p className="text-[10px] font-bold uppercase tracking-wider text-[#1D4ED8] mb-1">Consistency</p>
+                  <p className="text-[10px] font-bold uppercase tracking-wider text-[#29ABE2] mb-1">Consistency</p>
                   <p className="text-xs text-gray-600 leading-relaxed">
                     {currentStreak >= 7
                       ? `🔥 Amazing ${currentStreak}-day streak! You're building a powerful learning habit.`
@@ -470,7 +470,7 @@ const ProgressDashboard = () => {
                 </div>
                 {weekChange !== 0 && (
                   <div className="bg-gray-50 rounded-xl px-4 py-3">
-                    <p className="text-[10px] font-bold uppercase tracking-wider text-[#1D4ED8] mb-1">Trend</p>
+                    <p className="text-[10px] font-bold uppercase tracking-wider text-[#29ABE2] mb-1">Trend</p>
                     <p className="text-xs text-gray-600 leading-relaxed">
                       {weekChange > 0
                         ? `📈 You studied ${weekChange}% more this week compared to last week. Excellent progress!`
@@ -483,7 +483,7 @@ const ProgressDashboard = () => {
               <p className="text-xs text-gray-400">Complete study sessions and quizzes to receive personalized insights.</p>
             )}
           </div>
-          <Button asChild className="w-full mt-4 bg-[#1D4ED8] hover:bg-[#2563EB] text-white rounded-xl text-sm font-semibold h-10">
+          <Button asChild className="w-full mt-4 bg-[#29ABE2] hover:bg-[#1E96CC] text-white rounded-xl text-sm font-semibold h-10">
             <Link to="/timer">Start Study Session</Link>
           </Button>
         </div>
@@ -491,7 +491,7 @@ const ProgressDashboard = () => {
         {/* Next Unlock — purple gradient card */}
         <div
           className="rounded-2xl p-6 text-white relative overflow-hidden flex flex-col justify-between"
-          style={{ background: 'linear-gradient(135deg, #1D4ED8 0%, #2563EB 50%, #1E40AF 100%)' }}
+          style={{ background: 'linear-gradient(135deg, #29ABE2 0%, #1E96CC 50%, #1A7BA8 100%)' }}
         >
           <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full -translate-y-12 translate-x-12" />
           <div className="absolute bottom-0 left-0 w-20 h-20 bg-white/5 rounded-full translate-y-8 -translate-x-8" />
@@ -528,7 +528,7 @@ const ProgressDashboard = () => {
       {/* ───── Performance Insights Section ───── */}
       <div className="space-y-4">
         <h3 className="font-bold text-gray-900 text-lg flex items-center gap-2">
-          <Lightbulb className="h-5 w-5 text-[#1D4ED8]" /> Performance Insights
+          <Lightbulb className="h-5 w-5 text-[#29ABE2]" /> Performance Insights
         </h3>
         
         <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
@@ -598,7 +598,7 @@ const ProgressDashboard = () => {
         {/* AI Recommendations */}
         <div className="bg-white border border-gray-100 rounded-2xl p-5 shadow-[0_1px_3px_rgba(0,0,0,0.04)] space-y-3">
           <div className="flex items-center gap-2 text-sm font-bold text-gray-900">
-            <Sparkles className="h-4 w-4 text-[#1D4ED8]" />
+            <Sparkles className="h-4 w-4 text-[#29ABE2]" />
             <span>AI Study Advisor Recommendations</span>
           </div>
           <div className="grid sm:grid-cols-2 gap-3">
@@ -627,7 +627,7 @@ const ProgressDashboard = () => {
       {/* ───── Subject Progress (Expandable Cards with Mini-Charts) ───── */}
       <div className="space-y-4">
         <h3 className="font-bold text-gray-900 text-lg flex items-center gap-2">
-          <BarChart3 className="h-5 w-5 text-[#1D4ED8]" /> Subject-wise Progress
+          <BarChart3 className="h-5 w-5 text-[#29ABE2]" /> Subject-wise Progress
         </h3>
         
         {subjectProgress.length > 0 ? (
@@ -818,8 +818,8 @@ const ProgressDashboard = () => {
                   }}
                   className={`rounded-xl border px-4 py-3 text-left w-full transition-all ${
                     expandedDate === entry.date
-                      ? 'border-[#1D4ED8]/40 bg-[#1D4ED8]/5 shadow-sm'
-                      : 'border-gray-100 bg-gray-50 hover:border-[#1D4ED8]/20 hover:bg-gray-100/50'
+                      ? 'border-[#29ABE2]/40 bg-[#29ABE2]/5 shadow-sm'
+                      : 'border-gray-100 bg-gray-50 hover:border-[#29ABE2]/20 hover:bg-gray-100/50'
                   }`}
                 >
                   <div className="flex items-center justify-between">
@@ -841,13 +841,13 @@ const ProgressDashboard = () => {
                   <div className="h-1.5 bg-gray-200 rounded-full mt-2.5 overflow-hidden">
                     <div
                       className="h-full rounded-full transition-all"
-                      style={{ width: `${Math.min(100, (entry.minutes / 60) * 100)}%`, background: 'linear-gradient(90deg, #1D4ED8, #2563EB)' }}
+                      style={{ width: `${Math.min(100, (entry.minutes / 60) * 100)}%`, background: 'linear-gradient(90deg, #29ABE2, #1E96CC)' }}
                     />
                   </div>
                 </button>
 
                 {expandedDate === entry.date && (
-                  <div className="mt-2 rounded-xl border border-[#1D4ED8]/20 bg-white p-4 space-y-3 animate-in fade-in slide-in-from-top-2 duration-200 shadow-sm">
+                  <div className="mt-2 rounded-xl border border-[#29ABE2]/20 bg-white p-4 space-y-3 animate-in fade-in slide-in-from-top-2 duration-200 shadow-sm">
                     {loadingDetails ? (
                       <div className="text-xs text-gray-400 text-center py-4">Loading concepts…</div>
                     ) : dayDetails ? (
@@ -855,7 +855,7 @@ const ProgressDashboard = () => {
                         {dayDetails.lessons.length > 0 && (
                           <div className="space-y-1.5">
                             <div className="flex items-center gap-1.5 text-xs font-semibold text-gray-900">
-                              <BookOpen className="h-3.5 w-3.5 text-[#1D4ED8]" /> Lessons Completed
+                              <BookOpen className="h-3.5 w-3.5 text-[#29ABE2]" /> Lessons Completed
                             </div>
                             {dayDetails.lessons.map((lessonId: string, i: number) => (
                               <div key={i} className="text-xs text-gray-500 pl-5">• Lesson: {lessonId}</div>
@@ -865,7 +865,7 @@ const ProgressDashboard = () => {
                         {dayDetails.quizzes.length > 0 && (
                           <div className="space-y-1.5">
                             <div className="flex items-center gap-1.5 text-xs font-semibold text-gray-900">
-                              <Gamepad2 className="h-3.5 w-3.5 text-[#1D4ED8]" /> Quizzes Taken
+                              <Gamepad2 className="h-3.5 w-3.5 text-[#29ABE2]" /> Quizzes Taken
                             </div>
                             {dayDetails.quizzes.map((q: any, i: number) => (
                               <div key={i} className="text-xs text-gray-500 pl-5">
@@ -877,7 +877,7 @@ const ProgressDashboard = () => {
                         {dayDetails.doubts.length > 0 && (
                           <div className="space-y-1.5">
                             <div className="flex items-center gap-1.5 text-xs font-semibold text-gray-900">
-                              <MessageCircleQuestion className="h-3.5 w-3.5 text-[#1D4ED8]" /> Doubts Asked
+                              <MessageCircleQuestion className="h-3.5 w-3.5 text-[#29ABE2]" /> Doubts Asked
                             </div>
                             {dayDetails.doubts.map((d: string, i: number) => (
                               <div key={i} className="text-xs text-gray-500 pl-5 truncate">• {d}</div>

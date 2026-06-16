@@ -403,7 +403,7 @@ const AdminPanel = () => {
     <div className="p-4 md:p-8 max-w-7xl mx-auto space-y-6">
       {/* Header */}
       <div className="flex items-center gap-3">
-        <div className="h-11 w-11 rounded-xl bg-gradient-to-br from-[#1D4ED8] to-[#3B82F6] flex items-center justify-center shadow-lg shadow-[#1D4ED8]/20">
+        <div className="h-11 w-11 rounded-xl bg-gradient-to-br from-[#29ABE2] to-[#3FB0E8] flex items-center justify-center shadow-lg shadow-[#29ABE2]/20">
           <ShieldCheck className="h-5 w-5 text-white" />
         </div>
         <div>
@@ -439,7 +439,7 @@ const AdminPanel = () => {
       ) : (
         <div className="grid grid-cols-2 md:grid-cols-5 gap-3 md:gap-4">
           {[
-            { label: "Total Users",  value: platformStats?.totalUsers || 0,          icon: Users,  color: "text-[#1D4ED8]",   bgColor: "bg-[#1D4ED8]/10" },
+            { label: "Total Users",  value: platformStats?.totalUsers || 0,          icon: Users,  color: "text-[#29ABE2]",   bgColor: "bg-[#29ABE2]/10" },
             { label: "Active Today", value: platformStats?.activeToday || 0,          icon: Zap,    color: "text-emerald-500", bgColor: "bg-emerald-500/10" },
             { label: "Study Hours",  value: `${platformStats?.totalStudyHours || 0}h`, icon: Clock,  color: "text-amber-500",   bgColor: "bg-amber-500/10" },
             { label: "Avg Streak",   value: `${platformStats?.avgStreak || 0}d`,       icon: Flame,  color: "text-red-500",     bgColor: "bg-red-500/10" },
@@ -497,7 +497,7 @@ const AdminPanel = () => {
             placeholder={activeTab === "users" ? "Search users by name or email..." : "Search feedback by name or content..."}
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full h-11 pl-10 pr-4 text-sm bg-white border border-gray-200 rounded-xl outline-none focus:border-[#1D4ED8]/40 focus:ring-2 focus:ring-[#1D4ED8]/10 text-gray-900 transition-all shadow-sm placeholder:text-gray-300"
+            className="w-full h-11 pl-10 pr-4 text-sm bg-white border border-gray-200 rounded-xl outline-none focus:border-[#29ABE2]/40 focus:ring-2 focus:ring-[#29ABE2]/10 text-gray-900 transition-all shadow-sm placeholder:text-gray-300"
           />
         </div>
       )}
@@ -514,7 +514,7 @@ const AdminPanel = () => {
 
           {isLoading ? (
             <div className="p-8 flex items-center justify-center gap-3">
-              <Loader2 className="h-5 w-5 animate-spin text-[#1D4ED8]" />
+              <Loader2 className="h-5 w-5 animate-spin text-[#29ABE2]" />
               <span className="text-sm text-gray-400">Loading user data...</span>
             </div>
           ) : filteredUsers.length === 0 ? (
@@ -539,8 +539,8 @@ const AdminPanel = () => {
                     {u.avatar_url ? (
                       <img src={u.avatar_url} alt={u.name} className="h-9 w-9 rounded-full object-cover ring-2 ring-gray-100" />
                     ) : (
-                      <div className="h-9 w-9 rounded-full bg-gradient-to-br from-[#1D4ED8]/20 to-[#3B82F6]/10 flex items-center justify-center ring-2 ring-[#1D4ED8]/10">
-                        <span className="text-sm font-bold text-[#1D4ED8]">{u.name.charAt(0).toUpperCase()}</span>
+                      <div className="h-9 w-9 rounded-full bg-gradient-to-br from-[#29ABE2]/20 to-[#3FB0E8]/10 flex items-center justify-center ring-2 ring-[#29ABE2]/10">
+                        <span className="text-sm font-bold text-[#29ABE2]">{u.name.charAt(0).toUpperCase()}</span>
                       </div>
                     )}
                     <div className="min-w-0 flex-1">
@@ -560,7 +560,7 @@ const AdminPanel = () => {
                     <span className="flex items-center gap-1"><Flame className="h-3 w-3 text-red-400" />{u.streak}d</span>
                     <span className="flex items-center gap-1"><Clock className="h-3 w-3 text-green-500" />{u.studyHours}h</span>
                     <span className="flex items-center gap-1"><Target className="h-3 w-3 text-emerald-500" />{u.avgQuizScore > 0 ? `${u.avgQuizScore}%` : "—"}</span>
-                    <span className="flex items-center gap-1"><Trophy className="h-3 w-3 text-[#1D4ED8]" />{u.quizCount}</span>
+                    <span className="flex items-center gap-1"><Trophy className="h-3 w-3 text-[#29ABE2]" />{u.quizCount}</span>
                     <span className="flex items-center gap-1"><MessageCircleQuestion className="h-3 w-3 text-violet-500" />{u.doubtCount}</span>
                   </div>
 
@@ -569,7 +569,7 @@ const AdminPanel = () => {
                   <div className="hidden md:flex items-center gap-1"><Flame className="h-3.5 w-3.5 text-red-400" /><span className="text-sm font-semibold text-gray-900">{u.streak}d</span></div>
                   <div className="hidden md:flex items-center gap-1"><Clock className="h-3.5 w-3.5 text-green-500" /><span className="text-sm font-semibold text-gray-900">{u.studyHours}h</span></div>
                   <div className="hidden md:flex items-center gap-1"><Target className="h-3.5 w-3.5 text-emerald-500" /><span className={`text-sm font-semibold ${u.avgQuizScore >= 80 ? "text-emerald-600" : u.avgQuizScore >= 50 ? "text-amber-600" : u.avgQuizScore > 0 ? "text-red-500" : "text-gray-400"}`}>{u.avgQuizScore > 0 ? `${u.avgQuizScore}%` : "—"}</span></div>
-                  <div className="hidden md:flex items-center gap-1"><Trophy className="h-3.5 w-3.5 text-[#1D4ED8]" /><span className="text-sm font-semibold text-gray-900">{u.quizCount}</span></div>
+                  <div className="hidden md:flex items-center gap-1"><Trophy className="h-3.5 w-3.5 text-[#29ABE2]" /><span className="text-sm font-semibold text-gray-900">{u.quizCount}</span></div>
                   <div className="hidden md:flex items-center gap-1"><MessageCircleQuestion className="h-3.5 w-3.5 text-violet-500" /><span className="text-sm font-semibold text-gray-900">{u.doubtCount}</span></div>
                   <div className="hidden md:flex items-center gap-1"><Upload className="h-3.5 w-3.5 text-purple-500" /><span className="text-sm font-semibold text-gray-900">{u.materialsCount}</span></div>
                   <div className="hidden md:block text-xs text-gray-400">{u.lastActive}</div>
@@ -676,7 +676,7 @@ const AdminPanel = () => {
         <div className="space-y-3">
           {feedbackLoading ? (
             <div className="bg-white rounded-2xl p-8 flex items-center justify-center gap-3 shadow-sm border border-gray-100">
-              <Loader2 className="h-5 w-5 animate-spin text-[#1D4ED8]" />
+              <Loader2 className="h-5 w-5 animate-spin text-[#29ABE2]" />
               <span className="text-sm text-gray-400">Loading feedback...</span>
             </div>
           ) : filteredFeedback.length === 0 ? (
@@ -689,8 +689,8 @@ const AdminPanel = () => {
               <div key={f.id} className="bg-white rounded-2xl p-4 md:p-5 shadow-sm border border-gray-100 hover:shadow-md transition-all duration-200">
                 <div className="flex items-start justify-between gap-3 md:gap-4">
                   <div className="flex items-center gap-3 min-w-0">
-                    <div className="h-9 w-9 rounded-full bg-gradient-to-br from-[#1D4ED8]/20 to-[#3B82F6]/10 flex items-center justify-center flex-shrink-0 ring-2 ring-[#1D4ED8]/10">
-                      <span className="text-sm font-bold text-[#1D4ED8]">{f.userName.charAt(0).toUpperCase()}</span>
+                    <div className="h-9 w-9 rounded-full bg-gradient-to-br from-[#29ABE2]/20 to-[#3FB0E8]/10 flex items-center justify-center flex-shrink-0 ring-2 ring-[#29ABE2]/10">
+                      <span className="text-sm font-bold text-[#29ABE2]">{f.userName.charAt(0).toUpperCase()}</span>
                     </div>
                     <div className="min-w-0">
                       <div className="text-sm font-semibold text-gray-900 truncate">{f.userName}</div>
@@ -729,8 +729,8 @@ const AdminPanel = () => {
         <div className="space-y-6">
           <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5 md:p-6">
             <div className="flex items-center gap-3 mb-6">
-              <div className="h-9 w-9 rounded-lg bg-[#1D4ED8]/10 flex items-center justify-center">
-                <BarChart3 className="h-4 w-4 text-[#1D4ED8]" />
+              <div className="h-9 w-9 rounded-lg bg-[#29ABE2]/10 flex items-center justify-center">
+                <BarChart3 className="h-4 w-4 text-[#29ABE2]" />
               </div>
               <div>
                 <h3 className="text-base font-bold text-gray-900">Feature Adoption</h3>

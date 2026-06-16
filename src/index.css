@@ -6,7 +6,7 @@
 
 /* ─── EduOnx Design Token System ─────────────────────────────────
    Derived from EduOnx Color & Typography System Guide
-   Primary: Azure #1D4ED8  CTA: Amber #F97316  Success: Green #10B981
+   Primary: Azure #29ABE2  CTA: Amber #F97316  Success: Green #10B981
    80/10/10 Rule: 80% neutral canvas, 10% primary, 10% CTA
 ──────────────────────────────────────────────────────────────────*/
 @layer base {
@@ -22,9 +22,9 @@
     --popover-foreground: 222 47% 11%;
 
     /* ── Brand & Logic Colors ── */
-    --primary: 220 73% 48%;          /* #1D4ED8 Azure Focus – nav/links/selected */
+    --primary: 198 76% 52%;          /* #29ABE2 Azure Focus – nav/links/selected */
     --primary-foreground: 0 0% 100%;
-    --primary-light: 214 100% 93%;   /* #DBEAFE – highlight surfaces */
+    --primary-light: 198 90% 92%;   /* #DBEAFE – highlight surfaces */
 
     /* ── CTA (Amber – use ONLY for primary action buttons, max 1-2 per screen) ── */
     --cta: 25 95% 53%;               /* #F97316 Vibrant Amber */
@@ -37,8 +37,8 @@
     --success-light: 152 76% 90%;    /* #D1FAE5 */
 
     /* ── Secondary / Neutral ── */
-    --secondary: 214 100% 93%;       /* #DBEAFE – muted highlight */
-    --secondary-foreground: 220 73% 48%;
+    --secondary: 198 90% 92%;       /* #DBEAFE – muted highlight */
+    --secondary-foreground: 198 76% 52%;
 
     --muted: 220 14% 96%;
     --muted-foreground: 215 20% 47%; /* #94A3B8 meta text */
@@ -52,7 +52,7 @@
     /* ── Structural ── */
     --border: 220 9% 85%;            /* #D1D5DB – input borders, cards */
     --input: 220 9% 85%;
-    --ring: 220 73% 48%;             /* focus ring = primary */
+    --ring: 198 76% 52%;             /* focus ring = primary */
     --radius: 0.75rem;
 
     --divider: 220 13% 91%;          /* #E5E7EB – section separators */
@@ -64,21 +64,21 @@
 
     /* ── Legacy color aliases (keep for backward compat) ── */
     --deep: 222 47% 11%;
-    --deep-foreground: 214 100% 93%;
-    --navy: 220 73% 48%;             /* alias → primary */
-    --interface: 220 73% 48%;
+    --deep-foreground: 198 90% 92%;
+    --navy: 198 76% 52%;             /* alias → primary */
+    --interface: 198 76% 52%;
     --soft: 215 20% 60%;
-    --highlight: 214 100% 93%;
+    --highlight: 198 90% 92%;
 
     /* ── Sidebar ── */
     --sidebar-background: 0 0% 100%;
     --sidebar-foreground: 215 25% 34%;
-    --sidebar-primary: 220 73% 48%;
+    --sidebar-primary: 198 76% 52%;
     --sidebar-primary-foreground: 0 0% 100%;
     --sidebar-accent: 220 14% 96%;
     --sidebar-accent-foreground: 222 47% 11%;
     --sidebar-border: 220 13% 91%;
-    --sidebar-ring: 220 73% 48%;
+    --sidebar-ring: 198 76% 52%;
   }
 
   /* ── Deep Focus Mode (state-based UI switch) ──────────────────
@@ -96,7 +96,7 @@
     --input: 222 30% 22%;
     --muted: 222 35% 18%;
     --muted-foreground: 215 20% 60%;
-    --primary: 217 91% 60%;          /* lighter azure for dark bg */
+    --primary: 198 85% 58%;          /* lighter azure for dark bg */
     --primary-foreground: 0 0% 100%;
     --secondary: 222 35% 20%;
     --secondary-foreground: 220 13% 91%;
@@ -115,7 +115,7 @@
     --card-foreground: 220 13% 91%;
     --popover: 222 47% 14%;
     --popover-foreground: 220 13% 91%;
-    --primary: 217 91% 60%;
+    --primary: 198 85% 58%;
     --primary-foreground: 0 0% 100%;
     --secondary: 222 35% 20%;
     --secondary-foreground: 220 13% 91%;
@@ -127,15 +127,15 @@
     --destructive-foreground: 210 40% 98%;
     --border: 222 30% 22%;
     --input: 222 30% 22%;
-    --ring: 217 91% 60%;
+    --ring: 198 85% 58%;
     --sidebar-background: 222 47% 8%;
     --sidebar-foreground: 220 13% 91%;
-    --sidebar-primary: 217 91% 60%;
+    --sidebar-primary: 198 85% 58%;
     --sidebar-primary-foreground: 0 0% 100%;
     --sidebar-accent: 222 35% 16%;
     --sidebar-accent-foreground: 220 13% 91%;
     --sidebar-border: 222 30% 16%;
-    --sidebar-ring: 217 91% 60%;
+    --sidebar-ring: 198 85% 58%;
   }
 }
 

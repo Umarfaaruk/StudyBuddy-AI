@@ -548,7 +548,7 @@ const MaterialUpload = () => {
       {/* ── TOP SECTION: Hero Banner + Stat Cards ──────────────── */}
       <div className="grid grid-cols-1 lg:grid-cols-5 gap-4">
         {/* Purple Gradient Banner */}
-        <div className="lg:col-span-3 bg-gradient-to-br from-[#1D4ED8] to-[#2563EB] rounded-2xl p-6 md:p-8 relative overflow-hidden min-h-[200px] flex flex-col justify-between">
+        <div className="lg:col-span-3 bg-gradient-to-br from-[#29ABE2] to-[#1E96CC] rounded-2xl p-6 md:p-8 relative overflow-hidden min-h-[200px] flex flex-col justify-between">
           {/* Decorative elements */}
           <div className="absolute top-4 left-4 w-14 h-14 rounded-full border-2 border-dashed border-white/30 flex items-center justify-center">
             <BookOpenCheck className="h-6 w-6 text-white/80" />
@@ -567,7 +567,7 @@ const MaterialUpload = () => {
             <button
               onClick={() => fileInputRef.current?.click()}
               disabled={uploading}
-              className="inline-flex items-center gap-2 bg-white text-[#2563EB] font-semibold text-sm px-5 py-2.5 rounded-full hover:bg-white/90 transition-all shadow-lg shadow-blue-900/20 disabled:opacity-60"
+              className="inline-flex items-center gap-2 bg-white text-[#1E96CC] font-semibold text-sm px-5 py-2.5 rounded-full hover:bg-white/90 transition-all shadow-lg shadow-blue-900/20 disabled:opacity-60"
             >
               <Upload className="h-4 w-4" />
               Upload Files
@@ -580,8 +580,8 @@ const MaterialUpload = () => {
           {/* Total Files */}
           <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100">
             <div className="flex items-center justify-between mb-3">
-              <div className="h-10 w-10 rounded-xl bg-[#1D4ED8]/10 flex items-center justify-center">
-                <FileText className="h-5 w-5 text-[#1D4ED8]" />
+              <div className="h-10 w-10 rounded-xl bg-[#29ABE2]/10 flex items-center justify-center">
+                <FileText className="h-5 w-5 text-[#29ABE2]" />
               </div>
             </div>
             <div className="text-2xl font-bold text-gray-900">{materials?.length ?? 0}</div>
@@ -616,8 +616,8 @@ const MaterialUpload = () => {
           {/* AI Indexed */}
           <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100">
             <div className="flex items-center justify-between mb-3">
-              <div className="h-10 w-10 rounded-xl bg-[#1D4ED8]/10 flex items-center justify-center">
-                <Sparkles className="h-5 w-5 text-[#1D4ED8]" />
+              <div className="h-10 w-10 rounded-xl bg-[#29ABE2]/10 flex items-center justify-center">
+                <Sparkles className="h-5 w-5 text-[#29ABE2]" />
               </div>
             </div>
             <div className="text-2xl font-bold text-gray-900">{materials?.filter(m => m.processing_status === "completed" || m.processing_status === "ready").length ?? 0}</div>
@@ -646,7 +646,7 @@ const MaterialUpload = () => {
               placeholder="Search files..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="pl-9 pr-4 h-9 w-full sm:w-52 rounded-xl border border-gray-200 bg-white text-sm text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-[#1D4ED8]/20 focus:border-[#1D4ED8]/40 transition-all"
+              className="pl-9 pr-4 h-9 w-full sm:w-52 rounded-xl border border-gray-200 bg-white text-sm text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-[#29ABE2]/20 focus:border-[#29ABE2]/40 transition-all"
             />
           </div>
         </div>
@@ -666,8 +666,8 @@ const MaterialUpload = () => {
             onClick={() => setActiveFileTab(tab.key)}
             className={`px-4 py-2 rounded-xl text-xs font-semibold whitespace-nowrap transition-all ${
               activeFileTab === tab.key
-                ? "bg-[#1D4ED8] text-white shadow-md shadow-[#1D4ED8]/20"
-                : "bg-white text-gray-500 border border-gray-200 hover:text-gray-700 hover:border-[#1D4ED8]/30"
+                ? "bg-[#29ABE2] text-white shadow-md shadow-[#29ABE2]/20"
+                : "bg-white text-gray-500 border border-gray-200 hover:text-gray-700 hover:border-[#29ABE2]/30"
             }`}
           >
             {tab.label}{tab.count > 0 && <span className="ml-1.5 opacity-80">({tab.count})</span>}
@@ -707,7 +707,7 @@ const MaterialUpload = () => {
         ) : viewMode === "grid" ? (
           <div className="grid sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
             {savedNotes.map((n) => (
-              <div key={n.id} className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100 relative group hover:shadow-md hover:border-[#1D4ED8]/20 transition-all flex flex-col justify-between min-h-[180px]">
+              <div key={n.id} className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100 relative group hover:shadow-md hover:border-[#29ABE2]/20 transition-all flex flex-col justify-between min-h-[180px]">
                 {confirmDeleteId === n.id && (
                   <div className="absolute inset-0 z-20 bg-white/95 backdrop-blur-sm border border-red-200 rounded-2xl flex flex-col items-center justify-center gap-3 p-4 animate-in fade-in-0 zoom-in-95 duration-200">
                     <AlertTriangle className="h-5 w-5 text-red-500" />
@@ -729,7 +729,7 @@ const MaterialUpload = () => {
                 </button>
                 <div className="space-y-2 flex-1">
                   <div className="flex items-center gap-1.5 text-xs text-gray-400 font-semibold">
-                    <StickyNote className="h-3.5 w-3.5 text-[#1D4ED8]" />
+                    <StickyNote className="h-3.5 w-3.5 text-[#29ABE2]" />
                     <span>Saved Note</span>
                   </div>
                   <p className="text-xs text-gray-700 whitespace-pre-wrap line-clamp-4 leading-relaxed">{n.text}</p>
@@ -737,7 +737,7 @@ const MaterialUpload = () => {
                 <div className="space-y-1 pt-3 border-t border-gray-100 mt-auto">
                   <div className="text-[10px] text-gray-400 truncate" title={`${n.topic_title || 'Topic'} · ${n.lesson_title || 'Lesson'}`}>
                     {n.topic_id ? (
-                      <Link to={`/lessons/${n.topic_id}`} className="text-[#1D4ED8] hover:underline font-semibold">
+                      <Link to={`/lessons/${n.topic_id}`} className="text-[#29ABE2] hover:underline font-semibold">
                         {n.topic_title || 'Go to Lesson'}
                       </Link>
                     ) : (
@@ -761,7 +761,7 @@ const MaterialUpload = () => {
               <span></span>
             </div>
             {savedNotes.map((n) => (
-              <div key={n.id} className="flex items-center gap-4 bg-white border border-gray-100 rounded-2xl p-4 hover:shadow-md hover:border-[#1D4ED8]/20 transition-all group relative">
+              <div key={n.id} className="flex items-center gap-4 bg-white border border-gray-100 rounded-2xl p-4 hover:shadow-md hover:border-[#29ABE2]/20 transition-all group relative">
                 {confirmDeleteId === n.id && (
                   <div className="absolute inset-0 z-20 bg-white/95 backdrop-blur-sm border border-red-200 rounded-2xl flex items-center justify-center gap-3 p-4 animate-in fade-in-0 zoom-in-95 duration-200">
                     <AlertTriangle className="h-5 w-5 text-red-500 flex-shrink-0" />
@@ -774,13 +774,13 @@ const MaterialUpload = () => {
                     </div>
                   </div>
                 )}
-                <StickyNote className="h-5 w-5 text-[#1D4ED8] flex-shrink-0" />
+                <StickyNote className="h-5 w-5 text-[#29ABE2] flex-shrink-0" />
                 <div className="flex-1 min-w-0 pr-4">
                   <p className="text-sm text-gray-700 whitespace-pre-wrap leading-relaxed">{n.text}</p>
                 </div>
                 <div className="w-[200px] text-xs text-gray-500 truncate">
                   {n.topic_id ? (
-                    <Link to={`/lessons/${n.topic_id}`} className="text-[#1D4ED8] hover:underline font-semibold block truncate">
+                    <Link to={`/lessons/${n.topic_id}`} className="text-[#29ABE2] hover:underline font-semibold block truncate">
                       {n.topic_title || 'Go to Course'}
                     </Link>
                   ) : (
@@ -811,7 +811,7 @@ const MaterialUpload = () => {
           <p className="text-xs text-gray-400 mt-1">Upload your study materials to get started</p>
           <button
             onClick={() => fileInputRef.current?.click()}
-            className="mt-5 inline-flex items-center gap-2 bg-[#1D4ED8] text-white font-semibold text-sm px-5 py-2.5 rounded-full hover:bg-[#2563EB] transition-all shadow-md shadow-[#1D4ED8]/20"
+            className="mt-5 inline-flex items-center gap-2 bg-[#29ABE2] text-white font-semibold text-sm px-5 py-2.5 rounded-full hover:bg-[#1E96CC] transition-all shadow-md shadow-[#29ABE2]/20"
           >
             <Upload className="h-4 w-4" /> Upload File
           </button>
@@ -821,18 +821,18 @@ const MaterialUpload = () => {
           {/* Add New Material Card */}
           <div
             onClick={() => fileInputRef.current?.click()}
-            className="bg-white border-2 border-dashed border-gray-200 rounded-2xl flex flex-col items-center justify-center gap-3 cursor-pointer hover:border-[#1D4ED8]/40 hover:bg-[#1D4ED8]/[0.02] transition-all min-h-[310px] group"
+            className="bg-white border-2 border-dashed border-gray-200 rounded-2xl flex flex-col items-center justify-center gap-3 cursor-pointer hover:border-[#29ABE2]/40 hover:bg-[#29ABE2]/[0.02] transition-all min-h-[310px] group"
           >
-            <div className="h-14 w-14 rounded-2xl bg-gray-100 flex items-center justify-center group-hover:bg-[#1D4ED8]/10 transition-colors">
-              <Plus className="h-7 w-7 text-gray-400 group-hover:text-[#1D4ED8] transition-colors" />
+            <div className="h-14 w-14 rounded-2xl bg-gray-100 flex items-center justify-center group-hover:bg-[#29ABE2]/10 transition-colors">
+              <Plus className="h-7 w-7 text-gray-400 group-hover:text-[#29ABE2] transition-colors" />
             </div>
-            <span className="text-sm font-semibold text-gray-400 group-hover:text-[#1D4ED8] transition-colors">Add New Material</span>
+            <span className="text-sm font-semibold text-gray-400 group-hover:text-[#29ABE2] transition-colors">Add New Material</span>
             <span className="text-[11px] text-gray-400">PDF, TXT, Images</span>
           </div>
 
           {/* Material Cards */}
           {tabFilteredMaterials.map((f) => (
-            <div key={f.id} className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden relative group hover:shadow-lg hover:border-[#1D4ED8]/20 transition-all">
+            <div key={f.id} className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden relative group hover:shadow-lg hover:border-[#29ABE2]/20 transition-all">
               {/* Delete confirmation overlay */}
               {confirmDeleteId === f.id && (
                 <div className="absolute inset-0 z-20 bg-white/95 backdrop-blur-sm border border-red-200 rounded-2xl flex flex-col items-center justify-center gap-3 p-4 animate-in fade-in-0 zoom-in-95 duration-200">
@@ -860,7 +860,7 @@ const MaterialUpload = () => {
               {/* Dark Thumbnail Area */}
               <div className="h-44 bg-[#0F172A] relative overflow-hidden">
                 {/* Gradient decorative overlay */}
-                <div className="absolute inset-0 bg-gradient-to-br from-[#1D4ED8]/20 via-transparent to-[#2563EB]/10" />
+                <div className="absolute inset-0 bg-gradient-to-br from-[#29ABE2]/20 via-transparent to-[#1E96CC]/10" />
                 <div className="absolute bottom-0 left-0 right-0 h-1/2 bg-gradient-to-t from-[#0F172A] to-transparent" />
 
                 {/* Image preview or file icon */}
@@ -874,7 +874,7 @@ const MaterialUpload = () => {
 
                 {/* File type badge */}
                 <div className="absolute top-3 left-3">
-                  <span className="bg-[#1D4ED8]/90 text-white text-[10px] font-bold px-2.5 py-1 rounded-lg uppercase tracking-wide">
+                  <span className="bg-[#29ABE2]/90 text-white text-[10px] font-bold px-2.5 py-1 rounded-lg uppercase tracking-wide">
                     {getFileTypeLabel(f)} Document
                   </span>
                 </div>
@@ -898,7 +898,7 @@ const MaterialUpload = () => {
                 {/* AI status + Learn button */}
                 <div className="flex items-center justify-between pt-1">
                   {(f.processing_status === "ready" || f.processing_status === "completed") ? (
-                    <div className="flex items-center gap-1 text-[11px] text-[#1D4ED8] font-medium">
+                    <div className="flex items-center gap-1 text-[11px] text-[#29ABE2] font-medium">
                       <Sparkles className="h-3 w-3" />
                       <span>AI Summary Available</span>
                     </div>
@@ -907,7 +907,7 @@ const MaterialUpload = () => {
                   )}
                   {(f.processing_status === "ready" || f.processing_status === "completed") && (
                     <Link to={`/materials/learn/${f.id}`}>
-                      <button className="text-[11px] font-semibold text-[#1D4ED8] hover:text-[#2563EB] flex items-center gap-1 transition-colors">
+                      <button className="text-[11px] font-semibold text-[#29ABE2] hover:text-[#1E96CC] flex items-center gap-1 transition-colors">
                         Learn <ArrowRight className="h-3 w-3" />
                       </button>
                     </Link>
@@ -930,7 +930,7 @@ const MaterialUpload = () => {
             <span></span>
           </div>
           {tabFilteredMaterials.map((f) => (
-            <div key={f.id} className="flex items-center gap-4 bg-white border border-gray-100 rounded-2xl p-4 hover:shadow-md hover:border-[#1D4ED8]/20 transition-all group relative">
+            <div key={f.id} className="flex items-center gap-4 bg-white border border-gray-100 rounded-2xl p-4 hover:shadow-md hover:border-[#29ABE2]/20 transition-all group relative">
               {/* Delete confirmation overlay for list view */}
               {confirmDeleteId === f.id && (
                 <div className="absolute inset-0 z-20 bg-white/95 backdrop-blur-sm border border-red-200 rounded-2xl flex items-center justify-center gap-3 p-4 animate-in fade-in-0 zoom-in-95 duration-200">
@@ -957,14 +957,14 @@ const MaterialUpload = () => {
               <div className="flex-1 min-w-0">
                 <div className="text-sm font-semibold text-gray-900 truncate">{f.file_name}</div>
                 <div className="text-[10px] text-gray-400 flex items-center gap-2 mt-0.5">
-                  <span className="font-bold text-[#1D4ED8] bg-[#1D4ED8]/10 px-1.5 py-0.5 rounded">{getFileTypeLabel(f)}</span>
+                  <span className="font-bold text-[#29ABE2] bg-[#29ABE2]/10 px-1.5 py-0.5 rounded">{getFileTypeLabel(f)}</span>
                   <span>{formatSize(f.file_size)}</span>
                   <span className="flex items-center gap-0.5"><Clock className="h-2.5 w-2.5" /> {formatDate(f.uploaded_at)}</span>
                 </div>
               </div>
 
               {(f.processing_status === "ready" || f.processing_status === "completed") ? (
-                <div className="flex items-center gap-1 text-[11px] text-[#1D4ED8] font-medium">
+                <div className="flex items-center gap-1 text-[11px] text-[#29ABE2] font-medium">
                   <Sparkles className="h-3 w-3" /> AI Ready
                 </div>
               ) : (
@@ -973,7 +973,7 @@ const MaterialUpload = () => {
 
               {(f.processing_status === "ready" || f.processing_status === "completed") && (
                 <Link to={`/materials/learn/${f.id}`}>
-                  <button className="text-xs font-semibold text-[#1D4ED8] hover:text-[#2563EB] flex items-center gap-1 px-3 py-1.5 rounded-xl border border-[#1D4ED8]/20 hover:bg-[#1D4ED8]/5 transition-all">
+                  <button className="text-xs font-semibold text-[#29ABE2] hover:text-[#1E96CC] flex items-center gap-1 px-3 py-1.5 rounded-xl border border-[#29ABE2]/20 hover:bg-[#29ABE2]/5 transition-all">
                     Learn <ArrowRight className="h-3 w-3" />
                   </button>
                 </Link>
@@ -997,8 +997,8 @@ const MaterialUpload = () => {
       {/* Upload progress indicator */}
       {uploading && (
         <div className="fixed bottom-6 right-6 bg-white border border-gray-200 p-4 shadow-xl shadow-gray-200/50 flex items-center gap-3 z-50 rounded-2xl">
-          <div className="h-8 w-8 rounded-xl bg-[#1D4ED8]/10 flex items-center justify-center">
-            <Loader2 className="h-4 w-4 animate-spin text-[#1D4ED8]" />
+          <div className="h-8 w-8 rounded-xl bg-[#29ABE2]/10 flex items-center justify-center">
+            <Loader2 className="h-4 w-4 animate-spin text-[#29ABE2]" />
           </div>
           <span className="text-sm font-medium text-gray-700">{uploadProgress || "Processing file..."}</span>
         </div>

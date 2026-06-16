@@ -44,7 +44,7 @@ const AdminRoute = ({ children }: { children: React.ReactNode }) => {
     return (
       <div className="min-h-[60vh] flex items-center justify-center">
         <div className="space-y-4 text-center">
-          <Loader2 className="h-6 w-6 animate-spin text-[#1D4ED8] mx-auto" />
+          <Loader2 className="h-6 w-6 animate-spin text-[#29ABE2] mx-auto" />
           <p className="text-sm text-gray-400 font-medium">Verifying admin access...</p>
         </div>
       </div>

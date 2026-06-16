@@ -5,8 +5,10 @@ import { Input } from "@/components/ui/input";
 import { Bell, User, LogOut, Shield, Bot, Camera } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
-import { db } from "@/lib/firebase";
+import { db, auth } from "@/lib/firebase";
 import { doc, getDoc, updateDoc } from "firebase/firestore";
+import { EmailAuthProvider, reauthenticateWithCredential, updatePassword } from "firebase/auth";
+import { Loader2 } from "lucide-react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 
 const tabs = [
@@ -21,6 +23,63 @@ const Settings = () => {
   const [activeTab, setActiveTab] = useState("profile");
   const queryClient = useQueryClient();
   const avatarInputRef = useRef<HTMLInputElement>(null);
+
+  // ── Change password ────────────────────────────────────────────────
+  const [currentPassword, setCurrentPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [changingPassword, setChangingPassword] = useState(false);
+
+  const handleChangePassword = async () => {
+    if (!auth.currentUser || !user?.email) {
+      toast.error("You must be signed in to change your password.");
+      return;
+    }
+    if (!currentPassword || !newPassword || !confirmPassword) {
+      toast.error("Please fill in all password fields.");
+      return;
+    }
+    if (newPassword.length < 6) {
+      toast.error("New password must be at least 6 characters.");
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      toast.error("New password and confirmation do not match.");
+      return;
+    }
+    if (newPassword === currentPassword) {
+      toast.error("New password must be different from your current password.");
+      return;
+    }
+
+    setChangingPassword(true);
+    try {
+      // Re-authenticate first (Firebase requires a recent login to change a password).
+      const credential = EmailAuthProvider.credential(user.email, currentPassword);
+      await reauthenticateWithCredential(auth.currentUser, credential);
+      // Persist the new password in Firebase Authentication (the secure password store).
+      await updatePassword(auth.currentUser, newPassword);
+      setCurrentPassword("");
+      setNewPassword("");
+      setConfirmPassword("");
+      toast.success("Password changed successfully.");
+    } catch (err: any) {
+      const code = err?.code as string | undefined;
+      if (code === "auth/wrong-password" || code === "auth/invalid-credential") {
+        toast.error("Your current password is incorrect.");
+      } else if (code === "auth/weak-password") {
+        toast.error("That password is too weak. Use at least 6 characters.");
+      } else if (code === "auth/too-many-requests") {
+        toast.error("Too many attempts. Please wait a moment and try again.");
+      } else if (code === "auth/requires-recent-login") {
+        toast.error("Please sign out and sign in again, then change your password.");
+      } else {
+        toast.error(err?.message || "Could not change password. Please try again.");
+      }
+    } finally {
+      setChangingPassword(false);
+    }
+  };
 
   // Load profile from Firebase
   const { data: profile } = useQuery({
@@ -311,9 +370,57 @@ const Settings = () => {
           )}
 
           {activeTab === "security" && (
-            <div className="bg-card border border-border rounded-xl p-6 space-y-4">
-              <h3 className="font-bold text-foreground pb-4 border-b border-border">Security</h3>
-              <Button variant="outline" size="sm">Change Password</Button>
+            <div className="bg-card border border-border rounded-xl p-6 space-y-5">
+              <div>
+                <h3 className="font-bold text-foreground">Change Password</h3>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Enter your current password, then choose a new one. Your password is stored securely in Firebase Authentication.
+                </p>
+              </div>
+              <div className="space-y-3 max-w-md">
+                <div>
+                  <label className="block text-xs font-semibold text-muted-foreground mb-1.5">Current password</label>
+                  <Input
+                    type="password"
+                    autoComplete="current-password"
+                    value={currentPassword}
+                    onChange={(e) => setCurrentPassword(e.target.value)}
+                    placeholder="••••••••"
+                    disabled={changingPassword}
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-muted-foreground mb-1.5">New password</label>
+                  <Input
+                    type="password"
+                    autoComplete="new-password"
+                    value={newPassword}
+                    onChange={(e) => setNewPassword(e.target.value)}
+                    placeholder="At least 6 characters"
+                    disabled={changingPassword}
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-muted-foreground mb-1.5">Confirm new password</label>
+                  <Input
+                    type="password"
+                    autoComplete="new-password"
+                    value={confirmPassword}
+                    onChange={(e) => setConfirmPassword(e.target.value)}
+                    placeholder="Re-enter new password"
+                    disabled={changingPassword}
+                    onKeyDown={(e) => { if (e.key === "Enter") handleChangePassword(); }}
+                  />
+                </div>
+                <Button
+                  onClick={handleChangePassword}
+                  disabled={changingPassword}
+                  className="gap-2 bg-primary hover:bg-primary/90 text-primary-foreground"
+                >
+                  {changingPassword && <Loader2 className="h-4 w-4 animate-spin" />}
+                  {changingPassword ? "Updating…" : "Update Password"}
+                </Button>
+              </div>
             </div>
           )}
 

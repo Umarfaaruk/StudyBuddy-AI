@@ -101,9 +101,9 @@ const AdminLogin = () => {
     <div className="min-h-screen bg-[#0B0F1A] flex items-center justify-center p-4 relative overflow-hidden">
       {/* Background effects */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-[#1D4ED8]/8 rounded-full blur-[120px]" />
+        <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-[#29ABE2]/8 rounded-full blur-[120px]" />
         <div className="absolute bottom-1/4 right-1/4 w-80 h-80 bg-purple-600/6 rounded-full blur-[100px]" />
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-[#1D4ED8]/4 rounded-full blur-[150px]" />
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-[#29ABE2]/4 rounded-full blur-[150px]" />
       </div>
 
       {/* Grid pattern overlay */}
@@ -118,7 +118,7 @@ const AdminLogin = () => {
       <div className="relative w-full max-w-md">
         {/* Logo & Title */}
         <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center h-16 w-16 rounded-2xl bg-gradient-to-br from-[#1D4ED8] to-[#3B82F6] shadow-xl shadow-[#1D4ED8]/25 mb-5">
+          <div className="inline-flex items-center justify-center h-16 w-16 rounded-2xl bg-gradient-to-br from-[#29ABE2] to-[#3FB0E8] shadow-xl shadow-[#29ABE2]/25 mb-5">
             <ShieldCheck className="h-8 w-8 text-white" />
           </div>
           <h1 className="text-2xl font-bold text-white tracking-tight">Admin Access</h1>
@@ -161,7 +161,7 @@ const AdminLogin = () => {
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="admin@example.com"
                 required
-                className="w-full h-12 px-4 bg-white/[0.06] border border-white/[0.08] rounded-xl text-sm text-white placeholder:text-white/20 outline-none focus:border-[#1D4ED8]/50 focus:ring-2 focus:ring-[#1D4ED8]/20 transition-all"
+                className="w-full h-12 px-4 bg-white/[0.06] border border-white/[0.08] rounded-xl text-sm text-white placeholder:text-white/20 outline-none focus:border-[#29ABE2]/50 focus:ring-2 focus:ring-[#29ABE2]/20 transition-all"
               />
             </div>
 
@@ -175,7 +175,7 @@ const AdminLogin = () => {
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="••••••••"
                   required
-                  className="w-full h-12 px-4 pr-12 bg-white/[0.06] border border-white/[0.08] rounded-xl text-sm text-white placeholder:text-white/20 outline-none focus:border-[#1D4ED8]/50 focus:ring-2 focus:ring-[#1D4ED8]/20 transition-all"
+                  className="w-full h-12 px-4 pr-12 bg-white/[0.06] border border-white/[0.08] rounded-xl text-sm text-white placeholder:text-white/20 outline-none focus:border-[#29ABE2]/50 focus:ring-2 focus:ring-[#29ABE2]/20 transition-all"
                 />
                 <button
                   type="button"
@@ -197,8 +197,8 @@ const AdminLogin = () => {
 
             {/* UID Display */}
             {debugUid && (
-              <div className="p-3.5 rounded-xl bg-[#1D4ED8]/10 border border-[#1D4ED8]/20">
-                <p className="text-[10px] font-bold uppercase tracking-wider text-[#60A5FA] mb-1.5">Your Firebase UID</p>
+              <div className="p-3.5 rounded-xl bg-[#29ABE2]/10 border border-[#29ABE2]/20">
+                <p className="text-[10px] font-bold uppercase tracking-wider text-[#7CC9EF] mb-1.5">Your Firebase UID</p>
                 <div className="flex items-center gap-2">
                   <code className="flex-1 text-xs text-white bg-black/30 rounded-lg px-3 py-2 font-mono break-all select-all">
                     {debugUid}
@@ -225,7 +225,7 @@ const AdminLogin = () => {
             <button
               type="submit"
               disabled={loading}
-              className="w-full h-12 bg-gradient-to-r from-[#1D4ED8] to-[#3B82F6] hover:from-[#1e40af] hover:to-[#2563eb] text-white text-sm font-bold rounded-xl transition-all shadow-lg shadow-[#1D4ED8]/25 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-full h-12 bg-gradient-to-r from-[#29ABE2] to-[#3FB0E8] hover:from-[#1A7BA8] hover:to-[#1E96CC] text-white text-sm font-bold rounded-xl transition-all shadow-lg shadow-[#29ABE2]/25 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {loading ? (
                 <Loader2 className="h-4 w-4 animate-spin" />

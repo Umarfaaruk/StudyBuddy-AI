@@ -61,7 +61,7 @@ const NotificationPanel = () => {
             {unreadCount > 0 && (
               <button
                 onClick={() => markAllAsRead()}
-                className="text-xs text-[#1D4ED8] hover:underline font-medium flex items-center gap-1"
+                className="text-xs text-[#29ABE2] hover:underline font-medium flex items-center gap-1"
               >
                 <Check className="h-3 w-3" />
                 Mark all as read
@@ -85,13 +85,13 @@ const NotificationPanel = () => {
                     if (!notif.read) markAsRead(notif.id);
                   }}
                   className={`w-full px-4 py-3 hover:bg-gray-50 transition-colors cursor-pointer border-b border-gray-50 last:border-0 text-left flex gap-3 ${
-                    !notif.read ? "bg-[#1D4ED8]/[0.02]" : ""
+                    !notif.read ? "bg-[#29ABE2]/[0.02]" : ""
                   }`}
                 >
                   {/* Unread indicator */}
                   <div className="flex-shrink-0 pt-0.5">
                     {!notif.read ? (
-                      <div className="h-2 w-2 rounded-full bg-[#1D4ED8] mt-1.5" />
+                      <div className="h-2 w-2 rounded-full bg-[#29ABE2] mt-1.5" />
                     ) : (
                       <div className="h-2 w-2 mt-1.5" />
                     )}

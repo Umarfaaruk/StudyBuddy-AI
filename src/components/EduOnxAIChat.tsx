@@ -189,12 +189,12 @@ const EduOnxAIChat = () => {
       {!isOpen && (
         <button
           onClick={() => setIsOpen(true)}
-          className="fixed bottom-6 right-6 z-50 h-14 w-14 rounded-full bg-gradient-to-br from-[#1D4ED8] to-[#2563EB] text-white shadow-xl shadow-blue-300/40 flex items-center justify-center hover:scale-110 hover:shadow-2xl hover:shadow-blue-400/50 transition-all duration-300 group md:bottom-8 md:right-8"
+          className="fixed bottom-6 right-6 z-50 h-14 w-14 rounded-full bg-gradient-to-br from-[#29ABE2] to-[#1E96CC] text-white shadow-xl shadow-blue-300/40 flex items-center justify-center hover:scale-110 hover:shadow-2xl hover:shadow-blue-400/50 transition-all duration-300 group md:bottom-8 md:right-8"
           aria-label="Open EduOnx AI chat"
         >
           <Bot className="h-6 w-6 group-hover:rotate-12 transition-transform duration-300" />
           {/* Pulse ring */}
-          <span className="absolute inset-0 rounded-full bg-[#1D4ED8]/30 animate-ping opacity-30" />
+          <span className="absolute inset-0 rounded-full bg-[#29ABE2]/30 animate-ping opacity-30" />
         </button>
       )}
 
@@ -212,7 +212,7 @@ const EduOnxAIChat = () => {
           }
         >
           {/* Header — doubles as the drag handle (move it anywhere, like the timer) */}
-          <div className="flex items-center justify-between px-4 py-3 bg-gradient-to-r from-[#1D4ED8] to-[#2563EB] text-white flex-shrink-0">
+          <div className="flex items-center justify-between px-4 py-3 bg-gradient-to-r from-[#29ABE2] to-[#1E96CC] text-white flex-shrink-0">
             <div
               className="flex items-center gap-2 min-w-0 flex-1 cursor-grab active:cursor-grabbing select-none"
               onMouseDown={handleDragStart}
@@ -241,8 +241,8 @@ const EduOnxAIChat = () => {
             {messages.length === 0 ? (
               <div className="space-y-4 py-4">
                 <div className="text-center">
-                  <div className="h-12 w-12 rounded-2xl bg-[#1D4ED8]/10 flex items-center justify-center mx-auto mb-3">
-                    <Sparkles className="h-6 w-6 text-[#1D4ED8]" />
+                  <div className="h-12 w-12 rounded-2xl bg-[#29ABE2]/10 flex items-center justify-center mx-auto mb-3">
+                    <Sparkles className="h-6 w-6 text-[#29ABE2]" />
                   </div>
                   <p className="text-sm font-semibold text-gray-900">Hi! How can I help you? 👋</p>
                   <p className="text-xs text-gray-400 mt-1">Ask questions, navigate the platform, or share feedback</p>
@@ -259,7 +259,7 @@ const EduOnxAIChat = () => {
                           handleSendWithPrompt(action.prompt);
                         }, 50);
                       }}
-                      className="text-left px-3 py-2.5 rounded-xl bg-gray-50 hover:bg-[#1D4ED8]/5 border border-gray-100 hover:border-[#1D4ED8]/20 transition-all text-xs font-medium text-gray-600 hover:text-[#1D4ED8]"
+                      className="text-left px-3 py-2.5 rounded-xl bg-gray-50 hover:bg-[#29ABE2]/5 border border-gray-100 hover:border-[#29ABE2]/20 transition-all text-xs font-medium text-gray-600 hover:text-[#29ABE2]"
                     >
                       {action.label}
                     </button>
@@ -270,19 +270,19 @@ const EduOnxAIChat = () => {
               messages.map((msg, idx) => (
                 <div key={idx} className={`flex ${msg.role === "user" ? "justify-end" : "gap-2"}`}>
                   {msg.role === "assistant" && (
-                    <div className="h-6 w-6 rounded-md bg-[#1D4ED8]/10 flex items-center justify-center flex-shrink-0 mt-0.5">
-                      <Bot className="h-3 w-3 text-[#1D4ED8]" />
+                    <div className="h-6 w-6 rounded-md bg-[#29ABE2]/10 flex items-center justify-center flex-shrink-0 mt-0.5">
+                      <Bot className="h-3 w-3 text-[#29ABE2]" />
                     </div>
                   )}
                   <div
                     className={`max-w-[80%] rounded-xl px-3 py-2 text-xs leading-relaxed ${
                       msg.role === "user"
-                        ? "bg-[#1D4ED8] text-white"
+                        ? "bg-[#29ABE2] text-white"
                         : "bg-gray-50 text-gray-700 border border-gray-100"
                     }`}
                   >
                     {msg.role === "assistant" ? (
-                      <div className="prose prose-xs max-w-none [&>*:first-child]:mt-0 [&>*:last-child]:mb-0 [&_a]:text-[#1D4ED8] [&_a]:underline">
+                      <div className="prose prose-xs max-w-none [&>*:first-child]:mt-0 [&>*:last-child]:mb-0 [&_a]:text-[#29ABE2] [&_a]:underline">
                         <ReactMarkdown>{msg.content}</ReactMarkdown>
                       </div>
                     ) : (
@@ -294,11 +294,11 @@ const EduOnxAIChat = () => {
             )}
             {isLoading && (
               <div className="flex gap-2">
-                <div className="h-6 w-6 rounded-md bg-[#1D4ED8]/10 flex items-center justify-center flex-shrink-0">
-                  <Bot className="h-3 w-3 text-[#1D4ED8]" />
+                <div className="h-6 w-6 rounded-md bg-[#29ABE2]/10 flex items-center justify-center flex-shrink-0">
+                  <Bot className="h-3 w-3 text-[#29ABE2]" />
                 </div>
                 <div className="bg-gray-50 rounded-xl px-3 py-2 border border-gray-100 flex items-center gap-2">
-                  <Loader2 className="h-3 w-3 animate-spin text-[#1D4ED8]" />
+                  <Loader2 className="h-3 w-3 animate-spin text-[#29ABE2]" />
                   <span className="text-[10px] text-gray-400">Thinking...</span>
                 </div>
               </div>
@@ -322,12 +322,12 @@ const EduOnxAIChat = () => {
                   }
                 }}
                 disabled={isLoading}
-                className="flex-1 h-9 px-3 text-xs bg-white border border-gray-200 rounded-lg outline-none focus:border-[#1D4ED8]/40 focus:ring-2 focus:ring-[#1D4ED8]/10 text-gray-900 transition-all"
+                className="flex-1 h-9 px-3 text-xs bg-white border border-gray-200 rounded-lg outline-none focus:border-[#29ABE2]/40 focus:ring-2 focus:ring-[#29ABE2]/10 text-gray-900 transition-all"
               />
               <button
                 onClick={handleSend}
                 disabled={!input.trim() || isLoading}
-                className="h-9 w-9 rounded-lg bg-[#1D4ED8] text-white flex items-center justify-center hover:bg-[#2563EB] disabled:opacity-40 disabled:cursor-not-allowed transition-all flex-shrink-0"
+                className="h-9 w-9 rounded-lg bg-[#29ABE2] text-white flex items-center justify-center hover:bg-[#1E96CC] disabled:opacity-40 disabled:cursor-not-allowed transition-all flex-shrink-0"
               >
                 <Send className="h-3.5 w-3.5" />
               </button>

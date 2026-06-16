@@ -405,7 +405,7 @@ const TimerPage = () => {
                       contentStyle={{ backgroundColor: "hsl(var(--card))", border: "1px solid hsl(var(--border))", borderRadius: "8px" }}
                       formatter={(value: any) => [`${value} min`, "Study Time"]}
                     />
-                    <Bar dataKey="minutes" fill="#3b82f6" radius={[8, 8, 0, 0]} />
+                    <Bar dataKey="minutes" fill="#3FB0E8" radius={[8, 8, 0, 0]} />
                   </BarChart>
                 </ResponsiveContainer>
               ) : (
@@ -460,7 +460,7 @@ const TimerPage = () => {
                       }}
                     />
                     <Legend />
-                    <Bar dataKey="minutes" fill="#1D4ED8" radius={[8, 8, 0, 0]} name="Total Minutes" />
+                    <Bar dataKey="minutes" fill="#29ABE2" radius={[8, 8, 0, 0]} name="Total Minutes" />
                     <Bar dataKey="avgPerDay" fill="#06b6d4" radius={[8, 8, 0, 0]} name="Avg/Day" />
                   </BarChart>
                 </ResponsiveContainer>

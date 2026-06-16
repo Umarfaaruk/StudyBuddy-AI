@@ -530,8 +530,8 @@ const AITutor = ({ hideHeader = false }: { hideHeader?: boolean } = {}) => {
               }}
               className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium transition-all ${
                 selectedMaterialId === m.id
-                  ? "bg-[#1D4ED8] text-white shadow-sm"
-                  : "bg-white border border-gray-200 text-gray-600 hover:border-[#1D4ED8]/30 hover:bg-[#1D4ED8]/5"
+                  ? "bg-[#29ABE2] text-white shadow-sm"
+                  : "bg-white border border-gray-200 text-gray-600 hover:border-[#29ABE2]/30 hover:bg-[#29ABE2]/5"
               }`}
             >
               <FileText className="h-3 w-3 shrink-0" />
@@ -634,8 +634,8 @@ const AITutor = ({ hideHeader = false }: { hideHeader?: boolean } = {}) => {
               <div className="flex flex-col items-center justify-center h-full space-y-6 py-12">
                 {selectedMaterial ? (
                   <div className="text-center space-y-4 max-w-md mx-auto">
-                    <div className="h-16 w-16 rounded-2xl bg-[#1D4ED8]/10 flex items-center justify-center mx-auto shadow-sm">
-                      <Bot className="h-8 w-8 text-[#1D4ED8]" />
+                    <div className="h-16 w-16 rounded-2xl bg-[#29ABE2]/10 flex items-center justify-center mx-auto shadow-sm">
+                      <Bot className="h-8 w-8 text-[#29ABE2]" />
                     </div>
                     <div className="space-y-1.5">
                       <h2 className="text-xl font-bold text-gray-900">{selectedMaterial.file_name}</h2>
@@ -649,7 +649,7 @@ const AITutor = ({ hideHeader = false }: { hideHeader?: boolean } = {}) => {
                         <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Key Topics Detected:</p>
                         <div className="flex flex-wrap gap-1.5 justify-center">
                           {selectedMaterial.key_topics.slice(0, 4).map((topic, idx) => (
-                            <span key={idx} className="px-2.5 py-1 rounded-full bg-[#1D4ED8]/5 border border-[#1D4ED8]/10 text-[11px] font-medium text-[#1D4ED8]">
+                            <span key={idx} className="px-2.5 py-1 rounded-full bg-[#29ABE2]/5 border border-[#29ABE2]/10 text-[11px] font-medium text-[#29ABE2]">
                               {topic}
                             </span>
                           ))}
@@ -727,14 +727,14 @@ const AITutor = ({ hideHeader = false }: { hideHeader?: boolean } = {}) => {
               messages.map((msg, idx) => (
                 <div key={idx} className={`flex gap-3 ${msg.role === "user" ? "justify-end" : ""}`}>
                   {msg.role === "assistant" && (
-                    <div className="h-8 w-8 rounded-lg bg-[#1D4ED8]/10 flex items-center justify-center flex-shrink-0 mt-1 shadow-sm">
-                      <Sparkles className="h-4 w-4 text-[#1D4ED8]" />
+                    <div className="h-8 w-8 rounded-lg bg-[#29ABE2]/10 flex items-center justify-center flex-shrink-0 mt-1 shadow-sm">
+                      <Sparkles className="h-4 w-4 text-[#29ABE2]" />
                     </div>
                   )}
                   <div
                     className={`max-w-[85%] rounded-xl px-4 py-3 text-sm ${
                       msg.role === "user"
-                        ? "bg-[#1D4ED8] text-white shadow-sm"
+                        ? "bg-[#29ABE2] text-white shadow-sm"
                         : "bg-white border border-gray-100 shadow-[0_1px_2px_rgba(0,0,0,0.02)] text-gray-800"
                     }`}
                   >
@@ -755,7 +755,7 @@ const AITutor = ({ hideHeader = false }: { hideHeader?: boolean } = {}) => {
                       </div>
                     ) : streaming && idx === messages.length - 1 ? (
                       <div className="flex items-center gap-2 text-gray-400">
-                        <Loader2 className="h-4 w-4 animate-spin text-[#1D4ED8]" /> Synthesizing answer...
+                        <Loader2 className="h-4 w-4 animate-spin text-[#29ABE2]" /> Synthesizing answer...
                       </div>
                     ) : null}
                   </div>
@@ -767,7 +767,7 @@ const AITutor = ({ hideHeader = false }: { hideHeader?: boolean } = {}) => {
 
           {/* Input Panel */}
           <div className="px-6 py-4 border-t border-gray-150 bg-gray-50 shrink-0">
-            <div className="flex items-center gap-2 bg-white border border-gray-200 focus-within:ring-2 focus-within:ring-[#1D4ED8] focus-within:border-transparent rounded-xl pl-4 pr-1.5 py-1.5 transition-all shadow-sm">
+            <div className="flex items-center gap-2 bg-white border border-gray-200 focus-within:ring-2 focus-within:ring-[#29ABE2] focus-within:border-transparent rounded-xl pl-4 pr-1.5 py-1.5 transition-all shadow-sm">
               <input
                 ref={inputRef}
                 placeholder={
@@ -797,7 +797,7 @@ const AITutor = ({ hideHeader = false }: { hideHeader?: boolean } = {}) => {
                   onClick={() => setShowFiles((v) => !v)}
                   className={`h-8 w-8 p-0 rounded-lg transition-all ${
                     showFiles || selectedMaterial
-                      ? "text-[#1D4ED8] bg-[#1D4ED8]/10 hover:bg-[#1D4ED8]/15"
+                      ? "text-[#29ABE2] bg-[#29ABE2]/10 hover:bg-[#29ABE2]/15"
                       : "text-gray-400 hover:text-gray-600 hover:bg-gray-100"
                   }`}
                   title={selectedMaterial ? `Asking about "${selectedMaterial.file_name}" — manage files` : "Ask about a file"}
@@ -841,7 +841,7 @@ const AITutor = ({ hideHeader = false }: { hideHeader?: boolean } = {}) => {
                   <Button
                     onClick={handleSend}
                     disabled={!question.trim()}
-                    className="h-8 w-8 p-0 bg-[#1D4ED8] text-white hover:bg-[#2563EB] rounded-lg shadow-sm"
+                    className="h-8 w-8 p-0 bg-[#29ABE2] text-white hover:bg-[#1E96CC] rounded-lg shadow-sm"
                   >
                     <Send className="h-3.5 w-3.5" />
                   </Button>

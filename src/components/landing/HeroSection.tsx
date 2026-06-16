@@ -5,7 +5,7 @@ import { motion } from "framer-motion";
 import TextType from "@/components/ui/TextType";
 
 const HeroSection = () => (
-  <section className="relative min-h-[100svh] md:min-h-0 overflow-hidden bg-gradient-to-br from-[#0F172A] via-[#0F172A] to-[#1D4ED8]/10 text-white border-b border-white/[0.06]">
+  <section className="relative min-h-[100svh] md:min-h-0 overflow-hidden bg-gradient-to-br from-[#0F172A] via-[#0F172A] to-[#29ABE2]/10 text-white border-b border-white/[0.06]">
     <div className="container relative max-w-7xl mx-auto px-4 py-24 md:py-32 lg:py-40">
       <div className="grid lg:grid-cols-2 gap-16 items-center">
         {/* Left */}
