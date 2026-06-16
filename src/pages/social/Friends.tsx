@@ -6,11 +6,22 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/contexts/AuthContext";
 import { db } from "@/lib/firebase";
 import { toast } from "sonner";
-import { collection, query, where, getDocs, addDoc, updateDoc, deleteDoc, doc } from "firebase/firestore";
+import { collection, query, where, getDocs, deleteDoc, doc, getDoc, documentId } from "firebase/firestore";
+import { sendFriendRequest, acceptFriendRequest } from "@/lib/friends";
 
 const Friends = () => {
   const { user } = useAuth();
   const queryClient = useQueryClient();
+  const { data: myProfile } = useQuery({
+    queryKey: ["friends-my-profile", user?.uid],
+    queryFn: async () => {
+      if (!user) return null;
+      const snap = await getDoc(doc(db, "profiles", user.uid));
+      return snap.exists() ? (snap.data() as any) : null;
+    },
+    enabled: !!user,
+  });
+  const myName = myProfile?.full_name || user?.displayName || "A student";
   const [search, setSearch] = useState("");
   const [searchResults, setSearchResults] = useState<any[]>([]);
   const [searching, setSearching] = useState(false);
@@ -64,36 +75,34 @@ const Friends = () => {
     enabled: !!user
   });
 
-  // Fetch friend profiles
-  const friendUserIds = friendRecords.flatMap(f => [
-    f.status === "accepted" ? (f.requester_id === user?.uid ? f.addressee_id : f.requester_id) : ""
-  ]).filter(Boolean);
+  // Fetch profiles for EVERYONE involved (pending + accepted, both directions)
+  // so names show on pending requests too — not just accepted friends.
+  const relevantIds = Array.from(
+    new Set(
+      friendRecords
+        .flatMap((f) => [f.requester_id, f.addressee_id])
+        .filter((id) => id && id !== user?.uid)
+    )
+  );
 
   const { data: friendProfiles = [] } = useQuery({
-    queryKey: ["friendProfiles", ...friendUserIds],
+    queryKey: ["friendProfiles", relevantIds.slice().sort().join(",")],
     queryFn: async () => {
-      if (friendUserIds.length === 0) return [];
+      if (relevantIds.length === 0) return [];
       try {
-        const snap = await getDocs(
-          query(
-            collection(db, "profiles"),
-            where("__name__", "in", friendUserIds.slice(0, 10))
-          )
-        );
-        return snap.docs.map(doc => ({ 
-          user_id: doc.id, 
-          ...doc.data() 
-        } as {
-          user_id: string;
-          full_name?: string;
-          [key: string]: any;
-        }));
+        const out: { user_id: string; full_name?: string; [k: string]: any }[] = [];
+        for (let i = 0; i < relevantIds.length; i += 10) {
+          const chunk = relevantIds.slice(i, i + 10);
+          const snap = await getDocs(query(collection(db, "profiles"), where(documentId(), "in", chunk)));
+          snap.docs.forEach((d) => out.push({ user_id: d.id, ...(d.data() as any) }));
+        }
+        return out;
       } catch (error) {
         console.error("[Friends] Fetch profiles error:", error);
         return [];
       }
     },
-    enabled: friendUserIds.length > 0
+    enabled: relevantIds.length > 0,
   });
 
   const profileMap = new Map((friendProfiles ?? []).map((p) => [p.user_id, p]));
@@ -131,28 +140,24 @@ const Friends = () => {
 
   const sendRequest = useMutation({
     mutationFn: async (addresseeId: string) => {
-      if (!user) return;
-      await addDoc(collection(db, "friends_list"), {
-        requester_id: user.uid,
-        addressee_id: addresseeId,
-        status: "pending",
-        created_at: new Date()
-      });
+      if (!user) return "self" as const;
+      return sendFriendRequest(user.uid, myName, addresseeId);
     },
-    onSuccess: () => {
+    onSuccess: (res) => {
       queryClient.invalidateQueries({ queryKey: ["friendRecords", user?.uid] });
-      toast.success("Friend request sent!");
-    }
+      if (res === "sent") toast.success("Friend request sent!");
+      else if (res === "exists") toast.info("Already connected or request pending.");
+    },
   });
 
   const acceptRequest = useMutation({
-    mutationFn: async (friendId: string) => {
-      await updateDoc(doc(db, "friends_list", friendId), { status: "accepted" });
+    mutationFn: async (record: { id: string; requester_id: string }) => {
+      await acceptFriendRequest(record.id, myName, record.requester_id);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["friendRecords", user?.uid] });
-      toast.success("Friend request accepted!");
-    }
+      toast.success("You're now friends!");
+    },
   });
 
   const removeFriend = useMutation({
@@ -234,7 +239,7 @@ const Friends = () => {
                   <div className="text-sm font-medium text-foreground">{profile?.full_name || "Unknown"}</div>
                   <div className="text-xs text-muted-foreground">Wants to be friends</div>
                 </div>
-                <Button size="sm" onClick={() => acceptRequest.mutate(f.id)} disabled={acceptRequest.isPending} className="bg-accent text-accent-foreground text-xs gap-1">
+                <Button size="sm" onClick={() => acceptRequest.mutate({ id: f.id, requester_id: f.requester_id })} disabled={acceptRequest.isPending} className="bg-accent text-accent-foreground text-xs gap-1">
                   <Check className="h-3 w-3" /> Accept
                 </Button>
                 <button onClick={() => removeFriend.mutate(f.id)} disabled={removeFriend.isPending} className="text-muted-foreground hover:text-destructive disabled:opacity-50">

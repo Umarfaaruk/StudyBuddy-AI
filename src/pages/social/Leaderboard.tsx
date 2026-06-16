@@ -1,67 +1,118 @@
-import { Trophy, Zap, Flame, Users, Crown, Award, Star, UserPlus, UserCheck } from "lucide-react";
+import { Trophy, Zap, Flame, Users, Crown, Award, Star, UserPlus, UserCheck, Search, X, User as UserIcon, Loader2, Clock, Check } from "lucide-react";
 import { Link } from "react-router-dom";
-import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useState, useMemo } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/contexts/AuthContext";
 import { db } from "@/lib/firebase";
-import { collection, query, where, getDocs, doc, getDoc, orderBy, limit, addDoc, deleteDoc } from "firebase/firestore";
+import { collection, query, where, getDocs, doc, getDoc, orderBy, limit, Timestamp, documentId } from "firebase/firestore";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
+import { fetchFriendRecords, friendStatusFor, sendFriendRequest, acceptFriendRequest, type FriendRecord } from "@/lib/friends";
+
+/* ── Profile preview modal (opened from the leaderboard / search) ───────── */
+const ProfileModal = ({
+  uid,
+  currentUid,
+  friendRecords,
+  onAddFriend,
+  onAccept,
+  onClose,
+}: {
+  uid: string;
+  currentUid: string;
+  friendRecords: FriendRecord[];
+  onAddFriend: (uid: string) => void;
+  onAccept: (recordId: string, requesterUid: string) => void;
+  onClose: () => void;
+}) => {
+  const { data, isLoading } = useQuery({
+    queryKey: ["profile-modal", uid],
+    queryFn: async () => {
+      const [pSnap, sSnap] = await Promise.all([
+        getDoc(doc(db, "profiles", uid)),
+        getDoc(doc(db, "user_streaks", uid)),
+      ]);
+      return {
+        profile: pSnap.exists() ? (pSnap.data() as any) : null,
+        streak: sSnap.exists() ? (sSnap.data() as any) : null,
+      };
+    },
+  });
+
+  const name = data?.profile?.full_name || "Student";
+  const initials = name.split(" ").map((n: string) => n[0]).join("").slice(0, 2).toUpperCase();
+  const fs = friendStatusFor(friendRecords, currentUid, uid);
+
+  return (
+    <div className="fixed inset-0 z-[70] flex items-center justify-center p-4" onClick={onClose}>
+      <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" aria-hidden="true" />
+      <div
+        className="relative w-full max-w-sm bg-white rounded-2xl shadow-2xl overflow-hidden"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="bg-gradient-to-br from-[#29ABE2] to-[#1E96CC] px-6 pt-7 pb-10 text-center relative">
+          <button onClick={onClose} className="absolute top-3 right-3 h-8 w-8 rounded-lg bg-white/15 hover:bg-white/25 flex items-center justify-center text-white" aria-label="Close">
+            <X className="h-4 w-4" />
+          </button>
+          <div className="h-20 w-20 rounded-full bg-white/20 ring-4 ring-white/30 flex items-center justify-center text-2xl font-extrabold text-white mx-auto">
+            {initials}
+          </div>
+        </div>
+        <div className="px-6 pb-6 -mt-5">
+          {isLoading ? (
+            <div className="flex justify-center py-6"><Loader2 className="h-5 w-5 animate-spin text-[#29ABE2]" /></div>
+          ) : (
+            <>
+              <h3 className="text-center text-lg font-bold text-gray-900 mt-6">{name}</h3>
+              {data?.profile?.email && <p className="text-center text-xs text-gray-400 truncate">{data.profile.email}</p>}
+              <div className="grid grid-cols-2 gap-3 mt-5">
+                <div className="bg-gray-50 rounded-xl p-3 text-center">
+                  <div className="flex items-center justify-center gap-1 text-[#29ABE2]"><Zap className="h-4 w-4" /><span className="text-lg font-extrabold">{(data?.profile?.total_xp ?? 0).toLocaleString()}</span></div>
+                  <p className="text-[10px] text-gray-400 uppercase tracking-wide mt-0.5">Total XP</p>
+                </div>
+                <div className="bg-gray-50 rounded-xl p-3 text-center">
+                  <div className="flex items-center justify-center gap-1 text-orange-500"><Flame className="h-4 w-4" /><span className="text-lg font-extrabold">{data?.streak?.current_streak ?? 0}</span></div>
+                  <p className="text-[10px] text-gray-400 uppercase tracking-wide mt-0.5">Day streak</p>
+                </div>
+              </div>
+              {currentUid !== uid && (
+                <div className="mt-5">
+                  {fs.status === "friends" ? (
+                    <div className="w-full inline-flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-xl text-sm font-semibold bg-[#29ABE2]/10 text-[#29ABE2]"><UserCheck className="h-4 w-4" /> You're friends</div>
+                  ) : fs.status === "pending_sent" ? (
+                    <div className="w-full inline-flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-xl text-sm font-semibold bg-gray-100 text-gray-400"><Clock className="h-4 w-4" /> Request sent</div>
+                  ) : fs.status === "pending_received" ? (
+                    <button onClick={() => { onAccept(fs.recordId!, uid); onClose(); }} className="w-full inline-flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-xl text-sm font-semibold bg-green-500 text-white hover:bg-green-600 transition-all"><Check className="h-4 w-4" /> Accept friend request</button>
+                  ) : (
+                    <button onClick={() => { onAddFriend(uid); }} className="w-full inline-flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-xl text-sm font-semibold bg-[#29ABE2] text-white hover:bg-[#1E96CC] transition-all"><UserPlus className="h-4 w-4" /> Send friend request</button>
+                  )}
+                </div>
+              )}
+            </>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+};
 
 const Leaderboard = () => {
   const { user } = useAuth();
+  const queryClient = useQueryClient();
   const [tab, setTab] = useState<"global" | "friends">("global");
-  const [timeFilter, setTimeFilter] = useState<'today' | 'week' | 'all'>('today');
-  const [followingSet, setFollowingSet] = useState<Set<string>>(new Set());
-
-  // Fetch who the user follows
-  const { data: followsData } = useQuery({
-    queryKey: ["follows", user?.uid],
-    queryFn: async () => {
-      if (!user) return [];
-      const q = query(collection(db, "follows"), where("follower_id", "==", user.uid));
-      const snap = await getDocs(q);
-      const follows = snap.docs.map(d => ({ id: d.id, ...d.data() } as any));
-      setFollowingSet(new Set(follows.map((f: any) => f.following_id)));
-      return follows;
-    },
-    enabled: !!user,
-  });
-
-  const handleFollow = async (targetUserId: string, targetName: string) => {
-    if (!user || targetUserId === user.uid) return;
-    try {
-      if (followingSet.has(targetUserId)) {
-        // Unfollow: find and delete the follow doc
-        const q = query(
-          collection(db, "follows"),
-          where("follower_id", "==", user.uid),
-          where("following_id", "==", targetUserId)
-        );
-        const snap = await getDocs(q);
-        for (const d of snap.docs) await deleteDoc(d.ref);
-        setFollowingSet(prev => { const n = new Set(prev); n.delete(targetUserId); return n; });
-        toast.success(`Unfollowed ${targetName}`);
-      } else {
-        await addDoc(collection(db, "follows"), {
-          follower_id: user.uid,
-          following_id: targetUserId,
-          created_at: new Date().toISOString(),
-        });
-        setFollowingSet(prev => new Set([...prev, targetUserId]));
-        toast.success(`Now following ${targetName}`);
-      }
-    } catch {
-      toast.error("Failed to update follow status");
-    }
-  };
+  const [timeFilter, setTimeFilter] = useState<'today' | 'week' | 'all'>('all');
+  const [search, setSearch] = useState("");
+  const [searchResults, setSearchResults] = useState<any[]>([]);
+  const [searching, setSearching] = useState(false);
+  const [profileUid, setProfileUid] = useState<string | null>(null);
 
   const { data: myProfile } = useQuery({
     queryKey: ["my-profile", user?.uid],
     queryFn: async () => {
       if (!user) return null;
-      const docRef = doc(db, "profiles", user.uid);
-      const snap = await getDoc(docRef);
+      const snap = await getDoc(doc(db, "profiles", user.uid));
       return snap.exists() ? snap.data() : null;
     },
     enabled: !!user,
@@ -71,60 +122,145 @@ const Leaderboard = () => {
     queryKey: ["streak-lb", user?.uid],
     queryFn: async () => {
       if (!user) return null;
-      const docRef = doc(db, "user_streaks", user.uid);
-      const snap = await getDoc(docRef);
+      const snap = await getDoc(doc(db, "user_streaks", user.uid));
       return snap.exists() ? snap.data() : { current_streak: 0 };
     },
     enabled: !!user,
   });
 
-  // Global leaderboard: top XP users
-  const { data: globalUsers } = useQuery({
-    queryKey: ["leaderboard-global"],
+  // ── Friend graph (both directions) ──────────────────────────────────
+  const { data: friendRecords = [] } = useQuery<FriendRecord[]>({
+    queryKey: ["friend-records", user?.uid],
+    queryFn: () => (user ? fetchFriendRecords(user.uid) : Promise.resolve([])),
+    enabled: !!user,
+  });
+  const friendUids = useMemo(
+    () =>
+      new Set(
+        friendRecords
+          .filter((r) => r.status === "accepted")
+          .map((r) => (r.requester_id === user?.uid ? r.addressee_id : r.requester_id))
+      ),
+    [friendRecords, user?.uid]
+  );
+  const refreshFriends = () =>
+    queryClient.invalidateQueries({ queryKey: ["friend-records", user?.uid] });
+
+  const myNameEarly = (myProfile as any)?.full_name || user?.displayName || "You";
+
+  const handleAddFriend = async (toUid: string) => {
+    if (!user) return;
+    const res = await sendFriendRequest(user.uid, myNameEarly, toUid);
+    if (res === "sent") toast.success("Friend request sent!");
+    else if (res === "exists") toast.info("You're already connected or a request is pending.");
+    refreshFriends();
+  };
+  const handleAccept = async (recordId: string, requesterUid: string) => {
+    if (!user) return;
+    await acceptFriendRequest(recordId, myNameEarly, requesterUid);
+    toast.success("You're now friends!");
+    refreshFriends();
+  };
+
+  // ── Search users by name or email (#4) ──────────────────────────────
+  const handleSearch = async () => {
+    const term = search.trim();
+    if (!term || !user) { setSearchResults([]); return; }
+    setSearching(true);
+    try {
+      const [byName, byEmail] = await Promise.all([
+        getDocs(query(collection(db, "profiles"), where("full_name", ">=", term), where("full_name", "<=", term + ""), limit(10))),
+        getDocs(query(collection(db, "profiles"), where("email", ">=", term.toLowerCase()), where("email", "<=", term.toLowerCase() + ""), limit(10))),
+      ]);
+      const map = new Map<string, any>();
+      [...byName.docs, ...byEmail.docs].forEach((d) => {
+        if (d.id !== user.uid) map.set(d.id, { uid: d.id, ...(d.data() as any) });
+      });
+      setSearchResults([...map.values()]);
+    } catch {
+      toast.error("Search failed — try a different term.");
+    } finally {
+      setSearching(false);
+    }
+  };
+
+  // ── Leaderboard for the selected window (today / week / all) + scope ──
+  const { data: lb, isLoading: lbLoading } = useQuery({
+    queryKey: ["leaderboard", timeFilter, tab, user?.uid, [...friendUids].sort().join(",")],
     queryFn: async () => {
-      try {
-        const q = query(collection(db, "profiles"), orderBy("total_xp", "desc"), limit(20));
-        const snap = await getDocs(q);
-        return snap.docs.map((d, i) => {
-          const data = d.data();
-          const name = data.full_name || "Student";
-          return {
-            uid: d.id,
-            name,
-            avatar: name.split(" ").map((n: string) => n[0]).join("").slice(0, 2).toUpperCase(),
-            xp: data.total_xp || 0,
-            isYou: d.id === user?.uid,
-            subject: "Student",
-            rank: i + 1,
-          };
-        });
-      } catch {
-        return [];
+      // Time threshold for the window
+      let thr: Date | null = null;
+      if (timeFilter === "today") {
+        thr = new Date(); thr.setHours(0, 0, 0, 0);
+      } else if (timeFilter === "week") {
+        thr = new Date();
+        const day = thr.getDay();
+        thr.setDate(thr.getDate() - (day === 0 ? 6 : day - 1));
+        thr.setHours(0, 0, 0, 0);
       }
+
+      // Aggregate XP per user from the event log, DE-DUPLICATING identical
+      // entries (same user + amount + source + timestamp = an accidental
+      // double-write) so totals are exact.
+      const snap = thr
+        ? await getDocs(query(collection(db, "xp_logs"), where("created_at", ">=", Timestamp.fromDate(thr))))
+        : await getDocs(collection(db, "xp_logs"));
+      const seen = new Set<string>();
+      const totals = new Map<string, number>();
+      snap.forEach((d) => {
+        const x = d.data() as any;
+        if (!x.user_id || typeof x.xp_amount !== "number") return;
+        const ms = x.created_at?.toMillis?.() ?? (x.created_at ? new Date(x.created_at).getTime() : 0);
+        const sig = `${x.user_id}|${x.xp_amount}|${x.source_type}|${ms}`;
+        if (seen.has(sig)) return;
+        seen.add(sig);
+        totals.set(x.user_id, (totals.get(x.user_id) || 0) + x.xp_amount);
+      });
+
+      const activeCount = totals.size; // distinct users with activity in the window
+
+      let entries = [...totals.entries()].filter(([, v]) => v > 0);
+      if (tab === "friends") {
+        entries = entries.filter(([uid]) => uid === user?.uid || friendUids.has(uid));
+      }
+      entries.sort((a, b) => b[1] - a[1]);
+      const top = entries.slice(0, 20);
+
+      // Resolve names (profiles are public-read) in chunks of 10
+      const uids = top.map(([uid]) => uid);
+      const nameMap = new Map<string, string>();
+      for (let i = 0; i < uids.length; i += 10) {
+        const chunk = uids.slice(i, i + 10);
+        if (!chunk.length) continue;
+        const psnap = await getDocs(query(collection(db, "profiles"), where(documentId(), "in", chunk)));
+        psnap.forEach((p) => nameMap.set(p.id, (p.data() as any).full_name || "Student"));
+      }
+
+      const users = top.map(([uid, xpVal], i) => {
+        const name = nameMap.get(uid) || "Student";
+        return {
+          uid,
+          name,
+          avatar: name.split(" ").map((n) => n[0]).join("").slice(0, 2).toUpperCase(),
+          xp: xpVal,
+          isYou: uid === user?.uid,
+          rank: i + 1,
+        };
+      });
+      return { users, activeCount };
     },
     enabled: !!user,
   });
 
   const myName = myProfile?.full_name || user?.displayName || "You";
   const myInitials = myName.split(" ").map((n: string) => n[0]).join("").slice(0, 2).toUpperCase();
-  // Use the precomputed total_xp aggregate already loaded on the profile,
-  // instead of scanning and summing the entire xp_logs history (N reads/click).
-  const xp = (myProfile?.total_xp as number) ?? 0;
+  const xp = (myProfile?.total_xp as number) ?? 0; // all-time XP for the stats cards
   const nextMilestone = Math.ceil(xp / 500) * 500 || 500;
 
-  // If user not in global list, add them
-  const displayUsers = tab === "global"
-    ? (() => {
-        const list = globalUsers ?? [];
-        if (list.length > 0 && !list.find((u) => u.isYou)) {
-          const withMe = [...list, { uid: user?.uid || "", name: myName, avatar: myInitials, xp, isYou: true, subject: "Student", rank: list.length + 1 }];
-          return withMe.sort((a, b) => b.xp - a.xp).map((u, i) => ({ ...u, rank: i + 1 }));
-        }
-        return list;
-      })()
-    : [{ uid: user?.uid || "", name: myName, avatar: myInitials, xp, isYou: true, subject: "Student", rank: 1 }];
-
+  const displayUsers = lb?.users ?? [];
+  const activeCount = lb?.activeCount ?? 0;
   const myRank = displayUsers.find((u) => u.isYou)?.rank ?? 0;
+  const friendCount = friendUids.size;
 
   /* Podium helpers */
   const top3 = displayUsers.slice(0, 3);
@@ -195,6 +331,73 @@ const Leaderboard = () => {
             <Users className="h-3.5 w-3.5" />
             Friends
           </button>
+        </div>
+      </div>
+
+      {/* ───── Find & add friends (#4) ───── */}
+      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-3 md:p-4">
+        <div className="flex gap-2">
+          <div className="relative flex-1 min-w-0">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+            <Input
+              placeholder="Search by name or email to add friends…"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              onKeyDown={(e) => { if (e.key === "Enter") handleSearch(); }}
+              className="pl-9"
+            />
+          </div>
+          <Button onClick={handleSearch} disabled={searching} className="bg-[#29ABE2] hover:bg-[#1E96CC] text-white gap-1.5 shrink-0">
+            {searching ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
+            <span className="hidden sm:inline">Search</span>
+          </Button>
+        </div>
+
+        {searchResults.length > 0 && (
+          <div className="mt-3 space-y-1">
+            {searchResults.map((p) => {
+              const fs = friendStatusFor(friendRecords, user?.uid || "", p.uid);
+              return (
+                <div key={p.uid} className="flex items-center gap-3 px-2 py-2 rounded-xl hover:bg-gray-50 transition-colors">
+                  <div className="h-9 w-9 rounded-full bg-gray-100 flex items-center justify-center text-xs font-bold text-gray-600 shrink-0">
+                    {(p.full_name || "?").split(" ").map((n: string) => n[0]).join("").slice(0, 2).toUpperCase()}
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-semibold text-gray-900 truncate">{p.full_name || "Student"}</p>
+                    {p.email && <p className="text-[11px] text-gray-400 truncate">{p.email}</p>}
+                  </div>
+                  <button
+                    onClick={() => setProfileUid(p.uid)}
+                    className="h-8 w-8 shrink-0 inline-flex items-center justify-center rounded-lg bg-gray-100 text-gray-500 hover:bg-gray-200 transition-all"
+                    title="View profile"
+                  >
+                    <UserIcon className="h-4 w-4" />
+                  </button>
+                  {fs.status === "friends" ? (
+                    <span className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[11px] font-semibold bg-[#29ABE2]/10 text-[#29ABE2] shrink-0"><UserCheck className="h-3 w-3" /> Friends</span>
+                  ) : fs.status === "pending_sent" ? (
+                    <span className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[11px] font-semibold bg-gray-100 text-gray-400 shrink-0"><Clock className="h-3 w-3" /> Sent</span>
+                  ) : fs.status === "pending_received" ? (
+                    <button onClick={() => handleAccept(fs.recordId!, p.uid)} className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[11px] font-semibold bg-green-500 text-white hover:bg-green-600 shrink-0"><Check className="h-3 w-3" /> Accept</button>
+                  ) : (
+                    <button onClick={() => handleAddFriend(p.uid)} className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[11px] font-semibold bg-[#29ABE2] text-white hover:bg-[#1E96CC] shrink-0"><UserPlus className="h-3 w-3" /> Add</button>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        )}
+
+        {/* Active-users summary for the selected window (#6) */}
+        <div className="mt-3 pt-3 border-t border-gray-100 flex items-center gap-2 text-xs text-gray-500">
+          <Users className="h-3.5 w-3.5 text-[#29ABE2]" />
+          {timeFilter === "today" ? (
+            <span><b className="text-gray-700">{activeCount}</b> student{activeCount === 1 ? "" : "s"} active today</span>
+          ) : timeFilter === "week" ? (
+            <span><b className="text-gray-700">{activeCount}</b> student{activeCount === 1 ? "" : "s"} active this week</span>
+          ) : (
+            <span><b className="text-gray-700">{activeCount}</b> student{activeCount === 1 ? "" : "s"} have earned XP</span>
+          )}
         </div>
       </div>
 
@@ -324,24 +527,53 @@ const Leaderboard = () => {
                       <span className="text-xs text-gray-400 ml-1">XP</span>
                     </div>
 
-                    {/* Follow/Friends Button */}
-                    <div className="text-right">
-                      {!u.isYou && u.uid && (
-                        <button
-                          onClick={() => handleFollow(u.uid, u.name)}
-                          className={`inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-[11px] font-semibold transition-all ${
-                            followingSet.has(u.uid)
-                              ? "bg-[#29ABE2]/10 text-[#29ABE2] hover:bg-red-50 hover:text-red-500"
-                              : "bg-[#29ABE2] text-white hover:bg-[#1E96CC] shadow-sm"
-                          }`}
-                        >
-                          {followingSet.has(u.uid) ? (
-                            <><UserCheck className="h-3 w-3" /> Following</>
-                          ) : (
-                            <><UserPlus className="h-3 w-3" /> Follow</>
-                          )}
-                        </button>
-                      )}
+                    {/* Action: Profile + friend status (#5) */}
+                    <div className="flex items-center justify-end gap-1.5">
+                      {u.isYou ? (
+                        <span className="text-[10px] text-gray-400 font-medium">You</span>
+                      ) : u.uid ? (
+                        <>
+                          <button
+                            onClick={() => setProfileUid(u.uid)}
+                            className="h-7 w-7 shrink-0 inline-flex items-center justify-center rounded-lg bg-gray-100 text-gray-500 hover:bg-gray-200 hover:text-gray-700 transition-all"
+                            title="View profile"
+                          >
+                            <UserIcon className="h-3.5 w-3.5" />
+                          </button>
+                          {(() => {
+                            const fs = friendStatusFor(friendRecords, user?.uid || "", u.uid);
+                            if (fs.status === "friends")
+                              return (
+                                <span className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[11px] font-semibold bg-[#29ABE2]/10 text-[#29ABE2]">
+                                  <UserCheck className="h-3 w-3" /> Friends
+                                </span>
+                              );
+                            if (fs.status === "pending_sent")
+                              return (
+                                <span className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[11px] font-semibold bg-gray-100 text-gray-400">
+                                  <Clock className="h-3 w-3" /> Sent
+                                </span>
+                              );
+                            if (fs.status === "pending_received")
+                              return (
+                                <button
+                                  onClick={() => handleAccept(fs.recordId!, u.uid)}
+                                  className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[11px] font-semibold bg-green-500 text-white hover:bg-green-600 shadow-sm transition-all"
+                                >
+                                  <Check className="h-3 w-3" /> Accept
+                                </button>
+                              );
+                            return (
+                              <button
+                                onClick={() => handleAddFriend(u.uid)}
+                                className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[11px] font-semibold bg-[#29ABE2] text-white hover:bg-[#1E96CC] shadow-sm transition-all"
+                              >
+                                <UserPlus className="h-3 w-3" /> Add
+                              </button>
+                            );
+                          })()}
+                        </>
+                      ) : null}
                     </div>
                   </div>
                 ))
@@ -464,6 +696,17 @@ const Leaderboard = () => {
           </div>
         </div>
       </div>
+
+      {profileUid && (
+        <ProfileModal
+          uid={profileUid}
+          currentUid={user?.uid || ""}
+          friendRecords={friendRecords}
+          onAddFriend={handleAddFriend}
+          onAccept={handleAccept}
+          onClose={() => setProfileUid(null)}
+        />
+      )}
     </div>
   );
 };

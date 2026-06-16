@@ -1,5 +1,5 @@
 import { createContext, useContext, useEffect, useState, ReactNode, useCallback } from "react";
-import { collection, query, where, orderBy, limit, onSnapshot, updateDoc, doc, writeBatch, addDoc } from "firebase/firestore";
+import { collection, query, where, limit, onSnapshot, updateDoc, doc, writeBatch, addDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { useAuth } from "@/contexts/AuthContext";
 
@@ -35,10 +35,12 @@ export const NotificationProvider = ({ children }: { children: ReactNode }) => {
       return;
     }
 
+    // Equality-only query (no orderBy) so NO composite index is required — we
+    // sort newest-first on the client instead. This was previously failing with
+    // "query requires an index" and silently breaking all notifications.
     const q = query(
       collection(db, "notifications"),
       where("user_id", "==", user.uid),
-      orderBy("created_at", "desc"),
       limit(50)
     );
 
@@ -47,6 +49,7 @@ export const NotificationProvider = ({ children }: { children: ReactNode }) => {
         id: doc.id,
         ...doc.data(),
       })) as Notification[];
+      notifs.sort((a, b) => (a.created_at < b.created_at ? 1 : a.created_at > b.created_at ? -1 : 0));
       setNotifications(notifs);
     }, (error) => {
       console.error("[Notifications] Listener error:", error);

@@ -85,8 +85,11 @@ service cloud.firestore {
     }
 
     // ── /xp_logs collection ───────────────────────────
+    // READ is open to any signed-in user so the leaderboard can aggregate
+    // today / this-week / all-time XP across users (xp amounts are not private).
+    // Writes stay owner-only so nobody can fabricate XP for someone else.
     match /xp_logs/{logId} {
-      allow read: if isOwner() || isAdmin();
+      allow read: if isAuthenticated();
       allow create: if isNewOwner();
       allow update: if isOwner();
       allow delete: if isOwner() || isAdmin();
