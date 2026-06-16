@@ -1,5 +1,5 @@
 import { Link, useLocation } from "react-router-dom";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion } from "framer-motion";
 import {
   LayoutDashboard, BookOpen, MessageCircleQuestion, Trophy,
   BarChart3, Upload, Settings, User, Gamepad2, Bot,
@@ -10,7 +10,7 @@ import GlobalTimer from "@/components/GlobalTimer";
 import PageTransition from "@/components/motion/PageTransition";
 import EduOnxAIChat from "@/components/EduOnxAIChat";
 import SnapEnhance from "@/components/SnapEnhance";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useQuery } from "@tanstack/react-query";
 import { db } from "@/lib/firebase";
@@ -99,6 +99,26 @@ const AppLayout = () => {
       return newVal;
     });
   };
+
+  // Always close the mobile drawer when the route changes (covers tapping a link).
+  useEffect(() => {
+    setMobileMenuOpen(false);
+  }, [pathname]);
+
+  // While the drawer is open: Escape closes it and the page body is scroll-locked.
+  useEffect(() => {
+    if (!mobileMenuOpen) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setMobileMenuOpen(false);
+    };
+    document.addEventListener("keydown", onKey);
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.removeEventListener("keydown", onKey);
+      document.body.style.overflow = prevOverflow;
+    };
+  }, [mobileMenuOpen]);
 
   const { data: profile } = useQuery({
     queryKey: ["profile-sidebar", user?.uid],
@@ -234,57 +254,51 @@ const AppLayout = () => {
         </aside>
       )}
 
-      {/* Mobile menu */}
-      <AnimatePresence>
-        {!isDeepFocus && mobileMenuOpen && (
-          <div className="lg:hidden fixed inset-0 z-50 flex">
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              className="absolute inset-0 bg-black/60 backdrop-blur-sm"
-              onClick={() => setMobileMenuOpen(false)}
-            />
-            <motion.aside
-              initial={{ x: "-100%" }}
-              animate={{ x: 0 }}
-              exit={{ x: "-100%" }}
-              transition={{ type: "spring", stiffness: 380, damping: 36 }}
-              className="relative w-72 bg-[#0F172A] flex flex-col h-full border-r border-white/10"
-            >
-              <div className="px-5 py-5 flex items-center justify-between border-b border-white/10">
-                <img src={eduonxLogoOnDark} alt="EduOnx" className="h-7 w-auto" />
-                <button
-                  type="button"
+      {/* Mobile menu — plain conditional render (NO AnimatePresence). Framer's
+          AnimatePresence was hanging its exit and leaving the drawer stuck open;
+          plain rendering guarantees React unmounts it the instant the state
+          flips to false. CSS handles the entrance. z-[60] sits above the chat FAB. */}
+      {!isDeepFocus && mobileMenuOpen && (
+        <div className="lg:hidden fixed inset-0 z-[60] flex">
+          <div
+            className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+            onClick={() => setMobileMenuOpen(false)}
+            aria-hidden="true"
+          />
+          <aside className="relative w-[min(82vw,300px)] bg-[#0F172A] flex flex-col h-full border-r border-white/10 shadow-2xl shadow-black/50">
+            <div className="px-4 py-4 flex items-center justify-between border-b border-white/10">
+              <img src={eduonxLogoOnDark} alt="EduOnx" className="h-7 w-auto" />
+              <button
+                type="button"
+                onClick={() => setMobileMenuOpen(false)}
+                aria-label="Close menu"
+                className="h-11 w-11 -mr-1 flex items-center justify-center rounded-xl text-white/70 hover:text-white hover:bg-white/10 active:bg-white/20 transition-colors"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+            <nav className="flex-1 px-3 py-4 space-y-0.5 overflow-y-auto">
+              {[...sidebarLinks, ...librarySidebarLinks].map((link) => (
+                <NavLink
+                  key={link.to}
+                  {...link}
+                  active={isActive(link.to)}
                   onClick={() => setMobileMenuOpen(false)}
-                  className="text-white/40 hover:text-white p-1"
-                >
-                  <X className="h-5 w-5" />
-                </button>
-              </div>
-              <nav className="flex-1 px-3 py-4 space-y-0.5 overflow-y-auto">
-                {[...sidebarLinks, ...librarySidebarLinks].map((link) => (
-                  <NavLink
-                    key={link.to}
-                    {...link}
-                    active={isActive(link.to)}
-                    onClick={() => setMobileMenuOpen(false)}
-                  />
-                ))}
-                {isAdmin && (
-                  <NavLink
-                    to="/admin"
-                    icon={ShieldCheck}
-                    label="Admin Panel"
-                    active={pathname === "/admin"}
-                    onClick={() => setMobileMenuOpen(false)}
-                  />
-                )}
-              </nav>
-            </motion.aside>
-          </div>
-        )}
-      </AnimatePresence>
+                />
+              ))}
+              {isAdmin && (
+                <NavLink
+                  to="/admin"
+                  icon={ShieldCheck}
+                  label="Admin Panel"
+                  active={pathname === "/admin"}
+                  onClick={() => setMobileMenuOpen(false)}
+                />
+              )}
+            </nav>
+          </aside>
+        </div>
+      )}
 
       {/* Deep Focus bar */}
       {isDeepFocus && (
