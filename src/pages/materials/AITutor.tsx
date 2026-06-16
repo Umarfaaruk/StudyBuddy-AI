@@ -197,6 +197,10 @@ const AITutor = ({ hideHeader = false }: { hideHeader?: boolean } = {}) => {
   const [copiedIdx, setCopiedIdx] = useState<number | null>(null);
   const [selectedMaterialId, setSelectedMaterialId] = useState<string | null>(null);
   const [selectedMaterial, setSelectedMaterial] = useState<Material | null>(null);
+  // Material panel is hidden by default — the tutor opens as a clean general chat.
+  // The file selector + suggestions only appear when the user chooses to ask
+  // about a file (toggles this on, selects, or uploads a document).
+  const [showFiles, setShowFiles] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [isDragOver, setIsDragOver] = useState(false);
   const chatEndRef = useRef<HTMLDivElement>(null);
@@ -283,12 +287,9 @@ const AITutor = ({ hideHeader = false }: { hideHeader?: boolean } = {}) => {
     enabled: !!user,
   });
 
-  // Auto-select most recently uploaded material if none is selected
-  useEffect(() => {
-    if (!selectedMaterialId && materials.length > 0) {
-      setSelectedMaterialId(materials[0].id);
-    }
-  }, [materials, selectedMaterialId]);
+  // NOTE: no auto-select. The tutor intentionally opens as a general chat with
+  // no document attached; the user picks a file only when they want to ask
+  // about one (via the "Files" toggle or by uploading).
 
   // Update selected material when ID changes
   useEffect(() => {
@@ -348,6 +349,7 @@ const AITutor = ({ hideHeader = false }: { hideHeader?: boolean } = {}) => {
 
       await queryClient.invalidateQueries({ queryKey: ["materials", user.uid] });
       setSelectedMaterialId(materialRef.id);
+      setShowFiles(true); // reveal the file panel now that a document is attached
       setMessages([]);
       toast.success(`${file.name} uploaded and ready! You can now ask questions about it.`);
     } catch (err) {
@@ -515,8 +517,8 @@ const AITutor = ({ hideHeader = false }: { hideHeader?: boolean } = {}) => {
         </div>
       )}
 
-      {/* Recent Files Quick-Select Bar */}
-      {materials.length > 0 && (
+      {/* Recent Files Quick-Select Bar — only when the user opens the file panel */}
+      {showFiles && materials.length > 0 && (
         <div className="px-6 py-2.5 bg-gray-50 border-b border-gray-150 flex items-center gap-2 overflow-x-auto select-none shrink-0 scrollbar-none">
           <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider shrink-0 mr-1">Recent Files:</span>
           {materials.slice(0, 4).map((m) => (
@@ -543,7 +545,8 @@ const AITutor = ({ hideHeader = false }: { hideHeader?: boolean } = {}) => {
       <div className="flex-1 flex flex-col lg:flex-row overflow-hidden w-full">
         {/* Left: Chat Container */}
         <div className="flex-1 flex flex-col h-full min-w-0 border-r border-gray-150 bg-white">
-          {/* File Selector & Upload Bar */}
+          {/* File Selector & Upload Bar — only when the user opens the file panel */}
+          {showFiles && (
           <div className="px-6 py-3 border-b border-gray-150 bg-gray-50/50 shrink-0">
             <div className="flex items-center gap-3">
               <FileText className="h-4 w-4 text-gray-400 flex-shrink-0" />
@@ -609,16 +612,20 @@ const AITutor = ({ hideHeader = false }: { hideHeader?: boolean } = {}) => {
                 )}
                 {uploading ? "Processing..." : "Upload"}
               </Button>
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept=".pdf,.txt,.md"
-                className="hidden"
-                aria-label="Upload study material file"
-                onChange={(e) => handleFileUpload(e.target.files)}
-              />
             </div>
           </div>
+          )}
+
+          {/* Hidden upload input — always rendered so the input-bar paperclip works
+              even while the file panel is collapsed. */}
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept=".pdf,.txt,.md"
+            className="hidden"
+            aria-label="Upload study material file"
+            onChange={(e) => handleFileUpload(e.target.files)}
+          />
 
           {/* Chat Messages Area */}
           <div className="flex-1 overflow-y-auto px-6 py-4 space-y-4 bg-gray-50/20">
@@ -787,6 +794,21 @@ const AITutor = ({ hideHeader = false }: { hideHeader?: boolean } = {}) => {
                   type="button"
                   variant="ghost"
                   size="sm"
+                  onClick={() => setShowFiles((v) => !v)}
+                  className={`h-8 w-8 p-0 rounded-lg transition-all ${
+                    showFiles || selectedMaterial
+                      ? "text-[#1D4ED8] bg-[#1D4ED8]/10 hover:bg-[#1D4ED8]/15"
+                      : "text-gray-400 hover:text-gray-600 hover:bg-gray-100"
+                  }`}
+                  title={selectedMaterial ? `Asking about "${selectedMaterial.file_name}" — manage files` : "Ask about a file"}
+                  aria-pressed={showFiles}
+                >
+                  <FileText className="h-4 w-4" />
+                </Button>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
                   onClick={toggleListening}
                   className={`h-8 w-8 p-0 rounded-lg transition-all ${
                     isListening
@@ -834,7 +856,9 @@ const AITutor = ({ hideHeader = false }: { hideHeader?: boolean } = {}) => {
           </div>
         </div>
 
-        {/* Right: Quick Tools Sidebar */}
+        {/* Right: Quick Tools Sidebar — only while the file panel is open or a
+            document is selected, so the default tutor view is a clean chat. */}
+        {(showFiles || selectedMaterial) && (
         <div className="w-full lg:w-[340px] h-full bg-gray-50/70 overflow-y-auto p-6 space-y-6 shrink-0 border-t lg:border-t-0 border-gray-150">
           {/* Suggested Questions Section */}
           {selectedMaterial && selectedMaterial.key_topics.length > 0 ? (
@@ -893,6 +917,7 @@ const AITutor = ({ hideHeader = false }: { hideHeader?: boolean } = {}) => {
 
 
         </div>
+        )}
       </div>
     </div>
   );

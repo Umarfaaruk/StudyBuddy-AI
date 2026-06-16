@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from "react";
-import { Bot, X, Send, Loader2, Sparkles, MessageSquare } from "lucide-react";
+import { Bot, X, Send, Loader2, Sparkles, MessageSquare, GripVertical } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { aiComplete } from "@/lib/aiService";
 import ReactMarkdown from "react-markdown";
@@ -44,6 +44,73 @@ const EduOnxAIChat = () => {
   const chatEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
+
+  // ── Draggable position (like the GlobalTimer) ──────────────────────
+  const [position, setPosition] = useState<{ x: number; y: number } | null>(null);
+  const [isDragging, setIsDragging] = useState(false);
+  const dragStartRef = useRef<{ x: number; y: number; posX: number; posY: number } | null>(null);
+
+  // Restore the saved panel position on mount
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem("eduonx_chat_pos");
+      if (saved) {
+        const p = JSON.parse(saved);
+        if (typeof p.x === "number" && typeof p.y === "number") {
+          // Clamp into the current viewport so the panel is never restored
+          // off-screen (e.g. saved on desktop, reopened on a phone).
+          setPosition({
+            x: Math.max(8, Math.min(window.innerWidth - 80, p.x)),
+            y: Math.max(8, Math.min(window.innerHeight - 80, p.y)),
+          });
+        }
+      }
+    } catch {}
+  }, []);
+
+  const handleDragStart = (e: React.MouseEvent | React.TouchEvent) => {
+    const clientX = "touches" in e ? e.touches[0].clientX : e.clientX;
+    const clientY = "touches" in e ? e.touches[0].clientY : e.clientY;
+    const rect = panelRef.current?.getBoundingClientRect();
+    if (!rect) return;
+    dragStartRef.current = { x: clientX, y: clientY, posX: rect.left, posY: rect.top };
+    setIsDragging(true);
+  };
+
+  useEffect(() => {
+    if (!isDragging) return;
+    const handleMove = (e: MouseEvent | TouchEvent) => {
+      if (!dragStartRef.current) return;
+      if ("touches" in e) e.preventDefault(); // stop page scroll while dragging
+      const clientX = "touches" in e ? e.touches[0].clientX : e.clientX;
+      const clientY = "touches" in e ? e.touches[0].clientY : e.clientY;
+      const w = panelRef.current?.offsetWidth ?? 360;
+      const newX = Math.max(8, Math.min(window.innerWidth - w - 8, dragStartRef.current.posX + (clientX - dragStartRef.current.x)));
+      const newY = Math.max(8, Math.min(window.innerHeight - 80, dragStartRef.current.posY + (clientY - dragStartRef.current.y)));
+      setPosition({ x: newX, y: newY });
+    };
+    const handleEnd = () => {
+      setIsDragging(false);
+      dragStartRef.current = null;
+    };
+    document.addEventListener("mousemove", handleMove);
+    document.addEventListener("mouseup", handleEnd);
+    document.addEventListener("touchmove", handleMove, { passive: false });
+    document.addEventListener("touchend", handleEnd);
+    return () => {
+      document.removeEventListener("mousemove", handleMove);
+      document.removeEventListener("mouseup", handleEnd);
+      document.removeEventListener("touchmove", handleMove);
+      document.removeEventListener("touchend", handleEnd);
+    };
+  }, [isDragging]);
+
+  // Persist the panel position whenever it settles (after a drag ends).
+  useEffect(() => {
+    if (position && !isDragging) {
+      try { localStorage.setItem("eduonx_chat_pos", JSON.stringify(position)); } catch {}
+    }
+  }, [position, isDragging]);
 
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -135,23 +202,35 @@ const EduOnxAIChat = () => {
       {isOpen && (
         <div
           ref={panelRef}
-          className="fixed bottom-6 right-6 z-50 w-[360px] max-w-[calc(100vw-32px)] bg-white rounded-2xl shadow-2xl shadow-gray-300/50 border border-gray-100 flex flex-col overflow-hidden animate-in fade-in slide-in-from-bottom-4 zoom-in-95 duration-300 md:bottom-8 md:right-8"
-          style={{ maxHeight: "min(580px, calc(100vh - 100px))" }}
+          className={`fixed z-50 w-[360px] max-w-[calc(100vw-32px)] bg-white rounded-2xl shadow-2xl shadow-gray-300/50 border border-gray-100 flex flex-col overflow-hidden ${
+            position ? "" : "bottom-6 right-6 md:bottom-8 md:right-8 animate-in fade-in slide-in-from-bottom-4 zoom-in-95 duration-300"
+          }`}
+          style={
+            position
+              ? { left: position.x, top: position.y, maxHeight: "min(580px, calc(100vh - 100px))", userSelect: isDragging ? "none" : undefined }
+              : { maxHeight: "min(580px, calc(100vh - 100px))" }
+          }
         >
-          {/* Header */}
+          {/* Header — doubles as the drag handle (move it anywhere, like the timer) */}
           <div className="flex items-center justify-between px-4 py-3 bg-gradient-to-r from-[#1D4ED8] to-[#2563EB] text-white flex-shrink-0">
-            <div className="flex items-center gap-2.5">
-              <div className="h-8 w-8 rounded-lg bg-white/20 flex items-center justify-center">
+            <div
+              className="flex items-center gap-2 min-w-0 flex-1 cursor-grab active:cursor-grabbing select-none"
+              onMouseDown={handleDragStart}
+              onTouchStart={handleDragStart}
+              title="Drag to move"
+            >
+              <GripVertical className="h-4 w-4 text-white/50 -ml-1 shrink-0" />
+              <div className="h-8 w-8 rounded-lg bg-white/20 flex items-center justify-center shrink-0">
                 <Bot className="h-4 w-4" />
               </div>
-              <div>
+              <div className="min-w-0">
                 <h3 className="text-sm font-bold leading-tight">EduOnx AI</h3>
-                <p className="text-[10px] text-white/70">Ask anything • Navigate • Feedback</p>
+                <p className="text-[10px] text-white/70 truncate">Drag to move • Ask anything</p>
               </div>
             </div>
             <button
               onClick={() => setIsOpen(false)}
-              className="h-7 w-7 rounded-lg bg-white/10 hover:bg-white/20 flex items-center justify-center transition-colors"
+              className="h-7 w-7 rounded-lg bg-white/10 hover:bg-white/20 flex items-center justify-center transition-colors shrink-0 ml-2"
             >
               <X className="h-3.5 w-3.5" />
             </button>
