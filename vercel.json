@@ -6,6 +6,9 @@
     "api/*.ts": { "maxDuration": 60 },
     "api/*.js": { "maxDuration": 60 }
   },
+  "crons": [
+    { "path": "/api/send-weekly-emails", "schedule": "0 9 * * 1" }
+  ],
   "rewrites": [
     {
       "source": "/((?!api/).*)",
