@@ -4,6 +4,7 @@ import { db } from "@/lib/firebase";
 import { doc, getDoc, collection, query, where, getDocs, documentId, setDoc } from "firebase/firestore";
 import { computeAvgQuizScore } from "@/lib/userStats";
 import { toDateKey } from "@/lib/utils";
+import { dedupedXpSum } from "@/lib/xp";
 
 /* ──────────────────────────────────────────────────────────────────────────
  * FIRESTORE READ CONSOLIDATION
@@ -79,48 +80,35 @@ export const useDashboardData = () => {
     enabled: !!user,
   });
 
-  /* ── totalXp: precomputed aggregate, reconciled once ──────────
-   * profiles.total_xp is incremented at every XP write (studySession,
-   * QuizResults). On the FIRST load per account we reconcile it against
-   * the xp_logs audit log (one final full scan), stamp xp_reconciled,
-   * and from then on XP costs ZERO extra reads — it rides along on the
-   * profile doc that's already fetched. xp_logs remains the source of
-   * truth for the admin panel, and the reconciliation guarantees the
-   * aggregate can never permanently drift from it. */
+  /* ── totalXp: ALWAYS the de-duplicated sum of xp_logs ──────────
+   * xp_logs is the single source of truth. We sum it (de-duplicating any
+   * accidental double-writes) on every load, so the number shown here can
+   * never be inflated by duplicate entries and always matches the
+   * leaderboard. We also write the corrected value back to
+   * profiles.total_xp so any other read of the aggregate self-heals. */
   const { data: totalXp } = useQuery({
     queryKey: ["totalXp", user?.uid],
     queryFn: async () => {
       if (!user) return 0;
 
-      const profileRef = doc(db, "profiles", user.uid);
-      const profileSnap = await getDoc(profileRef);
-      const profileData = profileSnap.exists() ? profileSnap.data() : null;
-
-      // Fast path: aggregate exists and has been reconciled once
-      if (profileData?.xp_reconciled && typeof profileData.total_xp === "number") {
-        return profileData.total_xp;
-      }
-
-      // One-time reconciliation: sum the audit log, store the aggregate
       const snapshot = await getDocs(
         query(collection(db, "xp_logs"), where("user_id", "==", user.uid))
       );
-      let total = 0;
-      snapshot.forEach((d) => { total += d.data().xp_amount || 0; });
+      const total = dedupedXpSum(snapshot.docs);
 
       try {
         await setDoc(
-          profileRef,
-          { total_xp: total, xp_reconciled: true },
+          doc(db, "profiles", user.uid),
+          { total_xp: total, xp_reconciled: true, updated_at: new Date().toISOString() },
           { merge: true }
         );
       } catch {
-        // Write failure is fine — we still return the correct sum,
-        // and reconciliation simply retries on a future load.
+        // Cache write failure is non-fatal — we still return the correct sum.
       }
       return total;
     },
     enabled: !!user,
+    staleTime: 1000 * 30,
   });
 
   /* ── 1 read: study_sessions → studyTime AND progressAnalytics ── */

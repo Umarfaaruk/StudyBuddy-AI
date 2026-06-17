@@ -574,7 +574,7 @@ const MaterialUpload = () => {
             <button
               onClick={() => fileInputRef.current?.click()}
               disabled={uploading}
-              className="inline-flex items-center gap-2 bg-white text-[#29ABE2] font-semibold text-sm px-5 py-2.5 rounded-full hover:bg-white/90 transition-all shadow-lg shadow-[#29ABE2]/25/20 disabled:opacity-60"
+              className="inline-flex items-center gap-2 bg-white text-[#29ABE2] font-semibold text-sm px-5 py-2.5 rounded-full hover:bg-white/90 transition-all shadow-lg shadow-[#29ABE2]/25 disabled:opacity-60"
             >
               <Upload className="h-4 w-4" />
               Upload Files

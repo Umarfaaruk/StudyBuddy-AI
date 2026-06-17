@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { db, storage } from "@/lib/firebase";
+import { dedupedXpSum } from "@/lib/xp";
 import { useAuth } from "@/contexts/AuthContext";
 import { doc, getDoc, updateDoc, collection, query, where, getDocs } from "firebase/firestore";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
@@ -36,10 +37,10 @@ const Profile = () => {
     queryFn: async () => {
       if (!user) return null;
       try {
-        // Get XP logs
+        // Get XP logs — de-duplicated sum (single source of truth, matches dashboard/leaderboard)
         const xpQ = query(collection(db, "xp_logs"), where("user_id", "==", user.uid));
         const xpDocs = await getDocs(xpQ);
-        const totalXp = xpDocs.docs.reduce((sum, doc) => sum + (doc.data().xp_amount || 0), 0);
+        const totalXp = dedupedXpSum(xpDocs.docs);
 
         // Get streak
         const streakRef = doc(db, "user_streaks", user.uid);

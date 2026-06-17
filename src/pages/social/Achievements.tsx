@@ -1,6 +1,7 @@
 import { Trophy, Star, Flame, Target, Zap, BookOpen, Medal, Award, Clock, MessageCircleQuestion } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { db } from "@/lib/firebase";
+import { dedupedXpSum } from "@/lib/xp";
 import { collection, query, where, getDocs, doc, getDoc } from "firebase/firestore";
 import { useAuth } from "@/contexts/AuthContext";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -53,8 +54,7 @@ const Achievements = () => {
           getDocs(query(collection(db, "study_sessions"), where("user_id", "==", user.uid))),
         ]);
 
-        let totalXp = 0;
-        xpSnap.forEach((d) => { totalXp += d.data().xp_amount || 0; });
+        const totalXp = dedupedXpSum(xpSnap.docs);
 
         const streakData = streakSnap.exists() ? streakSnap.data() : { current_streak: 0, longest_streak: 0 };
 

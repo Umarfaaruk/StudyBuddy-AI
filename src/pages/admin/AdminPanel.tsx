@@ -120,11 +120,19 @@ const AdminPanel = () => {
       }
     }
 
+    // ACCURACY: de-duplicate identical xp_logs (same user+amount+source+timestamp
+    // = an accidental double-write) so admin XP matches the dashboard/leaderboard
+    // and never shows inflated totals.
     const xpByUser: Record<string, number> = {};
+    const seenXp = new Set<string>();
     for (const d of xpLogs) {
       const uid = d.user_id;
-      if (!uid) continue;
-      xpByUser[uid] = (xpByUser[uid] || 0) + (Number(d.xp_amount) || 0);
+      if (!uid || typeof d.xp_amount !== "number") continue;
+      const ms = d.created_at?.toMillis?.() ?? (d.created_at ? new Date(d.created_at).getTime() : 0);
+      const sig = `${uid}|${d.xp_amount}|${d.source_type}|${ms}`;
+      if (seenXp.has(sig)) continue;
+      seenXp.add(sig);
+      xpByUser[uid] = (xpByUser[uid] || 0) + d.xp_amount;
     }
 
     const streakByUser: Record<string, { current: number; longest: number }> = {};
@@ -244,7 +252,8 @@ const AdminPanel = () => {
           )
         : 0;
 
-    return { users, totalUsers: users.length, activeToday, totalStudyHours, avgStreak };
+    const totalXp = users.reduce((sum, u) => sum + (u.xp || 0), 0);
+    return { users, totalUsers: users.length, activeToday, totalStudyHours, avgStreak, totalXp };
   }, [profiles, usersData, xpLogs, userStreaks, studySessions, quizAttempts, materials, doubtSessions, flashcards, studyPlans]);
 
   const feedbackList = useMemo(() => {
@@ -427,31 +436,31 @@ const AdminPanel = () => {
 
       {/* Platform Stats Cards */}
       {isLoading ? (
-        <div className="grid grid-cols-2 md:grid-cols-5 gap-3 md:gap-4">
-          {Array.from({ length: 5 }).map((_, i) => (
-            <div key={i} className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100">
-              <Skeleton className="h-4 w-20 mb-3" />
-              <Skeleton className="h-8 w-16 mb-1" />
-              <Skeleton className="h-3 w-24" />
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
+          {Array.from({ length: 6 }).map((_, i) => (
+            <div key={i} className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100">
+              <Skeleton className="h-9 w-9 rounded-lg mb-3" />
+              <Skeleton className="h-7 w-16 mb-1.5" />
+              <Skeleton className="h-3 w-20" />
             </div>
           ))}
         </div>
       ) : (
-        <div className="grid grid-cols-2 md:grid-cols-5 gap-3 md:gap-4">
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
           {[
-            { label: "Total Users",  value: platformStats?.totalUsers || 0,          icon: Users,  color: "text-[#29ABE2]",   bgColor: "bg-[#29ABE2]/10" },
-            { label: "Active Today", value: platformStats?.activeToday || 0,          icon: Zap,    color: "text-emerald-500", bgColor: "bg-emerald-500/10" },
-            { label: "Study Hours",  value: `${platformStats?.totalStudyHours || 0}h`, icon: Clock,  color: "text-amber-500",   bgColor: "bg-amber-500/10" },
-            { label: "Avg Streak",   value: `${platformStats?.avgStreak || 0}d`,       icon: Flame,  color: "text-red-500",     bgColor: "bg-red-500/10" },
-            { label: "Avg Rating",   value: `${avgRating}★`,                           icon: Star,   color: "text-yellow-500",  bgColor: "bg-yellow-500/10" },
+            { label: "Total Users",  value: (platformStats?.totalUsers || 0).toLocaleString(), icon: Users,  color: "text-[#29ABE2]",   bgColor: "bg-[#29ABE2]/10" },
+            { label: "Active Today", value: (platformStats?.activeToday || 0).toLocaleString(), icon: Zap,    color: "text-emerald-500", bgColor: "bg-emerald-500/10" },
+            { label: "Total XP",     value: (platformStats?.totalXp || 0).toLocaleString(),     icon: Trophy, color: "text-[#29ABE2]",   bgColor: "bg-[#29ABE2]/10" },
+            { label: "Study Hours",  value: `${platformStats?.totalStudyHours || 0}h`,          icon: Clock,  color: "text-amber-500",   bgColor: "bg-amber-500/10" },
+            { label: "Avg Streak",   value: `${platformStats?.avgStreak || 0}d`,                icon: Flame,  color: "text-red-500",     bgColor: "bg-red-500/10" },
+            { label: "Avg Rating",   value: `${avgRating}★`,                                    icon: Star,   color: "text-yellow-500",  bgColor: "bg-yellow-500/10" },
           ].map((stat) => (
-            <div key={stat.label} className="bg-white rounded-2xl p-4 md:p-5 shadow-sm border border-gray-100 relative overflow-hidden group hover:shadow-md transition-all duration-200">
-              <div className={`absolute top-0 right-0 w-20 h-20 ${stat.bgColor} rounded-full -translate-y-8 translate-x-8 opacity-40 group-hover:opacity-60 transition-opacity`} />
-              <div className={`h-8 w-8 md:h-9 md:w-9 rounded-lg ${stat.bgColor} flex items-center justify-center mb-2 md:mb-3`}>
-                <stat.icon className={`h-4 w-4 ${stat.color}`} />
+            <div key={stat.label} className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100 hover:border-[#29ABE2]/30 hover:shadow-md transition-all duration-200">
+              <div className={`h-9 w-9 rounded-lg ${stat.bgColor} flex items-center justify-center mb-3`}>
+                <stat.icon className={`h-[18px] w-[18px] ${stat.color}`} />
               </div>
-              <div className="text-xl md:text-2xl font-extrabold text-gray-900">{stat.value}</div>
-              <div className="text-[10px] md:text-xs text-gray-400 mt-0.5 font-medium">{stat.label}</div>
+              <div className="text-xl md:text-2xl font-extrabold text-gray-900 leading-none tabular-nums">{stat.value}</div>
+              <div className="text-[11px] text-gray-400 mt-1.5 font-medium uppercase tracking-wide">{stat.label}</div>
             </div>
           ))}
         </div>

@@ -244,10 +244,14 @@ const LessonViewer = () => {
     mutationFn: async () => {
       if (!user || !currentLesson || !topicId) return;
 
+      const existingProgress = progress[0] || { completed_lessons: [] };
+      const alreadyCompleted = (existingProgress.completed_lessons || []).includes(currentLesson.id);
+      // IDEMPOTENT: if this lesson is already completed, don't write or award XP
+      // again (prevents duplicate XP from a re-click or a stale-state race).
+      if (alreadyCompleted) return;
+
       const batch = writeBatch(db);
       const progressRef = doc(db, "lesson_progress", `${user.uid}_${topicId}`);
-
-      const existingProgress = progress[0] || { completed_lessons: [] };
       const updated = Array.from(new Set([...(existingProgress.completed_lessons || []), currentLesson.id]));
 
       batch.set(progressRef, {

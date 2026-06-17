@@ -6,6 +6,7 @@ import ReactMarkdown from "react-markdown";
 import { useNavigate } from "react-router-dom";
 import { addDoc, collection } from "firebase/firestore";
 import { db } from "@/lib/firebase";
+import { useDraggable } from "@/hooks/useDraggable";
 
 interface Message {
   role: "user" | "assistant";
@@ -38,6 +39,7 @@ const EduOnxAIChat = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
   const [isOpen, setIsOpen] = useState(false);
+  const fab = useDraggable("eduonx_fab_pos", { width: 56, height: 56 });
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
@@ -185,16 +187,27 @@ const EduOnxAIChat = () => {
 
   return (
     <>
-      {/* ── Floating FAB Button ───────────────────────────── */}
+      {/* ── Floating FAB Button — draggable (like the timer) ─── */}
       {!isOpen && (
         <button
-          onClick={() => setIsOpen(true)}
-          className="fixed bottom-6 right-6 z-50 h-14 w-14 rounded-full bg-gradient-to-br from-[#29ABE2] to-[#29ABE2] text-white shadow-xl shadow-[#29ABE2]/25/40 flex items-center justify-center hover:scale-110 hover:shadow-2xl hover:shadow-[#29ABE2]/25/50 transition-all duration-300 group md:bottom-8 md:right-8"
-          aria-label="Open EduOnx AI chat"
+          ref={fab.ref as React.Ref<HTMLButtonElement>}
+          onMouseDown={fab.onDragStart}
+          onTouchStart={fab.onDragStart}
+          onClick={() => { if (!fab.didDrag()) setIsOpen(true); }}
+          style={
+            fab.position
+              ? { left: fab.position.x, top: fab.position.y, right: "auto", bottom: "auto", cursor: fab.isDragging ? "grabbing" : "grab", touchAction: "none" }
+              : { touchAction: "none" }
+          }
+          className={`fixed z-50 h-14 w-14 rounded-full bg-[#29ABE2] text-white shadow-xl shadow-[#29ABE2]/25 flex items-center justify-center hover:scale-110 hover:shadow-2xl transition-all duration-300 group cursor-grab active:cursor-grabbing ${
+            fab.position ? "" : "bottom-6 right-6 md:bottom-8 md:right-8"
+          }`}
+          aria-label="Open EduOnx AI chat (drag to move)"
+          title="Drag to move · click to open"
         >
           <Bot className="h-6 w-6 group-hover:rotate-12 transition-transform duration-300" />
           {/* Pulse ring */}
-          <span className="absolute inset-0 rounded-full bg-[#29ABE2]/30 animate-ping opacity-30" />
+          <span className="absolute inset-0 rounded-full bg-[#29ABE2]/30 animate-ping opacity-30 pointer-events-none" />
         </button>
       )}
 

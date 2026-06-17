@@ -621,7 +621,7 @@ const Leaderboard = () => {
           </div>
 
           {/* Apex Architect Award */}
-          <div className="bg-gradient-to-br from-[#29ABE2] to-[#29ABE2] rounded-2xl shadow-lg shadow-[#29ABE2]/25/50 p-6 text-white relative overflow-hidden">
+          <div className="bg-gradient-to-br from-[#29ABE2] to-[#29ABE2] rounded-2xl shadow-lg shadow-[#29ABE2]/25 p-6 text-white relative overflow-hidden">
             {/* Decorative background circles */}
             <div className="absolute -top-6 -right-6 w-24 h-24 rounded-full bg-white/10" />
             <div className="absolute -bottom-8 -left-8 w-32 h-32 rounded-full bg-white/5" />
