@@ -312,7 +312,7 @@ const Settings = () => {
                 <AlertTriangle className="h-4 w-4 text-red-500" />
               </div>
               <h3 className="text-sm font-bold text-white">Report Issue</h3>
-              <p className="text-[11px] text-muted-foreground mt-0.5">Bugs, UI problems, or feedback</p>
+              <p className="text-[11px] text-muted-foreground mt-0.5">Bugs or UI problems</p>
             </div>
           </button>
 
