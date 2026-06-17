@@ -7,7 +7,7 @@ import { Mail, Lock, ArrowRight, Eye, EyeOff } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
 import { auth } from "@/lib/firebase";
-import { GoogleAuthProvider, signInWithPopup } from "firebase/auth";
+import { GoogleAuthProvider, signInWithPopup, sendPasswordResetEmail } from "firebase/auth";
 import { getReadableFirebaseAuthError } from "@/lib/firebaseAuthErrors";
 
 import eduonxLogo from "@/assets/eduonx-logo.png";
@@ -36,6 +36,20 @@ const Login = () => {
       return;
     }
     navigate(from, { replace: true });
+  };
+
+  const handleForgotPassword = async () => {
+    const target = email.trim();
+    if (!target) {
+      toast.error("Enter your email above first, then click “Forgot password?”");
+      return;
+    }
+    try {
+      await sendPasswordResetEmail(auth, target);
+      toast.success(`Password reset link sent to ${target}. Check your inbox (and spam).`);
+    } catch (error: any) {
+      toast.error(getReadableFirebaseAuthError(error));
+    }
   };
 
   const handleGoogleLogin = async () => {
@@ -168,7 +182,7 @@ const Login = () => {
             <div className="space-y-2">
               <div className="flex items-center justify-between">
                 <label className="text-sm font-medium text-foreground">Password</label>
-                <button type="button" className="text-xs text-primary hover:underline">
+                <button type="button" onClick={handleForgotPassword} className="text-xs text-primary hover:underline">
                   Forgot password?
                 </button>
               </div>

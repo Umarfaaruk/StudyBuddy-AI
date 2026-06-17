@@ -128,13 +128,20 @@ export default async function handler(req: any, res: any) {
         const totalXp = profile.total_xp || 0;
         const streak = (sSnap.data() as any)?.current_streak || 0;
 
-        await resend.emails.send({
+        // Resend resolves with { data, error } and does NOT throw on API
+        // errors (invalid key, unverified domain, bad recipient, rate limit),
+        // so we must inspect `error` — otherwise failed sends look successful.
+        const { error } = await resend.emails.send({
           from,
           to: profile.email,
           subject: `Your EduOnx week: +${xpWeek.toLocaleString()} XP 🚀`,
           html: emailHtml(name, xpWeek, totalXp, streak, counts.get(uid) || 0),
         });
-        sent++;
+        if (error) {
+          failures.push(`${profile.email}: ${error.message || error.name}`);
+        } else {
+          sent++;
+        }
       } catch (err: any) {
         failures.push(`${uid}: ${err?.message}`);
       }
