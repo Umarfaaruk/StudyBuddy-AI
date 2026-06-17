@@ -222,25 +222,27 @@ const MaterialUpload = () => {
     queryFn: async () => {
       if (!user) return [];
       try {
+        // Equality-only query (no composite index needed); sorted client-side.
         const q = query(
           collection(db, "saved_notes"),
-          where("user_id", "==", user.uid),
-          orderBy("created_at", "desc")
+          where("user_id", "==", user.uid)
         );
         const docs = await getDocs(q);
-        return docs.docs.map(doc => ({
-          id: doc.id,
-          ...doc.data()
-        } as {
-          id: string;
-          user_id: string;
-          lesson_id: string;
-          lesson_title: string;
-          topic_id: string;
-          topic_title: string;
-          text: string;
-          created_at: string;
-        }));
+        return docs.docs
+          .map(doc => ({
+            id: doc.id,
+            ...doc.data()
+          } as {
+            id: string;
+            user_id: string;
+            lesson_id: string;
+            lesson_title: string;
+            topic_id: string;
+            topic_title: string;
+            text: string;
+            created_at: string;
+          }))
+          .sort((a, b) => (a.created_at < b.created_at ? 1 : a.created_at > b.created_at ? -1 : 0));
       } catch (err) {
         console.error("Failed to fetch saved notes:", err);
         return [];
@@ -283,16 +285,21 @@ const MaterialUpload = () => {
     queryKey: ["materials", user?.uid],
     queryFn: async (): Promise<MaterialItem[]> => {
       if (!user) return [];
+      // Equality-only query (no composite index needed); sorted client-side.
       const q = query(
         collection(db, "materials"),
-        where("user_id", "==", user.uid),
-        orderBy("uploaded_at", "desc")
+        where("user_id", "==", user.uid)
       );
       const docs = await getDocs(q);
-      return docs.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
-      } as MaterialItem));
+      return docs.docs
+        .map(doc => ({
+          id: doc.id,
+          ...doc.data()
+        } as MaterialItem))
+        .sort((a: any, b: any) => {
+          const ms = (t: any) => t?.toMillis?.() ?? (t ? new Date(t).getTime() : 0);
+          return ms(b.uploaded_at) - ms(a.uploaded_at);
+        });
     },
     enabled: !!user,
     refetchInterval: uploading ? 3000 : false, // Auto-refresh while uploading

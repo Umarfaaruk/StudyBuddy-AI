@@ -14,23 +14,25 @@ const DoubtHistory = () => {
     queryFn: async () => {
       if (!user) return [];
       try {
+        // Equality-only query (no composite index needed); sorted client-side.
         const q = query(
           collection(db, "doubt_sessions"),
-          where("user_id", "==", user.uid),
-          orderBy("created_at", "desc")
+          where("user_id", "==", user.uid)
         );
         const snap = await getDocs(q);
-        return snap.docs.map((d) => ({ 
-          id: d.id, 
-          ...d.data() 
-        } as {
-          id: string;
-          user_id: string;
-          created_at: string;
-          title?: string;
-          description?: string;
-          [key: string]: any;
-        }));
+        return snap.docs
+          .map((d) => ({
+            id: d.id,
+            ...d.data()
+          } as {
+            id: string;
+            user_id: string;
+            created_at: string;
+            title?: string;
+            description?: string;
+            [key: string]: any;
+          }))
+          .sort((a, b) => (a.created_at < b.created_at ? 1 : a.created_at > b.created_at ? -1 : 0));
       } catch (error) {
         console.error("[DoubtHistory] Query error:", error);
         return [];

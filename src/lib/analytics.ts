@@ -209,15 +209,19 @@ async function getStudyTime(
       break;
   }
 
+  // Equality-only query (no composite index needed); the time window is applied
+  // on the client.
   const q = query(
     collection(db, "study_sessions"),
-    where("user_id", "==", userId),
-    where("created_at", ">=", startDate),
-    orderBy("created_at", "desc")
+    where("user_id", "==", userId)
   );
 
   const docs = await getDocs(q);
-  const totalSeconds = docs.docs.reduce((sum, doc) => sum + (doc.data().duration_seconds || 0), 0);
+  const startMs = startDate.getTime();
+  const ms = (t: any) => t?.toMillis?.() ?? (t ? new Date(t).getTime() : 0);
+  const totalSeconds = docs.docs
+    .filter((d) => ms(d.data().created_at) >= startMs)
+    .reduce((sum, d) => sum + (d.data().duration_seconds || 0), 0);
   return Math.round(totalSeconds / 60); // Convert to minutes
 }
 
@@ -231,15 +235,20 @@ async function getDailyAnalytics(
   const startDate = new Date();
   startDate.setDate(startDate.getDate() - days);
 
+  // Equality-only query (no composite index needed); the time-window filter and
+  // ordering are applied on the client.
   const q = query(
     collection(db, "analytics_snapshots"),
-    where("user_id", "==", userId),
-    where("timestamp", ">=", startDate),
-    orderBy("timestamp", "asc")
+    where("user_id", "==", userId)
   );
 
   const docs = await getDocs(q);
-  return docs.docs.map((doc) => doc.data() as AnalyticsSnapshot);
+  const startMs = startDate.getTime();
+  const ms = (t: any) => t?.toMillis?.() ?? (t ? new Date(t).getTime() : 0);
+  return docs.docs
+    .map((doc) => doc.data() as AnalyticsSnapshot)
+    .filter((s: any) => ms(s.timestamp) >= startMs)
+    .sort((a: any, b: any) => ms(a.timestamp) - ms(b.timestamp));
 }
 
 /**
@@ -257,17 +266,20 @@ export async function calculateProductivityScore(
   const weekStudyMinutes = await getStudyTime(userId, "week");
   const dailyAnalytics = await getDailyAnalytics(userId, 7);
 
-  // Get quiz results
+  // Get quiz results — equality-only query, then take the 10 most recent client-side.
   const quizQ = query(
     collection(db, "quiz_attempts"),
-    where("user_id", "==", userId),
-    orderBy("completed_at", "desc"),
-    limit(10)
+    where("user_id", "==", userId)
   );
-  const quizDocs = await getDocs(quizQ);
+  const quizSnap = await getDocs(quizQ);
+  const qms = (t: any) => t?.toMillis?.() ?? (t ? new Date(t).getTime() : 0);
+  const recentQuizzes = quizSnap.docs
+    .map((d) => d.data())
+    .sort((a: any, b: any) => qms(b.completed_at) - qms(a.completed_at))
+    .slice(0, 10);
   const avgQuizScore =
-    quizDocs.docs.length > 0
-      ? quizDocs.docs.reduce((sum, doc) => sum + (doc.data().score || 0), 0) / quizDocs.docs.length
+    recentQuizzes.length > 0
+      ? recentQuizzes.reduce((sum, q) => sum + (q.score || 0), 0) / recentQuizzes.length
       : 0;
 
   // Calculate component scores

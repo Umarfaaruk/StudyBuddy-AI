@@ -38,11 +38,12 @@ const MiniNotes = ({
   useEffect(() => {
     if (!user || !lessonId) return;
 
+    // Equality-only query (no orderBy) avoids needing a composite index — sorted
+    // newest-first on the client below.
     const q = query(
       collection(db, "saved_notes"),
       where("user_id", "==", user.uid),
-      where("lesson_id", "==", lessonId),
-      orderBy("created_at", "desc")
+      where("lesson_id", "==", lessonId)
     );
 
     const unsubscribe = onSnapshot(q, (snapshot) => {
@@ -50,6 +51,7 @@ const MiniNotes = ({
         id: doc.id,
         ...doc.data()
       })) as any[];
+      fetched.sort((a, b) => (a.created_at < b.created_at ? 1 : a.created_at > b.created_at ? -1 : 0));
       setNotes(fetched);
       setLoading(false);
     }, (error) => {

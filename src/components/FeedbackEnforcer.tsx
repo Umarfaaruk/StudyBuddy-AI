@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { db } from "@/lib/firebase";
-import { collection, query, where, getDocs, orderBy, limit, doc, getDoc, setDoc } from "firebase/firestore";
+import { collection, query, where, getDocs, doc, getDoc, setDoc } from "firebase/firestore";
 import { MessageSquare, Star, Send, X, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { addDoc, serverTimestamp } from "firebase/firestore";
@@ -50,17 +50,19 @@ const FeedbackEnforcer = () => {
           }
         }
 
-        // Also check the feedback collection directly
+        // Also check the feedback collection directly. Equality-only query (no
+        // composite index needed); we pick the most recent on the client.
         const feedbackQuery = query(
           collection(db, "feedback"),
-          where("userId", "==", user.uid),
-          orderBy("createdAt", "desc"),
-          limit(1)
+          where("userId", "==", user.uid)
         );
         const feedbackSnap = await getDocs(feedbackQuery);
 
         if (!feedbackSnap.empty) {
-          const latestFeedback = feedbackSnap.docs[0].data();
+          const ms = (v: any) => (v?.toDate?.() ? v.toDate().getTime() : new Date(v).getTime());
+          const latestFeedback = feedbackSnap.docs
+            .map((d) => d.data())
+            .sort((a, b) => ms(b.createdAt) - ms(a.createdAt))[0];
           const createdAt = latestFeedback.createdAt?.toDate?.() || new Date(latestFeedback.createdAt);
           const now = Date.now();
 

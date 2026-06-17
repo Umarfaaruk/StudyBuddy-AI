@@ -201,13 +201,14 @@ service cloud.firestore {
     }
 
     // ── /feedback collection ──────────────────────────
-    // FIX Bug 10: feedback was allow read: isAuthenticated() — any logged-in user
-    // could read all feedback from all users. Now restricted to owner + admin only.
+    // Owner + admin only. NOTE: feedback docs use the field name `userId`
+    // (camelCase), NOT `user_id` — the generic isOwner() helper checks
+    // `user_id`, which silently denied every read (FeedbackEnforcer kept
+    // failing with permission-denied). This checks the correct field.
     match /feedback/{feedbackId} {
-      allow read: if isOwner() || isAdmin();
-      allow create: if isAuthenticated();
-      // FIX: update/delete also requires ownership or admin
-      allow update, delete: if isOwner() || isAdmin();
+      allow read: if (isAuthenticated() && resource.data.userId == request.auth.uid) || isAdmin();
+      allow create: if isAuthenticated() && request.resource.data.userId == request.auth.uid;
+      allow update, delete: if (isAuthenticated() && resource.data.userId == request.auth.uid) || isAdmin();
     }
 
     // ── /topic_progress collection ─────────────────────

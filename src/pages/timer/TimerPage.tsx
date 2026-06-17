@@ -57,18 +57,21 @@ const TimerPage = () => {
     queryFn: async () => {
       if (!user) return [];
       
+      // Equality-only query (no composite index needed); sorted + capped client-side.
       const q = query(
         collection(db, "study_sessions"),
-        where("user_id", "==", user.uid),
-        orderBy("created_at", "desc"),
-        limit(100) // Fetch more sessions for weekly/monthly aggregation
+        where("user_id", "==", user.uid)
       );
 
       const docs = await getDocs(q);
-      return docs.docs.map((doc) => ({
-        id: doc.id,
-        ...(doc.data() as StudySession),
-      } as StudySession));
+      const ms = (t: any) => t?.toMillis?.() ?? (t ? new Date(t).getTime() : 0);
+      return docs.docs
+        .map((doc) => ({
+          id: doc.id,
+          ...(doc.data() as StudySession),
+        } as StudySession))
+        .sort((a: any, b: any) => ms(b.created_at) - ms(a.created_at))
+        .slice(0, 100);
     },
   });
 
