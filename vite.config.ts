@@ -142,6 +142,7 @@ export default defineConfig(({ mode }) => {
     postcss: path.resolve(__dirname),
   },
   build: {
+    sourcemap: true,
     rollupOptions: {
       output: {
         manualChunks: {
