@@ -4,7 +4,7 @@ import { db } from "@/lib/firebase";
 import { doc, getDoc, collection, query, where, getDocs, documentId, setDoc } from "firebase/firestore";
 import { computeAvgQuizScore } from "@/lib/userStats";
 import { toDateKey } from "@/lib/utils";
-import { dedupedXpSum } from "@/lib/xp";
+import { dedupedXpSum, dedupedXpEntries } from "@/lib/xp";
 
 /* ──────────────────────────────────────────────────────────────────────────
  * FIRESTORE READ CONSOLIDATION
@@ -42,6 +42,30 @@ const chunk = <T,>(arr: T[], n: number): T[][] => {
   const out: T[][] = [];
   for (let i = 0; i < arr.length; i += n) out.push(arr.slice(i, i + n));
   return out;
+};
+
+export type TrendPoint = { label: string; day: string; xp: number; total: number };
+
+/** Build a `days`-long daily XP trajectory (per-day gain + running total). */
+const buildXpTrend = (entries: Array<{ ms: number; amount: number }>, days = 14): TrendPoint[] => {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const start = today.getTime() - (days - 1) * DAY_MS;
+
+  // XP accumulated before the visible window — so the curve starts at the real total.
+  let cumulative = entries.reduce((sum, e) => (e.ms < start ? sum + e.amount : sum), 0);
+
+  return Array.from({ length: days }, (_, i) => {
+    const dayStart = start + i * DAY_MS;
+    const dayEnd = dayStart + DAY_MS;
+    const xp = entries.reduce(
+      (sum, e) => (e.ms >= dayStart && e.ms < dayEnd ? sum + e.amount : sum),
+      0
+    );
+    cumulative += xp;
+    const d = new Date(dayStart);
+    return { label: `${d.getDate()}/${d.getMonth() + 1}`, day: shortDay[d.getDay()], xp, total: cumulative };
+  });
 };
 
 const emptyAnalytics = () => ({
@@ -86,15 +110,17 @@ export const useDashboardData = () => {
    * never be inflated by duplicate entries and always matches the
    * leaderboard. We also write the corrected value back to
    * profiles.total_xp so any other read of the aggregate self-heals. */
-  const { data: totalXp } = useQuery({
+  const { data: xpData } = useQuery({
     queryKey: ["totalXp", user?.uid],
     queryFn: async () => {
-      if (!user) return 0;
+      if (!user) return { total: 0, trend: [] as TrendPoint[] };
 
       const snapshot = await getDocs(
         query(collection(db, "xp_logs"), where("user_id", "==", user.uid))
       );
       const total = dedupedXpSum(snapshot.docs);
+      // Same de-duplicated source feeds the 14-day performance trajectory.
+      const trend = buildXpTrend(dedupedXpEntries(snapshot.docs));
 
       try {
         await setDoc(
@@ -105,11 +131,13 @@ export const useDashboardData = () => {
       } catch {
         // Cache write failure is non-fatal — we still return the correct sum.
       }
-      return total;
+      return { total, trend };
     },
     enabled: !!user,
     staleTime: 1000 * 30,
   });
+  const totalXp = xpData?.total;
+  const performanceTrend = xpData?.trend ?? [];
 
   /* ── 1 read: study_sessions → studyTime AND progressAnalytics ── */
   const { data: sessionStats } = useQuery({
@@ -343,6 +371,7 @@ export const useDashboardData = () => {
     profile,
     streak,
     totalXp: totalXp ?? 0,
+    performanceTrend,
     studyTime: sessionStats?.studyTime ?? "0h",
     avgScore: quizStats?.avgScore ?? null,
     progressAnalytics: sessionStats?.analytics ?? emptyAnalytics(),

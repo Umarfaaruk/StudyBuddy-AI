@@ -13,6 +13,7 @@ import { useAuth } from "@/contexts/AuthContext";
 // dashboard load.
 import NotificationPanel from "@/components/NotificationPanel";
 import FeedbackEnforcer from "@/components/FeedbackEnforcer";
+import PerformanceTrajectory from "@/components/PerformanceTrajectory";
 import { StaggerContainer, StaggerItem } from "@/components/motion/FadeIn";
 
 const Dashboard = () => {
@@ -21,7 +22,7 @@ const Dashboard = () => {
     profile, streak, totalXp, studyTime, avgScore,
     continueLearning, weakTopics, isLoading, greeting,
     // FIX: consume the additional data useDashboardData already fetches
-    progressAnalytics,
+    progressAnalytics, performanceTrend,
   } = useDashboardData();
 
   const displayName = profile?.full_name?.split(" ")[0] ?? "there";
@@ -233,6 +234,17 @@ const Dashboard = () => {
           )}
         </div>
       </div>
+      </StaggerItem>
+
+      <StaggerItem>
+        {isLoading ? (
+          <div className="glass-card rounded-2xl p-6">
+            <Skeleton className="h-5 w-48 mb-5" />
+            <Skeleton className="h-[240px] w-full rounded-xl" />
+          </div>
+        ) : (
+          <PerformanceTrajectory data={performanceTrend} />
+        )}
       </StaggerItem>
 
       <StaggerItem>
