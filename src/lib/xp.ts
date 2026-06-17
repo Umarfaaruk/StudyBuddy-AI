@@ -18,29 +18,6 @@ export function xpLogSignature(x: any): string {
   return `${x?.user_id}|${x?.xp_amount}|${x?.source_type}|${ms}`;
 }
 
-/** Timestamp (ms) of an xp_log doc, supporting Firestore Timestamp or ISO string. */
-function xpLogMillis(x: any): number {
-  return x?.created_at?.toMillis?.() ?? (x?.created_at ? new Date(x.created_at).getTime() : 0);
-}
-
-/**
- * Deduplicated, time-ordered XP entries for one user — the basis for a
- * performance-over-time trajectory. Same de-dup rule as dedupedXpSum.
- */
-export function dedupedXpEntries(docs: DocLike[]): Array<{ ms: number; amount: number }> {
-  const seen = new Set<string>();
-  const entries: Array<{ ms: number; amount: number }> = [];
-  for (const d of docs) {
-    const x = d.data();
-    if (!x || typeof x.xp_amount !== "number" || !x.user_id) continue;
-    const sig = xpLogSignature(x);
-    if (seen.has(sig)) continue;
-    seen.add(sig);
-    entries.push({ ms: xpLogMillis(x), amount: x.xp_amount });
-  }
-  return entries.sort((a, b) => a.ms - b.ms);
-}
-
 /** Deduplicated sum of xp_amount across a set of xp_log docs (one user). */
 export function dedupedXpSum(docs: DocLike[]): number {
   const seen = new Set<string>();

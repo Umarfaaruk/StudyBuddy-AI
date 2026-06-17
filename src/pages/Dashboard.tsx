@@ -1,7 +1,7 @@
 import { Link } from "react-router-dom";
 import {
   BookOpen, MessageCircleQuestion, Gamepad2, Upload, BarChart3,
-  Trophy, Flame, Lightbulb, AlertTriangle, CalendarDays, User, ArrowRight, Wrench, Bot, Sparkles, Youtube
+  Trophy, Flame, Lightbulb, AlertTriangle, CalendarDays, User, ArrowRight, Wrench, Youtube
 } from "lucide-react";
 import { useDashboardData } from "@/hooks/useDashboardData";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -13,7 +13,7 @@ import { useAuth } from "@/contexts/AuthContext";
 // dashboard load.
 import NotificationPanel from "@/components/NotificationPanel";
 import FeedbackEnforcer from "@/components/FeedbackEnforcer";
-import PerformanceTrajectory from "@/components/PerformanceTrajectory";
+import RetentionTrajectory from "@/components/RetentionTrajectory";
 import { StaggerContainer, StaggerItem } from "@/components/motion/FadeIn";
 
 const Dashboard = () => {
@@ -22,7 +22,7 @@ const Dashboard = () => {
     profile, streak, totalXp, studyTime, avgScore,
     continueLearning, weakTopics, isLoading, greeting,
     // FIX: consume the additional data useDashboardData already fetches
-    progressAnalytics, performanceTrend,
+    progressAnalytics, retentionTrend,
   } = useDashboardData();
 
   const displayName = profile?.full_name?.split(" ")[0] ?? "there";
@@ -149,38 +149,15 @@ const Dashboard = () => {
           </Link>
         </div>
 
-        <div className="lg:col-span-8 glass-card rounded-2xl p-6 hover-glow">
-          <div className="flex items-center justify-between mb-5">
-            <h3 className="text-base font-bold text-foreground flex items-center gap-2">
-              <Bot className="h-5 w-5 text-primary" />
-              AI Tutor
-            </h3>
-            <Link to="/tools" className="text-xs font-semibold text-primary hover:underline flex items-center gap-1">
-              Open <ArrowRight className="h-3 w-3" />
-            </Link>
-          </div>
-          <div className="grid grid-cols-2 gap-3">
-            {[
-              { icon: Bot, label: "AI Document Tutor", desc: "Chat with your study AI", to: "/materials/tutor", color: "from-violet-500 to-violet-600" },
-              { icon: MessageCircleQuestion, label: "Ask Doubt", desc: "Get instant answers", to: "/doubts", color: "from-[#29ABE2] to-[#29ABE2]" },
-              { icon: Sparkles, label: "Flashcards", desc: "Generate study cards", to: "/materials/flashcards", color: "from-amber-500 to-orange-500" },
-              { icon: Gamepad2, label: "Quick Quiz", desc: "Test your knowledge", to: "/quiz", color: "from-emerald-500 to-emerald-600" },
-            ].map((tool) => (
-              <Link
-                key={tool.label}
-                to={tool.to}
-                className="group relative flex items-center gap-3 rounded-xl border border-border hover:border-primary/20 p-3.5 transition-all hover-lift bg-card"
-              >
-                <div className={`h-10 w-10 rounded-xl bg-gradient-to-br ${tool.color} flex items-center justify-center flex-shrink-0 shadow-sm group-hover:shadow-md transition-shadow`}>
-                  <tool.icon className="h-5 w-5 text-white" />
-                </div>
-                <div className="min-w-0">
-                  <div className="text-sm font-semibold text-foreground">{tool.label}</div>
-                  <div className="text-[11px] text-muted-foreground">{tool.desc}</div>
-                </div>
-              </Link>
-            ))}
-          </div>
+        <div className="lg:col-span-8">
+          {isLoading ? (
+            <div className="glass-card rounded-2xl p-6 h-full">
+              <Skeleton className="h-5 w-48 mb-5" />
+              <Skeleton className="h-[240px] w-full rounded-xl" />
+            </div>
+          ) : (
+            <RetentionTrajectory data={retentionTrend} />
+          )}
         </div>
       </div>
       </StaggerItem>
@@ -234,17 +211,6 @@ const Dashboard = () => {
           )}
         </div>
       </div>
-      </StaggerItem>
-
-      <StaggerItem>
-        {isLoading ? (
-          <div className="glass-card rounded-2xl p-6">
-            <Skeleton className="h-5 w-48 mb-5" />
-            <Skeleton className="h-[240px] w-full rounded-xl" />
-          </div>
-        ) : (
-          <PerformanceTrajectory data={performanceTrend} />
-        )}
       </StaggerItem>
 
       <StaggerItem>

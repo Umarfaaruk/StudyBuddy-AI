@@ -4,7 +4,7 @@ import { db } from "@/lib/firebase";
 import { doc, getDoc, collection, query, where, getDocs, documentId, setDoc } from "firebase/firestore";
 import { computeAvgQuizScore } from "@/lib/userStats";
 import { toDateKey } from "@/lib/utils";
-import { dedupedXpSum, dedupedXpEntries } from "@/lib/xp";
+import { dedupedXpSum } from "@/lib/xp";
 
 /* ──────────────────────────────────────────────────────────────────────────
  * FIRESTORE READ CONSOLIDATION
@@ -44,27 +44,43 @@ const chunk = <T,>(arr: T[], n: number): T[][] => {
   return out;
 };
 
-export type TrendPoint = { label: string; day: string; xp: number; total: number };
+export type RetentionPoint = {
+  label: string;
+  day: string;
+  /** Avg quiz accuracy that day (knowledge retention), null if no quiz taken. */
+  accuracy: number | null;
+  /** Minutes studied that day (habit retention / showing up). */
+  minutes: number;
+  active: boolean;
+};
 
-/** Build a `days`-long daily XP trajectory (per-day gain + running total). */
-const buildXpTrend = (entries: Array<{ ms: number; amount: number }>, days = 14): TrendPoint[] => {
+/**
+ * Build a `days`-long retention trajectory combining two signals:
+ *   • accuracy — how well the user retains knowledge (avg quiz score %)
+ *   • minutes  — whether the user keeps showing up (study time per day)
+ */
+const buildRetentionTrend = (
+  minutesByDate: Map<string, number>,
+  accByDate: Map<string, { correct: number; total: number }>,
+  days = 14
+): RetentionPoint[] => {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
   const start = today.getTime() - (days - 1) * DAY_MS;
 
-  // XP accumulated before the visible window — so the curve starts at the real total.
-  let cumulative = entries.reduce((sum, e) => (e.ms < start ? sum + e.amount : sum), 0);
-
   return Array.from({ length: days }, (_, i) => {
-    const dayStart = start + i * DAY_MS;
-    const dayEnd = dayStart + DAY_MS;
-    const xp = entries.reduce(
-      (sum, e) => (e.ms >= dayStart && e.ms < dayEnd ? sum + e.amount : sum),
-      0
-    );
-    cumulative += xp;
-    const d = new Date(dayStart);
-    return { label: `${d.getDate()}/${d.getMonth() + 1}`, day: shortDay[d.getDay()], xp, total: cumulative };
+    const d = new Date(start + i * DAY_MS);
+    const key = toDateKey(d);
+    const minutes = minutesByDate.get(key) ?? 0;
+    const acc = accByDate.get(key);
+    const accuracy = acc && acc.total > 0 ? Math.round((acc.correct / acc.total) * 100) : null;
+    return {
+      label: `${d.getDate()}/${d.getMonth() + 1}`,
+      day: shortDay[d.getDay()],
+      accuracy,
+      minutes,
+      active: minutes > 0,
+    };
   });
 };
 
@@ -110,17 +126,15 @@ export const useDashboardData = () => {
    * never be inflated by duplicate entries and always matches the
    * leaderboard. We also write the corrected value back to
    * profiles.total_xp so any other read of the aggregate self-heals. */
-  const { data: xpData } = useQuery({
+  const { data: totalXp } = useQuery({
     queryKey: ["totalXp", user?.uid],
     queryFn: async () => {
-      if (!user) return { total: 0, trend: [] as TrendPoint[] };
+      if (!user) return 0;
 
       const snapshot = await getDocs(
         query(collection(db, "xp_logs"), where("user_id", "==", user.uid))
       );
       const total = dedupedXpSum(snapshot.docs);
-      // Same de-duplicated source feeds the 14-day performance trajectory.
-      const trend = buildXpTrend(dedupedXpEntries(snapshot.docs));
 
       try {
         await setDoc(
@@ -131,13 +145,11 @@ export const useDashboardData = () => {
       } catch {
         // Cache write failure is non-fatal — we still return the correct sum.
       }
-      return { total, trend };
+      return total;
     },
     enabled: !!user,
     staleTime: 1000 * 30,
   });
-  const totalXp = xpData?.total;
-  const performanceTrend = xpData?.trend ?? [];
 
   /* ── 1 read: study_sessions → studyTime AND progressAnalytics ── */
   const { data: sessionStats } = useQuery({
@@ -234,6 +246,7 @@ export const useDashboardData = () => {
           avgScore: 0,
           weakTopics: [] as Array<{ topic: string; avgScore: number }>,
           quizTopics: [] as Array<{ id: string; title: string; subject: string; pct: number }>,
+          dailyAccuracy: {} as Record<string, { correct: number; total: number }>,
         };
       }
 
@@ -252,9 +265,20 @@ export const useDashboardData = () => {
       const topicScores: Record<string, { total: number; count: number; totalQuestions: number }> = {};
       // c) continue-learning fallback (latest attempt per topic with a topic_id)
       const topicMap: Record<string, { id: string; title: string; subject: string; pct: number }> = {};
+      // d) per-day accuracy → knowledge-retention line of the trajectory chart
+      const dailyAccuracy: Record<string, { correct: number; total: number }> = {};
 
       snapshot.forEach((quizDoc) => {
         const data = quizDoc.data();
+
+        const attemptDate = data.created_at?.toDate?.() ?? (data.created_at ? new Date(data.created_at) : null);
+        if (attemptDate && !Number.isNaN(attemptDate.getTime()) && data.total_questions > 0) {
+          const key = toDateKey(attemptDate);
+          const entry = dailyAccuracy[key] || { correct: 0, total: 0 };
+          entry.correct += data.score || 0;
+          entry.total += data.total_questions || 0;
+          dailyAccuracy[key] = entry;
+        }
 
         const topic = data.topic_title || "General";
         if (!topicScores[topic]) {
@@ -287,7 +311,7 @@ export const useDashboardData = () => {
         .sort((a, b) => a.avgScore - b.avgScore)
         .slice(0, 3);
 
-      return { avgScore, weakTopics, quizTopics: Object.values(topicMap).slice(0, 3) };
+      return { avgScore, weakTopics, quizTopics: Object.values(topicMap).slice(0, 3), dailyAccuracy };
     },
     enabled: !!user,
   });
@@ -367,11 +391,18 @@ export const useDashboardData = () => {
     return "Good evening";
   };
 
+  /* ── retention trajectory — combines study minutes/day + quiz accuracy/day.
+   * Derived from data the two queries above already fetched (zero extra reads). */
+  const minutesByDate = new Map<string, number>();
+  for (const r of sessionStats?.analytics?.dayWiseRecords ?? []) minutesByDate.set(r.date, r.minutes);
+  const accByDate = new Map(Object.entries(quizStats?.dailyAccuracy ?? {}));
+  const retentionTrend = buildRetentionTrend(minutesByDate, accByDate);
+
   return {
     profile,
     streak,
     totalXp: totalXp ?? 0,
-    performanceTrend,
+    retentionTrend,
     studyTime: sessionStats?.studyTime ?? "0h",
     avgScore: quizStats?.avgScore ?? null,
     progressAnalytics: sessionStats?.analytics ?? emptyAnalytics(),
