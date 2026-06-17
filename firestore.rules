@@ -260,10 +260,12 @@ service cloud.firestore {
     }
 
     // ── /parent_guidance collection ───────────────────
+    // Owner-scoped notes; was wide open to any authenticated user (IDOR).
     match /parent_guidance/{noteId} {
-      allow read: if isAuthenticated();
-      allow create: if isAuthenticated();
-      allow update, delete: if isAuthenticated();
+      allow read: if isOwner() || isAdmin();
+      allow create: if isNewOwner();
+      allow update: if isOwner();
+      allow delete: if isOwner() || isAdmin();
     }
 
     // ── /saved_notes collection ───────────────────────
@@ -277,7 +279,16 @@ service cloud.firestore {
     // ── /notifications collection ─────────────────────
     match /notifications/{notificationId} {
       allow read: if isAuthenticated() && resource.data.user_id == request.auth.uid;
-      allow create: if isAuthenticated();
+      // Self notifications, or cross-user system notifications from a verified sender
+      allow create: if isAuthenticated() && (
+        request.resource.data.user_id == request.auth.uid ||
+        (
+          request.resource.data.from_user_id == request.auth.uid &&
+          request.resource.data.type == "system" &&
+          request.resource.data.user_id is string &&
+          request.resource.data.user_id != request.auth.uid
+        )
+      );
       allow update: if isAuthenticated() && resource.data.user_id == request.auth.uid;
       allow delete: if isAuthenticated() && resource.data.user_id == request.auth.uid;
     }
@@ -300,6 +311,22 @@ service cloud.firestore {
       allow delete: if isAuthenticated() && resource.data.follower_id == request.auth.uid;
       // Follow edges are immutable — delete and recreate instead
       allow update: if false;
+    }
+
+    // ── /complaints collection ────────────────────────
+    match /complaints/{complaintId} {
+      allow read: if isOwner() || isAdmin();
+      allow create: if isNewOwner();
+      allow update: if isOwner() || isAdmin();
+      allow delete: if isAdmin();
+    }
+
+    // ── /complaint_history collection ─────────────────
+    match /complaint_history/{historyId} {
+      allow read: if isOwner() || isAdmin();
+      allow create: if isNewOwner() || isAdmin();
+      allow update: if isAdmin();
+      allow delete: if isAdmin();
     }
   }
 }

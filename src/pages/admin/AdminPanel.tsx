@@ -2,11 +2,12 @@ import { useState, useEffect, useMemo } from "react";
 import {
   ShieldCheck, Users, Clock, Flame, BookOpen, Search, ChevronDown, ChevronUp,
   Trophy, Upload, BarChart3, Zap, Loader2, MessageSquare, MessageCircleQuestion,
-  Star, AlertTriangle, Target, Trash2
+  Star, AlertTriangle, Target, Trash2, Eye, Image, CheckCircle, X
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { db } from "@/lib/firebase";
-import { collection, onSnapshot } from "firebase/firestore";
+import { collection, onSnapshot, doc, updateDoc, setDoc } from "firebase/firestore";
+import { createNotification } from "@/contexts/NotificationContext";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
 import {
@@ -33,7 +34,7 @@ const AdminPanel = () => {
   const { user } = useAuth();
   const [searchQuery, setSearchQuery] = useState("");
   const [expandedUserId, setExpandedUserId] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<"users" | "feedback" | "analytics">("users");
+  const [activeTab, setActiveTab] = useState<"users" | "feedback" | "analytics" | "complaints">("users");
   const [confirmDeleteUserId, setConfirmDeleteUserId] = useState<string | null>(null);
   const [deletingUserId, setDeletingUserId] = useState<string | null>(null);
 
@@ -49,6 +50,18 @@ const AdminPanel = () => {
   const [flashcards, setFlashcards] = useState<any[]>([]);
   const [studyPlans, setStudyPlans] = useState<any[]>([]);
   const [feedback, setFeedback] = useState<any[]>([]);
+  const [complaints, setComplaints] = useState<any[]>([]);
+
+  // Complaints Filtering & Operations State
+  const [priorityFilter, setPriorityFilter] = useState<string>("All");
+  const [statusFilter, setStatusFilter] = useState<string>("All");
+  const [selectedComplaintId, setSelectedComplaintId] = useState<string | null>(null);
+  const [editAdminNotes, setEditAdminNotes] = useState<string>("");
+  const [showResolutionModal, setShowResolutionModal] = useState<boolean>(false);
+  const [resolutionNotes, setResolutionNotes] = useState<string>("");
+  const [fixSummary, setFixSummary] = useState<string>("");
+  const [showScreenshotUrl, setShowScreenshotUrl] = useState<string | null>(null);
+  const [updatingComplaintId, setUpdatingComplaintId] = useState<string | null>(null);
 
   // Track which listeners have reported at least once
   const [loadedListeners, setLoadedListeners] = useState<Record<string, boolean>>({});
@@ -68,6 +81,7 @@ const AdminPanel = () => {
       { name: "flashcards",     setter: setFlashcards },
       { name: "study_plans",    setter: setStudyPlans },
       { name: "feedback",       setter: setFeedback },
+      { name: "complaints",     setter: setComplaints },
     ];
 
     const unsubs = collectionsToListen.map(({ name, setter }) => {
@@ -96,7 +110,7 @@ const AdminPanel = () => {
     const required = [
       "profiles", "users", "xp_logs", "user_streaks", "study_sessions",
       "quiz_attempts", "materials", "doubt_sessions", "flashcards",
-      "study_plans", "feedback",
+      "study_plans", "feedback", "complaints",
     ];
     return required.some((key) => !loadedListeners[key]);
   }, [loadedListeners]);
@@ -275,6 +289,166 @@ const AdminPanel = () => {
     items.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
     return items;
   }, [feedback]);
+
+  const complaintsList = useMemo(() => {
+    const items = complaints.map((c) => {
+      const userProfile = profiles.find((p) => p.id === c.user_id) || usersData.find((u) => u.id === c.user_id);
+      return {
+        ...c,
+        userName: userProfile?.full_name || userProfile?.displayName || "Unknown User",
+        userEmail: userProfile?.email || "—",
+        userAvatar: userProfile?.avatar_url,
+      };
+    });
+    items.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+    return items;
+  }, [complaints, profiles, usersData]);
+
+  const filteredComplaints = useMemo(() => {
+    return complaintsList.filter((c) => {
+      if (searchQuery.trim()) {
+        const q = searchQuery.toLowerCase();
+        const matchesQuery =
+          c.title.toLowerCase().includes(q) ||
+          c.description.toLowerCase().includes(q) ||
+          c.userName.toLowerCase().includes(q) ||
+          c.userEmail.toLowerCase().includes(q) ||
+          c.id.toLowerCase().includes(q);
+        if (!matchesQuery) return false;
+      }
+      if (statusFilter !== "All" && c.status !== statusFilter) return false;
+      if (priorityFilter !== "All" && c.priority !== priorityFilter) return false;
+      
+      return true;
+    });
+  }, [complaintsList, searchQuery, statusFilter, priorityFilter]);
+
+  const handleUpdateStatus = async (complaintId: string, newStatus: string) => {
+    const complaint = complaintsList.find((c) => c.id === complaintId);
+    if (!complaint) return;
+
+    if (newStatus === "Resolved") {
+      setResolutionNotes("");
+      setFixSummary("");
+      setShowResolutionModal(true);
+      return;
+    }
+
+    setUpdatingComplaintId(complaintId);
+    try {
+      const nowStr = new Date().toISOString();
+      const oldStatus = complaint.status;
+
+      await updateDoc(doc(db, "complaints", complaintId), {
+        status: newStatus,
+        admin_notes: editAdminNotes,
+        updated_at: nowStr,
+      });
+
+      const historyId = `HST-${Math.floor(100000 + Math.random() * 900000)}`;
+      await setDoc(doc(db, "complaint_history", historyId), {
+        id: historyId,
+        complaint_id: complaintId,
+        old_status: oldStatus,
+        new_status: newStatus,
+        changed_by: "admin",
+        notes: editAdminNotes || `Status updated to ${newStatus}`,
+        created_at: nowStr,
+        user_id: complaint.user_id,
+      });
+
+      const statusMessages: Record<string, string> = {
+        "Pending": "Your issue has been received.",
+        "Under Review": "Our team is reviewing your issue.",
+        "In Progress": "We are actively working on your issue.",
+        "Testing": "A fix has been implemented and is being tested.",
+        "Rejected": "Your issue has been reviewed and closed.",
+      };
+
+      const notificationMsg = statusMessages[newStatus] || `Status updated to ${newStatus}`;
+      const notificationIcon = newStatus === "Rejected" ? "❌" : "⚠️";
+
+      await createNotification(complaint.user_id, {
+        title: "Complaint Status Updated",
+        message: notificationMsg,
+        type: "system",
+        icon: notificationIcon,
+      });
+
+      toast.success(`Complaint status updated to ${newStatus}`);
+      setSelectedComplaintId(null);
+      setEditAdminNotes("");
+    } catch (error: any) {
+      console.error("Error updating complaint status:", error);
+      toast.error(error.message || "Failed to update complaint status");
+    } finally {
+      setUpdatingComplaintId(null);
+    }
+  };
+
+  const handleResolveComplaint = async () => {
+    if (!selectedComplaintId) return;
+    const complaint = complaintsList.find((c) => c.id === selectedComplaintId);
+    if (!complaint) return;
+
+    if (!fixSummary.trim()) {
+      toast.error("Fix Summary is required");
+      return;
+    }
+    if (!resolutionNotes.trim()) {
+      toast.error("Resolution Notes are required");
+      return;
+    }
+
+    setUpdatingComplaintId(selectedComplaintId);
+    const refToast = toast.loading("Resolving complaint...");
+    try {
+      const nowStr = new Date().toISOString();
+      const oldStatus = complaint.status;
+
+      await updateDoc(doc(db, "complaints", selectedComplaintId), {
+        status: "Resolved",
+        admin_notes: editAdminNotes,
+        resolution_notes: resolutionNotes.trim(),
+        fix_summary: fixSummary.trim(),
+        resolved_at: nowStr,
+        updated_at: nowStr,
+      });
+
+      const historyId = `HST-${Math.floor(100000 + Math.random() * 900000)}`;
+      await setDoc(doc(db, "complaint_history", historyId), {
+        id: historyId,
+        complaint_id: selectedComplaintId,
+        old_status: oldStatus,
+        new_status: "Resolved",
+        changed_by: "admin",
+        notes: `Resolved: ${fixSummary.trim()}`,
+        created_at: nowStr,
+        user_id: complaint.user_id,
+      });
+
+      await createNotification(complaint.user_id, {
+        title: "Complaint Resolved",
+        message: "Your issue has been fixed successfully.",
+        type: "system",
+        icon: "✅",
+      });
+
+      toast.dismiss(refToast);
+      toast.success("Complaint successfully resolved!");
+      setShowResolutionModal(false);
+      setSelectedComplaintId(null);
+      setEditAdminNotes("");
+      setResolutionNotes("");
+      setFixSummary("");
+    } catch (error: any) {
+      toast.dismiss(refToast);
+      console.error("Error resolving complaint:", error);
+      toast.error(error.message || "Failed to resolve complaint");
+    } finally {
+      setUpdatingComplaintId(null);
+    }
+  };
 
   const feedbackLoading = isLoading;
   const statsError = null;
@@ -487,6 +661,15 @@ const AdminPanel = () => {
           Feedback ({feedbackList.length})
         </button>
         <button
+          onClick={() => { setActiveTab("complaints"); setSearchQuery(""); }}
+          className={`px-4 py-2 rounded-xl text-sm font-semibold transition-all ${
+            activeTab === "complaints" ? "bg-[#0F172A] text-white shadow-md" : "text-gray-400 hover:text-gray-900 hover:bg-gray-100"
+          }`}
+        >
+          <AlertTriangle className="h-4 w-4 inline mr-1.5 -mt-0.5" />
+          Complaints ({complaintsList.length})
+        </button>
+        <button
           onClick={() => { setActiveTab("analytics"); setSearchQuery(""); }}
           className={`px-4 py-2 rounded-xl text-sm font-semibold transition-all ${
             activeTab === "analytics" ? "bg-[#0F172A] text-white shadow-md" : "text-gray-400 hover:text-gray-900 hover:bg-gray-100"
@@ -503,7 +686,13 @@ const AdminPanel = () => {
           <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
           <input
             type="text"
-            placeholder={activeTab === "users" ? "Search users by name or email..." : "Search feedback by name or content..."}
+            placeholder={
+              activeTab === "users" 
+                ? "Search users by name or email..." 
+                : activeTab === "complaints"
+                ? "Search complaints by reference, title, description or user details..."
+                : "Search feedback by name or content..."
+            }
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             className="w-full h-11 pl-10 pr-4 text-sm bg-white border border-gray-200 rounded-xl outline-none focus:border-[#29ABE2]/40 focus:ring-2 focus:ring-[#29ABE2]/10 text-gray-900 transition-all shadow-sm placeholder:text-gray-300"
@@ -848,6 +1037,328 @@ const AdminPanel = () => {
           )}
         </div>
       )}
+      {/* ── COMPLAINTS TAB ────────────────────────────────── */}
+      {activeTab === "complaints" && (
+        <div className="space-y-4">
+          {/* Filters Bar */}
+          <div className="flex gap-3 flex-wrap items-center bg-white rounded-2xl p-4 shadow-sm border border-gray-100">
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-semibold text-gray-500">Filter by Status:</span>
+              <select
+                value={statusFilter}
+                onChange={(e) => setStatusFilter(e.target.value)}
+                className="text-xs bg-gray-50 border border-gray-200 rounded-lg p-2 font-medium text-gray-700 outline-none focus:border-[#29ABE2]"
+              >
+                {["All", "Pending", "Under Review", "In Progress", "Testing", "Resolved", "Rejected"].map((st) => (
+                  <option key={st} value={st}>{st}</option>
+                ))}
+              </select>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-semibold text-gray-500">Filter by Priority:</span>
+              <select
+                value={priorityFilter}
+                onChange={(e) => setPriorityFilter(e.target.value)}
+                className="text-xs bg-gray-50 border border-gray-200 rounded-lg p-2 font-medium text-gray-700 outline-none focus:border-[#29ABE2]"
+              >
+                {["All", "Low", "Medium", "High", "Critical"].map((pr) => (
+                  <option key={pr} value={pr}>{pr}</option>
+                ))}
+              </select>
+            </div>
+
+            <div className="text-xs font-medium text-gray-400 ml-auto">
+              Found {filteredComplaints.length} complaint(s)
+            </div>
+          </div>
+
+          {/* Complaints Grid/List */}
+          <div className="grid lg:grid-cols-12 gap-5 items-start">
+            {/* List */}
+            <div className={`space-y-3 lg:col-span-${selectedComplaintId ? "7" : "12"}`}>
+              {filteredComplaints.length === 0 ? (
+                <div className="bg-white rounded-2xl p-12 text-center shadow-sm border border-gray-100">
+                  <AlertTriangle className="h-10 w-10 text-gray-200 mx-auto mb-3" />
+                  <p className="text-sm text-gray-400">No complaints found matching current filters/search</p>
+                </div>
+              ) : (
+                filteredComplaints.map((c) => {
+                  const statusColors: Record<string, string> = {
+                    "Pending": "bg-yellow-50 text-yellow-600 border border-yellow-200",
+                    "Under Review": "bg-blue-50 text-blue-600 border border-blue-200",
+                    "In Progress": "bg-indigo-50 text-indigo-600 border border-indigo-200",
+                    "Testing": "bg-purple-50 text-purple-600 border border-purple-200",
+                    "Resolved": "bg-emerald-50 text-emerald-600 border border-emerald-200",
+                    "Rejected": "bg-rose-50 text-rose-600 border border-rose-200",
+                  };
+                  const priorityColors: Record<string, string> = {
+                    "Low": "bg-slate-50 text-slate-500 border border-slate-200",
+                    "Medium": "bg-blue-50 text-blue-500 border border-blue-200",
+                    "High": "bg-amber-50 text-amber-600 border border-amber-200",
+                    "Critical": "bg-red-50 text-red-600 border border-red-200 animate-pulse",
+                  };
+
+                  const isSelected = selectedComplaintId === c.id;
+
+                  return (
+                    <div
+                      key={c.id}
+                      onClick={() => {
+                        setSelectedComplaintId(c.id);
+                        setEditAdminNotes(c.admin_notes || "");
+                      }}
+                      className={`bg-white rounded-2xl p-4 md:p-5 shadow-sm border transition-all duration-200 hover:shadow-md cursor-pointer text-left ${
+                        isSelected ? "border-[#29ABE2] ring-2 ring-[#29ABE2]/10 bg-[#29ABE2]/[0.01]" : "border-gray-100"
+                      }`}
+                    >
+                      <div className="flex items-start justify-between gap-3 flex-wrap">
+                        <div className="flex items-center gap-3">
+                          {c.userAvatar ? (
+                            <img src={c.userAvatar} alt={c.userName} className="h-9 w-9 rounded-full object-cover ring-2 ring-gray-100" />
+                          ) : (
+                            <div className="h-9 w-9 rounded-full bg-gradient-to-br from-[#29ABE2]/20 to-[#29ABE2]/10 flex items-center justify-center ring-2 ring-[#29ABE2]/10">
+                              <span className="text-sm font-bold text-[#29ABE2]">{c.userName.charAt(0).toUpperCase()}</span>
+                            </div>
+                          )}
+                          <div>
+                            <div className="text-sm font-bold text-gray-900 leading-tight">{c.userName}</div>
+                            <div className="text-[10px] text-gray-400 mt-0.5">{c.userEmail}</div>
+                          </div>
+                        </div>
+
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className={`text-[10px] font-semibold px-2.5 py-0.5 rounded-full border ${priorityColors[c.priority] || ""}`}>
+                            {c.priority} Priority
+                          </span>
+                          <span className={`text-[10px] font-semibold px-2.5 py-0.5 rounded-full border ${statusColors[c.status] || ""}`}>
+                            {c.status}
+                          </span>
+                        </div>
+                      </div>
+
+                      <div className="mt-3">
+                        <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Ref: {c.id}</div>
+                        <h4 className="text-sm font-bold text-gray-900 mt-1">{c.title}</h4>
+                        <p className="text-xs text-gray-500 mt-1 line-clamp-2 leading-relaxed">{c.description}</p>
+                      </div>
+
+                      <div className="flex items-center gap-4 mt-3 pt-3 border-t border-gray-50 flex-wrap justify-between">
+                        <div className="text-[10px] text-gray-400">
+                          Category: <span className="font-semibold text-gray-700">{c.category}</span> · Reported: <span className="font-semibold">{new Date(c.created_at).toLocaleString()}</span>
+                        </div>
+                        {c.screenshot && (
+                          <div className="flex items-center gap-1 text-[10px] font-semibold text-[#29ABE2]">
+                            <Image className="h-3 w-3" /> Has Attachment
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })
+              )}
+            </div>
+
+            {/* Detail Pane */}
+            {selectedComplaintId && (() => {
+              const activeComplaint = complaintsList.find((c) => c.id === selectedComplaintId);
+              if (!activeComplaint) return null;
+
+              return (
+                <div className="lg:col-span-5 bg-white border border-gray-100 shadow-lg rounded-2xl p-5 md:p-6 space-y-5 sticky top-4 text-left animate-in fade-in slide-in-from-right-4 duration-200">
+                  <div className="flex items-center justify-between border-b border-gray-100 pb-3">
+                    <div>
+                      <h3 className="font-bold text-gray-900 text-base">Issue Details</h3>
+                      <span className="text-[10px] text-gray-400 font-mono">{activeComplaint.id}</span>
+                    </div>
+                    <button
+                      onClick={() => setSelectedComplaintId(null)}
+                      className="text-gray-400 hover:text-gray-900 p-1.5 rounded-lg hover:bg-gray-100 transition-all text-xs font-semibold border border-gray-200 px-2.5 py-1"
+                    >
+                      Close Pane
+                    </button>
+                  </div>
+
+                  <div>
+                    <h4 className="text-xs font-bold text-gray-400 uppercase tracking-wider">Reporting User</h4>
+                    <div className="flex items-center gap-3 mt-2 bg-gray-50 rounded-xl p-3 border border-gray-100">
+                      {activeComplaint.userAvatar ? (
+                        <img src={activeComplaint.userAvatar} alt={activeComplaint.userName} className="h-10 w-10 rounded-full object-cover border border-gray-200" />
+                      ) : (
+                        <div className="h-10 w-10 rounded-full bg-gradient-to-br from-[#29ABE2]/20 to-[#29ABE2]/10 flex items-center justify-center border border-[#29ABE2]/10">
+                          <span className="text-base font-bold text-[#29ABE2]">{activeComplaint.userName.charAt(0).toUpperCase()}</span>
+                        </div>
+                      )}
+                      <div className="min-w-0 flex-1">
+                        <div className="text-sm font-semibold text-gray-900 truncate">{activeComplaint.userName}</div>
+                        <div className="text-xs text-gray-400 truncate">{activeComplaint.userEmail}</div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div>
+                    <h4 className="text-xs font-bold text-gray-400 uppercase tracking-wider">Title</h4>
+                    <p className="text-sm text-gray-800 font-semibold mt-1 leading-tight">{activeComplaint.title}</p>
+                  </div>
+
+                  <div>
+                    <h4 className="text-xs font-bold text-gray-400 uppercase tracking-wider">Description</h4>
+                    <p className="text-xs text-gray-600 mt-1 whitespace-pre-wrap bg-gray-50 p-3 rounded-xl border border-gray-100 leading-relaxed max-h-32 overflow-y-auto">
+                      {activeComplaint.description}
+                    </p>
+                  </div>
+
+                  {activeComplaint.screenshot && (
+                    <div>
+                      <h4 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Screenshot Attachment</h4>
+                      <div
+                        onClick={() => setShowScreenshotUrl(activeComplaint.screenshot)}
+                        className="relative group cursor-pointer overflow-hidden rounded-xl border border-gray-200 bg-gray-50 max-h-36 flex items-center justify-center"
+                      >
+                        <img src={activeComplaint.screenshot} alt="Screenshot" className="object-contain max-h-36 transition-transform duration-300 group-hover:scale-[1.02]" />
+                        <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-xs font-semibold text-white gap-1.5">
+                          <Eye className="h-4 w-4" /> Click to enlarge
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {activeComplaint.status === "Resolved" && (
+                    <div className="bg-emerald-50 border border-emerald-100 rounded-xl p-3.5 space-y-1.5">
+                      <div className="flex items-center gap-1.5 text-emerald-700 font-bold text-xs">
+                        <CheckCircle className="h-4 w-4 text-emerald-600" />
+                        Resolution Info
+                      </div>
+                      <div className="text-[10px] text-emerald-600 font-medium">
+                        Resolved on {activeComplaint.resolved_at ? new Date(activeComplaint.resolved_at).toLocaleString() : "—"}
+                      </div>
+                      <div>
+                        <div className="text-[10px] font-bold text-emerald-700 uppercase tracking-wider font-mono">Fix Summary</div>
+                        <p className="text-xs text-gray-700 font-medium whitespace-pre-wrap mt-0.5">{activeComplaint.fix_summary}</p>
+                      </div>
+                      <div>
+                        <div className="text-[10px] font-bold text-emerald-700 uppercase tracking-wider font-mono">Resolution Notes</div>
+                        <p className="text-xs text-gray-700 whitespace-pre-wrap mt-0.5">{activeComplaint.resolution_notes}</p>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Actions Section */}
+                  <div className="border-t border-gray-100 pt-4 space-y-4">
+                    <div>
+                      <label className="text-xs font-bold text-gray-400 uppercase tracking-wider block mb-1.5">Admin Notes (Response to User)</label>
+                      <textarea
+                        value={editAdminNotes}
+                        onChange={(e) => setEditAdminNotes(e.target.value)}
+                        placeholder="Add internal notes or responses for the user..."
+                        rows={3}
+                        className="w-full p-3 text-xs bg-gray-50 border border-gray-200 rounded-xl outline-none focus:border-[#29ABE2] text-gray-800 transition-all resize-none placeholder:text-gray-300"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="text-xs font-bold text-gray-400 uppercase tracking-wider block mb-1.5">Change Status</label>
+                      <div className="grid grid-cols-2 gap-2">
+                        {["Pending", "Under Review", "In Progress", "Testing", "Resolved", "Rejected"].map((statusOption) => {
+                          const isActive = activeComplaint.status === statusOption;
+                          const colorClasses: Record<string, string> = {
+                            "Pending": isActive ? "bg-yellow-500 text-white" : "hover:bg-yellow-50 text-yellow-600 border-yellow-100 bg-white border",
+                            "Under Review": isActive ? "bg-blue-500 text-white" : "hover:bg-blue-50 text-blue-600 border-blue-100 bg-white border",
+                            "In Progress": isActive ? "bg-indigo-500 text-white" : "hover:bg-indigo-50 text-indigo-600 border-indigo-100 bg-white border",
+                            "Testing": isActive ? "bg-purple-500 text-white" : "hover:bg-purple-50 text-purple-600 border-purple-100 bg-white border",
+                            "Resolved": isActive ? "bg-emerald-500 text-white" : "hover:bg-emerald-50 text-emerald-600 border-emerald-100 bg-white border",
+                            "Rejected": isActive ? "bg-rose-500 text-white" : "hover:bg-rose-50 text-rose-600 border-rose-100 bg-white border",
+                          };
+
+                          return (
+                            <button
+                              key={statusOption}
+                              onClick={() => handleUpdateStatus(activeComplaint.id, statusOption)}
+                              disabled={updatingComplaintId === activeComplaint.id}
+                              className={`py-2 px-2.5 rounded-lg text-[10px] font-bold transition-all flex items-center justify-center ${colorClasses[statusOption] || ""}`}
+                            >
+                              {statusOption}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              );
+            })()}
+          </div>
+        </div>
+      )}
+
+      {/* Resolution Overlay Modal */}
+      {showResolutionModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setShowResolutionModal(false)} />
+          <div className="relative w-full max-w-md bg-white border border-gray-100 rounded-2xl shadow-2xl p-6 text-left animate-in fade-in zoom-in-95 duration-200">
+            <h3 className="text-lg font-bold text-gray-900 mb-2">Resolve Complaint</h3>
+            <p className="text-xs text-gray-400 mb-4">Please provide the resolution details for the reporting user.</p>
+
+            <div className="space-y-4">
+              <div>
+                <label className="text-xs font-bold text-gray-500 block mb-1.5">Fix Summary <span className="text-red-500">*</span></label>
+                <input
+                  type="text"
+                  placeholder="e.g. Fixed dashboard cache latency issue"
+                  value={fixSummary}
+                  onChange={(e) => setFixSummary(e.target.value)}
+                  className="w-full h-10 px-3 text-xs bg-gray-50 border border-gray-200 rounded-xl outline-none focus:border-[#29ABE2] text-gray-800 transition-all shadow-sm placeholder:text-gray-300"
+                />
+              </div>
+
+              <div>
+                <label className="text-xs font-bold text-gray-500 block mb-1.5">Resolution Notes <span className="text-red-500">*</span></label>
+                <textarea
+                  placeholder="Provide technical fix details or steps taken to resolve..."
+                  value={resolutionNotes}
+                  onChange={(e) => setResolutionNotes(e.target.value)}
+                  rows={4}
+                  className="w-full p-3 text-xs bg-gray-50 border border-gray-200 rounded-xl outline-none focus:border-[#29ABE2] text-gray-800 transition-all resize-none placeholder:text-gray-300"
+                />
+              </div>
+
+              <div className="flex justify-end gap-3 pt-3 border-t border-gray-100">
+                <button
+                  onClick={() => setShowResolutionModal(false)}
+                  className="px-4 py-2 border border-gray-200 rounded-lg text-xs font-semibold text-gray-600 hover:bg-gray-50 transition-all"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleResolveComplaint}
+                  disabled={updatingComplaintId !== null}
+                  className="px-4 py-2 bg-emerald-500 hover:bg-emerald-600 disabled:opacity-50 rounded-lg text-xs font-bold text-white transition-all flex items-center gap-1.5"
+                >
+                  {updatingComplaintId ? "Resolving..." : "Complete Resolution"}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Enlarged Screenshot Modal */}
+      {showScreenshotUrl && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm" onClick={() => setShowScreenshotUrl(null)}>
+          <button
+            onClick={() => setShowScreenshotUrl(null)}
+            className="absolute top-4 right-4 bg-white/10 hover:bg-white/20 p-2 rounded-full text-white transition-all z-10"
+          >
+            <X className="h-6 w-6" />
+          </button>
+          <img
+            src={showScreenshotUrl}
+            alt="Full screenshot"
+            className="max-w-full max-h-[90vh] object-contain rounded-xl shadow-2xl animate-in zoom-in-95 duration-200"
+            onClick={(e) => e.stopPropagation()}
+          />
+        </div>
+      )}
 
       {/* Footer */}
       <div className="text-center text-xs text-gray-300 py-2">
@@ -855,6 +1366,8 @@ const AdminPanel = () => {
           ? `Showing ${filteredUsers.length} of ${platformStats?.totalUsers || 0} users`
           : activeTab === "feedback"
           ? `Showing ${filteredFeedback.length} of ${feedbackList.length} feedback entries`
+          : activeTab === "complaints"
+          ? `Showing ${filteredComplaints.length} of ${complaintsList.length} complaints`
           : `Analyzing ${totalUsers} users across 6 features`}
       </div>
     </div>
