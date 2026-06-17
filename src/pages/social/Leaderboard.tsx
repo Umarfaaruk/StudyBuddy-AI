@@ -157,7 +157,7 @@ const Leaderboard = () => {
   };
   const handleAccept = async (recordId: string, requesterUid: string) => {
     if (!user) return;
-    await acceptFriendRequest(recordId, myNameEarly, requesterUid);
+    await acceptFriendRequest(recordId, myNameEarly, requesterUid, user.uid);
     toast.success("You're now friends!");
     refreshFriends();
   };

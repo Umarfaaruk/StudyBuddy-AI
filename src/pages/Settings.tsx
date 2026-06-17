@@ -2,13 +2,14 @@ import { useState, useEffect, useRef } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Bell, User, LogOut, Shield, Bot, Camera } from "lucide-react";
+import { Bell, User, LogOut, Shield, Bot, Camera, AlertTriangle, FileImage, X, Loader2 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
-import { db, auth } from "@/lib/firebase";
-import { doc, getDoc, updateDoc } from "firebase/firestore";
+import { db, auth, storage } from "@/lib/firebase";
+import { doc, getDoc, updateDoc, collection, setDoc } from "firebase/firestore";
+import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
+import { useNotifications } from "@/contexts/NotificationContext";
 import { EmailAuthProvider, reauthenticateWithCredential, updatePassword } from "firebase/auth";
-import { Loader2 } from "lucide-react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 
 const tabs = [
@@ -23,6 +24,129 @@ const Settings = () => {
   const [activeTab, setActiveTab] = useState("profile");
   const queryClient = useQueryClient();
   const avatarInputRef = useRef<HTMLInputElement>(null);
+
+  // Report issue form states
+  const [isReportModalOpen, setIsReportModalOpen] = useState(false);
+  const [title, setTitle] = useState("");
+  const [category, setCategory] = useState("Bug");
+  const [description, setDescription] = useState("");
+  const [priority, setPriority] = useState("Medium");
+  const [screenshot, setScreenshot] = useState<File | null>(null);
+  const [screenshotPreview, setScreenshotPreview] = useState<string | null>(null);
+  const [formErrors, setFormErrors] = useState<Record<string, string>>({});
+  const [submitting, setSubmitting] = useState(false);
+
+  const { addNotification } = useNotifications();
+
+  const handleScreenshotChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    setFormErrors(prev => ({ ...prev, screenshot: "" }));
+    if (!file) {
+      setScreenshot(null);
+      setScreenshotPreview(null);
+      return;
+    }
+
+    if (!file.type.startsWith("image/")) {
+      setFormErrors(prev => ({ ...prev, screenshot: "File must be an image (PNG, JPG, WEBP)" }));
+      setScreenshot(null);
+      setScreenshotPreview(null);
+      return;
+    }
+
+    if (file.size > 5 * 1024 * 1024) {
+      setFormErrors(prev => ({ ...prev, screenshot: "Image size must be under 5MB" }));
+      setScreenshot(null);
+      setScreenshotPreview(null);
+      return;
+    }
+
+    setScreenshot(file);
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      setScreenshotPreview(reader.result as string);
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleSubmitComplaint = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const errors: Record<string, string> = {};
+    if (!title.trim()) errors.title = "Issue Title is required";
+    if (!description.trim()) errors.description = "Description is required";
+
+    if (Object.keys(errors).length > 0) {
+      setFormErrors(errors);
+      return;
+    }
+
+    setSubmitting(true);
+    const refToast = toast.loading("Submitting report...");
+    try {
+      let screenshotUrl = null;
+      if (screenshot) {
+        const fileExtension = screenshot.name.split(".").pop();
+        const screenshotRef = ref(storage, `complaints/${user!.uid}/${Date.now()}_screenshot.${fileExtension}`);
+        await uploadBytes(screenshotRef, screenshot, { contentType: screenshot.type });
+        screenshotUrl = await getDownloadURL(screenshotRef);
+      }
+
+      const complaintId = `CMP-${Math.floor(100000 + Math.random() * 900000)}`;
+      const nowStr = new Date().toISOString();
+
+      await setDoc(doc(db, "complaints", complaintId), {
+        id: complaintId,
+        user_id: user!.uid,
+        title: title.trim(),
+        category,
+        description: description.trim(),
+        screenshot: screenshotUrl,
+        priority,
+        status: "Pending",
+        admin_notes: "",
+        resolution_notes: "",
+        created_at: nowStr,
+        updated_at: nowStr
+      });
+
+      const historyId = `HST-${Math.floor(100000 + Math.random() * 900000)}`;
+      await setDoc(doc(db, "complaint_history", historyId), {
+        id: historyId,
+        complaint_id: complaintId,
+        old_status: "",
+        new_status: "Pending",
+        changed_by: "user",
+        notes: "Complaint submitted",
+        created_at: nowStr,
+        user_id: user!.uid
+      });
+
+      await addNotification({
+        title: "Complaint Submitted",
+        message: "Your issue has been received.",
+        type: "system",
+        icon: "⚠️"
+      });
+
+      toast.dismiss(refToast);
+      toast.success(`Issue reported successfully! Reference: ${complaintId}`);
+
+      setTitle("");
+      setCategory("Bug");
+      setDescription("");
+      setPriority("Medium");
+      setScreenshot(null);
+      setScreenshotPreview(null);
+      setFormErrors({});
+      setIsReportModalOpen(false);
+    } catch (error: any) {
+      toast.dismiss(refToast);
+      console.error("Error submitting complaint:", error);
+      toast.error(error.message || "Failed to submit issue report");
+    } finally {
+      setSubmitting(false);
+    }
+  };
 
   // ── Change password ────────────────────────────────────────────────
   const [currentPassword, setCurrentPassword] = useState("");
@@ -174,6 +298,23 @@ const Settings = () => {
               </button>
             ))}
           </div>
+
+          {/* Report Issue card */}
+          <button
+            onClick={() => setIsReportModalOpen(true)}
+            className="w-full text-left block relative overflow-hidden rounded-xl bg-gradient-to-br from-red-500/10 to-red-500/20 border border-red-500/20 p-4 text-foreground group hover-lift hover-glow transition-all"
+          >
+            <div className="absolute -bottom-4 -right-4 opacity-15 group-hover:opacity-25 transition-opacity text-red-500">
+              <AlertTriangle className="h-16 w-16" />
+            </div>
+            <div className="relative z-10">
+              <div className="h-8 w-8 rounded-lg bg-red-500/10 border border-red-500/20 flex items-center justify-center mb-2">
+                <AlertTriangle className="h-4 w-4 text-red-500" />
+              </div>
+              <h3 className="text-sm font-bold text-white">Report Issue</h3>
+              <p className="text-[11px] text-muted-foreground mt-0.5">Bugs, UI problems, or feedback</p>
+            </div>
+          </button>
 
           {/* Plan badge */}
           <div className="bg-accent text-accent-foreground rounded-xl p-4 space-y-2">
@@ -444,6 +585,152 @@ const Settings = () => {
           </Button>
         </div>
       </div>
+
+      {/* Report Modal */}
+      {isReportModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setIsReportModalOpen(false)} />
+          <div className="relative w-full max-w-lg bg-[#0F172A] border border-white/10 rounded-2xl shadow-2xl p-6 max-h-[90vh] overflow-y-auto scrollbar-thin animate-in fade-in zoom-in-95 duration-200 text-left">
+            <button
+              onClick={() => setIsReportModalOpen(false)}
+              className="absolute top-4 right-4 text-white/40 hover:text-white p-1 rounded-lg hover:bg-white/5 transition-all"
+            >
+              <X className="h-5 w-5" />
+            </button>
+
+            <div className="flex items-center gap-3 mb-5">
+              <div className="h-10 w-10 rounded-xl bg-red-500/10 border border-red-500/20 flex items-center justify-center">
+                <AlertTriangle className="h-5 w-5 text-red-500" />
+              </div>
+              <div>
+                <h2 className="text-lg font-bold text-white">Report an Issue</h2>
+                <p className="text-xs text-muted-foreground">Tell us what's broken or needs improvement</p>
+              </div>
+            </div>
+
+            <form onSubmit={handleSubmitComplaint} className="space-y-4">
+              <div>
+                <label className="text-xs font-bold text-muted-foreground uppercase tracking-wider block mb-1.5">Issue Title <span className="text-red-500">*</span></label>
+                <input
+                  type="text"
+                  value={title}
+                  onChange={(e) => {
+                    setTitle(e.target.value);
+                    setFormErrors(prev => ({ ...prev, title: "" }));
+                  }}
+                  placeholder="Summarize the issue briefly..."
+                  className={`w-full h-11 px-4 text-sm bg-white/5 border rounded-xl outline-none text-white focus:border-primary/50 transition-all ${
+                    formErrors.title ? "border-red-500" : "border-white/10"
+                  }`}
+                />
+                {formErrors.title && <p className="text-xs text-red-500 mt-1">{formErrors.title}</p>}
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="text-xs font-bold text-muted-foreground uppercase tracking-wider block mb-1.5">Category <span className="text-red-500">*</span></label>
+                  <select
+                    value={category}
+                    onChange={(e) => setCategory(e.target.value)}
+                    className="w-full h-11 px-3 text-sm bg-white/5 border border-white/10 rounded-xl outline-none text-white focus:border-primary/50 transition-all"
+                  >
+                    {["Bug", "Feature Not Working", "UI Problem", "Performance Issue", "Account Issue", "Other"].map((cat) => (
+                      <option key={cat} value={cat} className="bg-[#0F172A] text-white">{cat}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="text-xs font-bold text-muted-foreground uppercase tracking-wider block mb-1.5">Priority <span className="text-red-500">*</span></label>
+                  <select
+                    value={priority}
+                    onChange={(e) => setPriority(e.target.value)}
+                    className="w-full h-11 px-3 text-sm bg-white/5 border border-white/10 rounded-xl outline-none text-white focus:border-primary/50 transition-all"
+                  >
+                    {["Low", "Medium", "High", "Critical"].map((prio) => (
+                      <option key={prio} value={prio} className="bg-[#0F172A] text-white">{prio}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              <div>
+                <label className="text-xs font-bold text-muted-foreground uppercase tracking-wider block mb-1.5">Description <span className="text-red-500">*</span></label>
+                <textarea
+                  value={description}
+                  onChange={(e) => {
+                    setDescription(e.target.value);
+                    setFormErrors(prev => ({ ...prev, description: "" }));
+                  }}
+                  rows={4}
+                  placeholder="Describe the steps to reproduce the issue or details of the problem..."
+                  className={`w-full p-4 text-sm bg-white/5 border rounded-xl outline-none text-white focus:border-primary/50 transition-all resize-none ${
+                    formErrors.description ? "border-red-500" : "border-white/10"
+                  }`}
+                />
+                {formErrors.description && <p className="text-xs text-red-500 mt-1">{formErrors.description}</p>}
+              </div>
+
+              <div>
+                <label className="text-xs font-bold text-muted-foreground uppercase tracking-wider block mb-1.5">Attach Screenshot (Optional)</label>
+                <div className="flex items-center gap-3">
+                  <label className="flex items-center justify-center gap-2 h-11 px-4 border border-white/10 rounded-xl bg-white/5 text-xs text-white cursor-pointer hover:bg-white/10 active:bg-white/15 transition-all">
+                    <FileImage className="h-4 w-4" />
+                    Choose Image
+                    <input
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      onChange={handleScreenshotChange}
+                    />
+                  </label>
+                  <div className="text-xs text-muted-foreground truncate max-w-[200px]">
+                    {screenshot ? screenshot.name : "No file chosen"}
+                  </div>
+                </div>
+                {formErrors.screenshot && <p className="text-xs text-red-500 mt-1">{formErrors.screenshot}</p>}
+                {screenshotPreview && (
+                  <div className="mt-3 relative inline-block">
+                    <img src={screenshotPreview} alt="Preview" className="h-20 w-auto rounded-lg border border-white/10" />
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setScreenshot(null);
+                        setScreenshotPreview(null);
+                      }}
+                      className="absolute -top-1.5 -right-1.5 bg-red-500 hover:bg-red-600 text-white rounded-full p-0.5"
+                    >
+                      <X className="h-3.5 w-3.5" />
+                    </button>
+                  </div>
+                )}
+              </div>
+
+              <div className="pt-2 flex justify-end gap-3 border-t border-white/5">
+                <button
+                  type="button"
+                  onClick={() => setIsReportModalOpen(false)}
+                  className="h-11 px-5 border border-white/10 rounded-xl text-xs text-white hover:bg-white/5 transition-all"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={submitting}
+                  className="h-11 px-5 bg-red-500 hover:bg-red-600 disabled:bg-red-500/50 text-white font-semibold rounded-xl text-xs flex items-center gap-2 transition-all"
+                >
+                  {submitting ? (
+                    <>
+                      <Loader2 className="h-4 w-4 animate-spin" /> Submitting...
+                    </>
+                  ) : (
+                    "Submit Report"
+                  )}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

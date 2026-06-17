@@ -15,6 +15,7 @@
  */
 
 import { getAuthHeaders } from "@/lib/authHeaders";
+import { toUserFacingAIError } from "@/lib/userFacingErrors";
 
 const GROQ_PROXY_URL = "/api/groq";
 
@@ -147,11 +148,19 @@ async function buildHeaders(): Promise<Record<string, string>> {
  */
 async function handleErrorResponse(resp: Response): Promise<never> {
   const errData = await resp.json().catch(() => ({}));
-  const errMsg = errData?.error?.message || errData?.error || `AI Service Error (${resp.status})`;
+  const raw = errData?.error?.message || errData?.error || "";
   if (resp.status === 401 || resp.status === 403) {
-    throw new Error("AI service authentication failed. Check server GROQ_API_KEY configuration.");
+    throw new Error("unauthorized");
   }
-  throw new Error(errMsg);
+  if (resp.status === 429) {
+    throw new Error("rate limit");
+  }
+  if (resp.status === 504) {
+    throw new Error("timeout");
+  }
+  // Log raw detail for engineers; throw a generic token for user-facing mapping
+  if (raw) console.warn("[AI] upstream error:", raw);
+  throw new Error("ai request failed");
 }
 
 /**
@@ -324,39 +333,44 @@ export async function aiVisionComplete(
 ): Promise<string> {
   const { messages, temperature = 0.5, maxTokens = 2048, signal } = options;
 
-  for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
-    const resp = await fetch(GROQ_PROXY_URL, {
-      method: "POST",
-      headers: await buildHeaders(),
-      signal,
-      body: JSON.stringify({
-        model: "meta-llama/llama-4-scout-17b-16e-instruct", // Vision model
-        messages,
-        temperature,
-        max_tokens: maxTokens,
-        stream: false,
-      }),
-    });
+  try {
+    for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
+      const resp = await fetch(GROQ_PROXY_URL, {
+        method: "POST",
+        headers: await buildHeaders(),
+        signal,
+        body: JSON.stringify({
+          model: "meta-llama/llama-4-scout-17b-16e-instruct", // Vision model
+          messages,
+          temperature,
+          max_tokens: maxTokens,
+          stream: false,
+        }),
+      });
 
-    if (resp.ok) {
-      const data = await resp.json();
-      return data?.choices?.[0]?.message?.content || "";
-    }
-
-    if (resp.status === 429) {
-      if (attempt < MAX_RETRIES) {
-        const delay = getRetryDelay(resp, attempt);
-        console.log(`[AI Vision] ⏳ Rate limited. Retrying in ${(delay / 1000).toFixed(1)}s (attempt ${attempt + 1}/${MAX_RETRIES})...`);
-        await sleep(delay, signal);
-        continue;
+      if (resp.ok) {
+        const data = await resp.json();
+        return data?.choices?.[0]?.message?.content || "";
       }
-      throw new Error("Rate limit exceeded after multiple retries. Please wait and try again.");
+
+      if (resp.status === 429) {
+        if (attempt < MAX_RETRIES) {
+          const delay = getRetryDelay(resp, attempt);
+          console.log(`[AI Vision] ⏳ Rate limited. Retrying in ${(delay / 1000).toFixed(1)}s (attempt ${attempt + 1}/${MAX_RETRIES})...`);
+          await sleep(delay, signal);
+          continue;
+        }
+        throw new Error("Rate limit exceeded after multiple retries. Please wait and try again.");
+      }
+
+      await handleErrorResponse(resp);
     }
 
-    await handleErrorResponse(resp);
+    throw new Error("Unexpected error in AI vision completion");
+  } catch (e) {
+    if (e instanceof DOMException && e.name === "AbortError") throw e;
+    throw new Error(toUserFacingAIError(e));
   }
-
-  throw new Error("Unexpected error in AI vision completion");
 }
 
 /**
@@ -367,6 +381,9 @@ export async function aiComplete(options: AIRequestOptions): Promise<string> {
   await acquireSlot(options.signal);
   try {
     return await aiCompleteInner(options);
+  } catch (e) {
+    if (e instanceof DOMException && e.name === "AbortError") throw e;
+    throw new Error(toUserFacingAIError(e));
   } finally {
     releaseSlot();
   }
@@ -382,6 +399,9 @@ export async function aiStream(
   await acquireSlot(options.signal);
   try {
     return await aiStreamInner(options, onToken);
+  } catch (e) {
+    if (e instanceof DOMException && e.name === "AbortError") throw e;
+    throw new Error(toUserFacingAIError(e));
   } finally {
     releaseSlot();
   }

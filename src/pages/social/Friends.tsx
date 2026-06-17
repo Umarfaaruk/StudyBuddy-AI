@@ -152,7 +152,7 @@ const Friends = () => {
 
   const acceptRequest = useMutation({
     mutationFn: async (record: { id: string; requester_id: string }) => {
-      await acceptFriendRequest(record.id, myName, record.requester_id);
+      await acceptFriendRequest(record.id, myName, record.requester_id, user!.uid);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["friendRecords", user?.uid] });

@@ -7,6 +7,7 @@ import { Mail, Lock, ArrowRight, Eye, EyeOff } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
 import { auth } from "@/lib/firebase";
+import { ensureGoogleUserProfile } from "@/lib/ensureGoogleProfile";
 import { GoogleAuthProvider, signInWithPopup, sendPasswordResetEmail } from "firebase/auth";
 import { getReadableFirebaseAuthError } from "@/lib/firebaseAuthErrors";
 
@@ -56,7 +57,8 @@ const Login = () => {
     try {
       const provider = new GoogleAuthProvider();
       provider.setCustomParameters({ prompt: 'select_account' });
-      await signInWithPopup(auth, provider);
+      const result = await signInWithPopup(auth, provider);
+      await ensureGoogleUserProfile(result.user);
       
       // ProtectedRoute will check if onboarding is completed.
       // New users → redirected to /onboarding

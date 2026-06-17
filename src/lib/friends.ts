@@ -76,7 +76,7 @@ export async function sendFriendRequest(
     message: `${fromName || "Someone"} sent you a friend request.`,
     type: "system",
     icon: "user-plus",
-  });
+  }, fromUid);
   return "sent";
 }
 
@@ -84,7 +84,8 @@ export async function sendFriendRequest(
 export async function acceptFriendRequest(
   recordId: string,
   accepterName: string,
-  requesterUid: string
+  requesterUid: string,
+  accepterUid: string
 ): Promise<void> {
   await updateDoc(doc(db, "friends_list", recordId), { status: "accepted" });
   await createNotification(requesterUid, {
@@ -92,7 +93,7 @@ export async function acceptFriendRequest(
     message: `${accepterName || "Someone"} accepted your friend request.`,
     type: "system",
     icon: "user-check",
-  });
+  }, accepterUid);
 }
 
 /** Remove/cancel/decline a relationship (delete the record). */

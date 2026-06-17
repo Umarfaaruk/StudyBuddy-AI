@@ -58,6 +58,14 @@ function getApiKey(): string {
 const clamp = (n: number, min: number, max: number) =>
   Math.min(max, Math.max(min, n));
 
+function sanitizeUpstreamError(status: number): string {
+  if (status === 429) return "AI service is busy. Please try again in a moment.";
+  if (status === 504) return "AI provider timed out. Please try again.";
+  if (status >= 500) return "AI service temporarily unavailable. Please try again.";
+  if (status === 401 || status === 403) return "Authentication required.";
+  return "AI request failed. Please try again.";
+}
+
 export default async function handler(req: any, res: any) {
   if (req.method !== "POST") {
     res.setHeader("Allow", "POST");
@@ -143,8 +151,7 @@ export default async function handler(req: any, res: any) {
 
     if (stream) {
       if (!upstream.ok || !upstream.body) {
-        const text = await upstream.text();
-        return res.status(upstream.status).json({ error: text || "Upstream streaming error" });
+        return res.status(upstream.status).json({ error: sanitizeUpstreamError(upstream.status) });
       }
 
       res.statusCode = 200;
@@ -168,8 +175,7 @@ export default async function handler(req: any, res: any) {
     });
 
     if (!upstream.ok) {
-      const message = data?.error?.message || `Upstream error (${upstream.status})`;
-      return res.status(upstream.status).json({ error: message });
+      return res.status(upstream.status).json({ error: sanitizeUpstreamError(upstream.status) });
     }
 
     return res.status(200).json(data);
@@ -177,6 +183,7 @@ export default async function handler(req: any, res: any) {
     if (error?.name === "TimeoutError" || error?.name === "AbortError") {
       return res.status(504).json({ error: "AI provider timed out. Please try again." });
     }
-    return res.status(500).json({ error: error?.message || "Internal server error" });
+    console.error("[groq] handler error:", error?.message || error);
+    return res.status(500).json({ error: "Internal server error" });
   }
 }

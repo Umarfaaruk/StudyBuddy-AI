@@ -116,15 +116,20 @@ export const useNotifications = () => {
  */
 export async function createNotification(
   userId: string,
-  data: { title: string; message: string; type: Notification["type"]; icon: string }
+  data: { title: string; message: string; type: Notification["type"]; icon: string },
+  fromUserId?: string
 ) {
   try {
-    await addDoc(collection(db, "notifications"), {
+    const payload: Record<string, unknown> = {
       ...data,
       user_id: userId,
       read: false,
       created_at: new Date().toISOString(),
-    });
+    };
+    if (fromUserId && fromUserId !== userId) {
+      payload.from_user_id = fromUserId;
+    }
+    await addDoc(collection(db, "notifications"), payload);
   } catch (error) {
     console.error("[Notifications] createNotification error:", error);
   }

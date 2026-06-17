@@ -5,9 +5,9 @@ import { Input } from "@/components/ui/input";
 import { Mail, Lock, User, ArrowRight, CheckCircle2, Eye, EyeOff } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
-import { auth, db } from "@/lib/firebase";
+import { auth } from "@/lib/firebase";
 import { GoogleAuthProvider, signInWithPopup } from "firebase/auth";
-import { doc, getDoc, setDoc } from "firebase/firestore";
+import { ensureGoogleUserProfile } from "@/lib/ensureGoogleProfile";
 import { getReadableFirebaseAuthError } from "@/lib/firebaseAuthErrors";
 
 import eduonxLogo from "@/assets/eduonx-logo.png";
@@ -54,24 +54,7 @@ const Signup = () => {
       const provider = new GoogleAuthProvider();
       provider.setCustomParameters({ prompt: "select_account" });
       const result = await signInWithPopup(auth, provider);
-      const firebaseUser = result.user;
-
-      // FIX: Create a Firestore profile doc for Google users if one doesn't exist yet.
-      // Email/password users get their profile created inside AuthContext.signUp().
-      // Google users bypass that flow entirely, so we handle it here.
-      const profileRef = doc(db, "profiles", firebaseUser.uid);
-      const existing = await getDoc(profileRef);
-      if (!existing.exists()) {
-        await setDoc(profileRef, {
-          user_id: firebaseUser.uid,
-          full_name: firebaseUser.displayName || "Student",
-          email: firebaseUser.email || "",
-          avatar_url: firebaseUser.photoURL || null,
-          onboarding_completed: false,
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-        });
-      }
+      await ensureGoogleUserProfile(result.user);
 
       toast.success("Signed in with Google!");
       // ProtectedRoute checks onboarding_completed and redirects accordingly
