@@ -1076,7 +1076,7 @@ const AdminPanel = () => {
           {/* Complaints Grid/List */}
           <div className="grid lg:grid-cols-12 gap-5 items-start">
             {/* List */}
-            <div className={`space-y-3 lg:col-span-${selectedComplaintId ? "7" : "12"}`}>
+            <div className={`space-y-3 ${selectedComplaintId ? "lg:col-span-7" : "lg:col-span-12"}`}>
               {filteredComplaints.length === 0 ? (
                 <div className="bg-white rounded-2xl p-12 text-center shadow-sm border border-gray-100">
                   <AlertTriangle className="h-10 w-10 text-gray-200 mx-auto mb-3" />

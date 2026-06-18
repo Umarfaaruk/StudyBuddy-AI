@@ -296,8 +296,10 @@ async function fetchTranscriptViaSupadata(
 ): Promise<{ transcript: string; segments: Segment[] } | null> {
   try {
     console.log(`[YouTube API] Fetching transcript via Supadata API...`);
+    // Supadata v1 current endpoint: /v1/transcript with a full YouTube URL
+    const videoUrl = encodeURIComponent(`https://youtube.com/watch?v=${videoId}`);
     const response = await fetch(
-      `https://api.supadata.ai/v1/youtube/transcript?videoId=${videoId}`,
+      `https://api.supadata.ai/v1/transcript?url=${videoUrl}`,
       {
         headers: { "x-api-key": apiKey },
         signal: AbortSignal.timeout(15000),
@@ -315,6 +317,7 @@ async function fetchTranscriptViaSupadata(
 
     if (Array.isArray(data.content)) {
       for (const item of data.content) {
+        // Supadata returns offset in milliseconds
         segments.push({ start: (item.offset || 0) / 1000, text: item.text || "" });
       }
       transcript = segments.map((s) => s.text).join(" ");
