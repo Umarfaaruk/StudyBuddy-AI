@@ -1,6 +1,6 @@
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { ArrowRight, Sparkles } from "lucide-react";
+import { ArrowRight } from "lucide-react";
 
 const FinalCTA = () => (
   <section className="py-28 bg-gradient-to-br from-[#0F172A] via-[#0F172A] to-[#1E293B] text-white border-t border-white/[0.06] relative overflow-hidden">

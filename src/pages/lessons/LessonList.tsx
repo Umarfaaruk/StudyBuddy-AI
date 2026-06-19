@@ -1,6 +1,6 @@
 import { useState, lazy, Suspense } from "react";
 import { Link } from "react-router-dom";
-import { BookOpen, ChevronRight, Search, Calculator, Atom, FlaskConical, Leaf, FileText, Loader2, Sparkles, Plus, CalendarDays, Trash2, AlertTriangle, Youtube, Trophy, Award, Printer, X, RotateCcw } from "lucide-react";
+import { BookOpen, Search, Calculator, Atom, FlaskConical, Leaf, FileText, Loader2, Sparkles, Plus, CalendarDays, Trash2, AlertTriangle, Youtube, Trophy, Award, Printer, X, RotateCcw } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
@@ -130,7 +130,7 @@ const LessonList = () => {
   });
 
   // Extract unique subjects
-  const subjects = Array.from(new Set(topics.map(t => t.subject)))
+  const subjects = Array.from(new Set((topics as any[]).map(t => t.subject as string)))
     .map(subject => ({ name: subject }));
 
 

@@ -1,5 +1,5 @@
 import { Link } from "react-router-dom";
-import { Home, Sparkles, Info, BookOpen } from "lucide-react";
+import { Home, Sparkles, Info } from "lucide-react";
 import { NavBar } from "@/components/ui/tubelight-navbar";
 import eduonxLogoOnDark from "@/assets/eduonx-logo-on-dark.png";
 

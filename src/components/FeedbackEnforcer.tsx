@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { db } from "@/lib/firebase";
 import { collection, query, where, getDocs, doc, getDoc, setDoc } from "firebase/firestore";
-import { MessageSquare, Star, Send, X, Loader2 } from "lucide-react";
+import { MessageSquare, Star, Send, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { addDoc, serverTimestamp } from "firebase/firestore";
 

@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef } from "react";
 import { useLocation } from "react-router-dom";
 import { Camera, Send, RefreshCw, X } from "lucide-react";
 import { toast } from "sonner";

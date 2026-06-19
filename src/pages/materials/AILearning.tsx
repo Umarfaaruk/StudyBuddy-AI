@@ -5,7 +5,6 @@ import { Input } from "@/components/ui/input";
 import { ArrowLeft, FileText, Send, Sparkles, Loader2, AlertTriangle, Copy, Check, Square } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { db } from "@/lib/firebase";
-import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
 import ReactMarkdown from "react-markdown";
 import { doc, getDoc } from "firebase/firestore";
@@ -32,7 +31,6 @@ interface Message {
 
 const AILearning = () => {
   const { id } = useParams();
-  const { user } = useAuth();
   const [question, setQuestion] = useState("");
   const [messages, setMessages] = useState<Message[]>([]);
   const [streaming, setStreaming] = useState(false);

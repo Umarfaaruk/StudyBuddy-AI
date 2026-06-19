@@ -1,15 +1,13 @@
-import { useState, useRef, useEffect, useMemo } from "react";
-import { Link } from "react-router-dom";
+import { useState, useRef, useEffect } from "react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Bot, Send, Sparkles, Loader2, Copy, Check, Square, Trash2, FileText, X, Upload, Wrench, Youtube, Brain, MessageCircleQuestion, Mic, Paperclip } from "lucide-react";
+import { Bot, Send, Sparkles, Loader2, Copy, Check, Square, Trash2, FileText, X, Upload, MessageCircleQuestion, Mic, Paperclip } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
 import ReactMarkdown from "react-markdown";
 import { aiStream, aiComplete } from "@/lib/aiService";
-import { TUTOR_SYSTEM_PROMPT, getDocSystemPrompt, MAX_DOC_CONTEXT_CHARS, DOC_ANALYSIS_SYSTEM_PROMPT } from "@/lib/prompts";
+import { TUTOR_SYSTEM_PROMPT, getDocSystemPrompt, DOC_ANALYSIS_SYSTEM_PROMPT } from "@/lib/prompts";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { collection, query, where, getDocs, addDoc, doc } from "firebase/firestore";
+import { collection, query, where, getDocs, addDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import {
   Select,

@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from "react";
 import {
-  ShieldCheck, Users, Clock, Flame, BookOpen, Search, ChevronDown, ChevronUp,
+  ShieldCheck, Users, Clock, Flame, Search, ChevronDown, ChevronUp,
   Trophy, Upload, BarChart3, Zap, Loader2, MessageSquare, MessageCircleQuestion,
   Star, AlertTriangle, Target, Trash2, Eye, Image, CheckCircle, X
 } from "lucide-react";

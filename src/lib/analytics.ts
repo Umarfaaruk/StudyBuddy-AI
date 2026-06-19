@@ -127,7 +127,7 @@
  * - Service functions can write to all collections
  */
 
-import { collection, query, where, orderBy, limit, getDocs } from "firebase/firestore";
+import { collection, query, where, getDocs } from "firebase/firestore";
 import { db } from "./firebase";
 import { toDateKey } from "./utils";
 

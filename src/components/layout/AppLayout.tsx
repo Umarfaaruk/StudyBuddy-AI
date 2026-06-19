@@ -3,7 +3,7 @@ import { motion } from "framer-motion";
 import {
   LayoutDashboard, BookOpen, MessageCircleQuestion, Trophy,
   BarChart3, Upload, Settings, User, Gamepad2, Bot,
-  Focus, X, Menu, Wrench, ShieldCheck, ChevronLeft, ChevronRight,
+  Focus, X, Menu, ShieldCheck, ChevronLeft, ChevronRight,
 } from "lucide-react";
 import { useDeepFocus } from "@/hooks/useDeepFocus";
 import GlobalTimer from "@/components/GlobalTimer";

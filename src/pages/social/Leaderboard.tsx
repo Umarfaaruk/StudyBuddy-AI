@@ -1,11 +1,9 @@
 import { Trophy, Zap, Flame, Users, Crown, Award, Star, UserPlus, UserCheck, Search, X, User as UserIcon, Loader2, Clock, Check } from "lucide-react";
-import { Link } from "react-router-dom";
 import { useState, useMemo } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/contexts/AuthContext";
 import { db } from "@/lib/firebase";
-import { collection, query, where, getDocs, doc, getDoc, orderBy, limit, Timestamp, documentId } from "firebase/firestore";
-import { Skeleton } from "@/components/ui/skeleton";
+import { collection, query, where, getDocs, doc, getDoc, limit, Timestamp, documentId } from "firebase/firestore";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
@@ -185,7 +183,7 @@ const Leaderboard = () => {
   };
 
   // ── Leaderboard for the selected window (today / week / all) + scope ──
-  const { data: lb, isLoading: lbLoading } = useQuery({
+  const { data: lb } = useQuery({
     queryKey: ["leaderboard", timeFilter, tab, user?.uid, [...friendUids].sort().join(",")],
     queryFn: async () => {
       // Time threshold for the window
@@ -252,15 +250,12 @@ const Leaderboard = () => {
     enabled: !!user,
   });
 
-  const myName = myProfile?.full_name || user?.displayName || "You";
-  const myInitials = myName.split(" ").map((n: string) => n[0]).join("").slice(0, 2).toUpperCase();
   const xp = (myProfile?.total_xp as number) ?? 0; // all-time XP for the stats cards
   const nextMilestone = Math.ceil(xp / 500) * 500 || 500;
 
   const displayUsers = lb?.users ?? [];
   const activeCount = lb?.activeCount ?? 0;
   const myRank = displayUsers.find((u) => u.isYou)?.rank ?? 0;
-  const friendCount = friendUids.size;
 
   /* Podium helpers */
   const top3 = displayUsers.slice(0, 3);
@@ -409,7 +404,7 @@ const Leaderboard = () => {
           {top3.length >= 3 && (
             <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 pt-10 pb-8">
               <div className="flex items-end justify-center gap-4 md:gap-6">
-                {podiumOrder.map((u, i) => {
+                {podiumOrder.map((u) => {
                   if (!u) return null;
                   const isFirst = u.rank === 1;
                   const colors = medalColors[u.rank] || medalColors[3];

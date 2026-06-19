@@ -1,9 +1,8 @@
 import { useState, useRef, useEffect } from "react";
-import { Bot, X, Send, Loader2, Sparkles, MessageSquare, GripVertical } from "lucide-react";
+import { Bot, X, Send, Loader2, Sparkles, GripVertical } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { aiComplete } from "@/lib/aiService";
 import ReactMarkdown from "react-markdown";
-import { useNavigate } from "react-router-dom";
 import { addDoc, collection } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { useDraggable } from "@/hooks/useDraggable";
@@ -37,7 +36,6 @@ Guidelines:
  */
 const EduOnxAIChat = () => {
   const { user } = useAuth();
-  const navigate = useNavigate();
   const [isOpen, setIsOpen] = useState(false);
   const fab = useDraggable("eduonx_fab_pos", { width: 56, height: 56 });
   const [messages, setMessages] = useState<Message[]>([]);

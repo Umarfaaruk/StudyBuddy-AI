@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Gamepad2, FileText, BrainCircuit, Youtube, Loader2, PlayCircle } from "lucide-react";

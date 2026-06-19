@@ -2,12 +2,12 @@ import { useState, useRef } from "react";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Upload, FileText, X, ArrowRight, Loader2, Search, FolderOpen, Sparkles, HardDrive, LayoutGrid, List, Plus, Library, BookOpenCheck, ExternalLink, Trash2, Clock, Filter, FileType, AlertTriangle, StickyNote, Database } from "lucide-react";
+import { Upload, FileText, ArrowRight, Loader2, Search, FolderOpen, Sparkles, LayoutGrid, List, Plus, Library, BookOpenCheck, ExternalLink, Trash2, Clock, AlertTriangle, StickyNote, Database } from "lucide-react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { db } from "@/lib/firebase";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
-import { collection, query, where, orderBy, getDocs, deleteDoc, doc, addDoc, updateDoc } from "firebase/firestore";
+import { collection, query, where, getDocs, deleteDoc, doc, addDoc, updateDoc } from "firebase/firestore";
 import { aiComplete } from "@/lib/aiService";
 import { getAuthHeaders } from "@/lib/authHeaders";
 
@@ -513,38 +513,6 @@ const MaterialUpload = () => {
     if (material?.file_name?.endsWith(".md")) return "Markdown";
     if (material?.file_name?.endsWith(".docx")) return "Word";
     return "File";
-  };
-
-  const getFileTypeColor = (material: any) => {
-    if (material?.content_type?.includes("pdf")) return "text-red-500 bg-red-500/10";
-    if (material?.content_type?.startsWith("image/")) return "text-[#29ABE2] bg-[#29ABE2]/10";
-    if (material?.content_type === "text/plain" || material?.file_name?.endsWith(".txt") || material?.file_name?.endsWith(".md")) return "text-[#29ABE2] bg-[#29ABE2]/10";
-    return "text-muted-foreground bg-muted";
-  };
-
-  const statusBadge = (status: string) => {
-    const styles = {
-      ready: "text-accent bg-accent/10",
-      completed: "text-accent bg-accent/10",
-      processing: "text-[hsl(var(--highlight))] bg-[hsl(var(--highlight))]/10",
-    };
-    const currentStyle = styles[status as keyof typeof styles] || "text-muted-foreground bg-muted";
-    return <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full uppercase ${currentStyle}`}>{status === 'ready' || status === 'completed' ? 'AI Ready' : status}</span>;
-  };
-
-  const fileIcon = (material: any) => {
-    if (material?.content_type?.startsWith("image/") && material?.file_data) {
-      return (
-        <div className="h-10 w-10 rounded-lg overflow-hidden border border-border">
-          <img src={material.file_data} alt={material.file_name} className="h-full w-full object-cover" />
-        </div>
-      );
-    }
-    return (
-      <div className={`h-10 w-10 rounded-lg flex items-center justify-center ${material?.content_type?.includes("pdf") ? "bg-destructive/10" : "bg-secondary"}`}>
-        <FileText className={`h-5 w-5 ${material?.content_type?.includes("pdf") ? "text-destructive" : "text-[hsl(var(--navy))]"}`} />
-      </div>
-    );
   };
 
   return (

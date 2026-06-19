@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect } from "react";
 import { Link, useParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -13,7 +13,7 @@ import { db } from "@/lib/firebase";
 import { useDeepFocus } from "@/hooks/useDeepFocus";
 import { awardXP } from "@/lib/studySession";
 import { toast } from "sonner";
-import { doc, getDoc, collection, getDocs, query, where, writeBatch, addDoc, deleteDoc, onSnapshot, orderBy } from "firebase/firestore";
+import { doc, getDoc, collection, getDocs, query, where, writeBatch, addDoc, deleteDoc, onSnapshot } from "firebase/firestore";
 
 const LESSON_XP = 20; // XP awarded per lesson completion
 

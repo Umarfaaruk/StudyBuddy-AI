@@ -1,12 +1,12 @@
-import { Clock, TrendingUp, TrendingDown, AlertTriangle, Lightbulb, Calendar, FileText, Flame, BarChart3, Target, Share2, Send, BookOpen, MessageCircleQuestion, Gamepad2, ChevronDown, ChevronUp, Copy, Check, ArrowUpRight, ArrowDownRight, Sparkles } from "lucide-react";
+import { TrendingUp, TrendingDown, AlertTriangle, Lightbulb, BarChart3, Share2, BookOpen, MessageCircleQuestion, Gamepad2, ChevronDown, ChevronUp, Check, ArrowUpRight, Sparkles } from "lucide-react";
 import { Link } from "react-router-dom";
-import { useState, useRef } from "react";
+import { useState } from "react";
 import { useDashboardData } from "@/hooks/useDashboardData";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { useQuery } from "@tanstack/react-query";
 import { db } from "@/lib/firebase";
-import { collection, query, where, orderBy, getDocs } from "firebase/firestore";
+import { collection, query, where, getDocs } from "firebase/firestore";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
 import { toDateKey } from "@/lib/utils";
@@ -14,12 +14,11 @@ import { toDateKey } from "@/lib/utils";
 
 const ProgressDashboard = () => {
   const { user } = useAuth();
-  const { streak, avgScore, progressAnalytics, weakTopics, totalXp, isLoading } = useDashboardData();
+  const { streak, avgScore, progressAnalytics, totalXp, isLoading } = useDashboardData();
   const [expandedDate, setExpandedDate] = useState<string | null>(null);
   const [dayDetails, setDayDetails] = useState<any>(null);
   const [loadingDetails, setLoadingDetails] = useState(false);
   const [copiedShare, setCopiedShare] = useState(false);
-  const shareRef = useRef<HTMLDivElement>(null);
 
   const [expandedSubjects, setExpandedSubjects] = useState<Record<string, boolean>>({});
 
@@ -180,7 +179,6 @@ const ProgressDashboard = () => {
   const weekHours = (progressAnalytics.weekSeconds / 3600).toFixed(1);
   const todayMinutes = Math.round(progressAnalytics.todaySeconds / 60);
   const currentStreak = streak?.current_streak ?? 0;
-  const longestStreak = streak?.longest_streak ?? 0;
   const chartData = progressAnalytics.chartData;
   const dayWiseRecords = progressAnalytics.dayWiseRecords;
   const sessionCount = progressAnalytics.sessionCount ?? 0;

@@ -1,14 +1,11 @@
 import { Link } from "react-router-dom";
 import { useState, useEffect } from "react";
-import { db, storage } from "@/lib/firebase";
-import { collection, query, where, onSnapshot, setDoc, doc } from "firebase/firestore";
-import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
-import { useNotifications } from "@/contexts/NotificationContext";
-import { toast } from "sonner";
+import { db } from "@/lib/firebase";
+import { collection, query, where, onSnapshot } from "firebase/firestore";
 import {
-  BookOpen, MessageCircleQuestion, Gamepad2, Upload, BarChart3,
-  Trophy, Flame, Lightbulb, AlertTriangle, CalendarDays, User, ArrowRight, Wrench, Youtube,
-  X, CheckCircle, FileImage, Loader2, Clock
+  BookOpen, MessageCircleQuestion, Gamepad2, Upload,
+  Trophy, Flame, Lightbulb, AlertTriangle, CalendarDays, User, ArrowRight,
+  X, CheckCircle, Loader2
 } from "lucide-react";
 import { useDashboardData } from "@/hooks/useDashboardData";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -94,8 +91,8 @@ const Dashboard = () => {
   const activeDetailComplaint = myComplaints.find(c => c.id === selectedComplaint?.id) || selectedComplaint;
 
   const {
-    profile, streak, totalXp, studyTime, avgScore,
-    continueLearning, weakTopics, isLoading, greeting,
+    profile, streak, totalXp, avgScore,
+    continueLearning, weakTopics, isLoading,
     // FIX: consume the additional data useDashboardData already fetches
     progressAnalytics, retentionTrend,
   } = useDashboardData();

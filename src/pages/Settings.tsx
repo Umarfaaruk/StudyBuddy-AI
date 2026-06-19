@@ -6,7 +6,7 @@ import { Bell, User, LogOut, Shield, Bot, Camera, AlertTriangle, FileImage, X, L
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
 import { db, auth, storage } from "@/lib/firebase";
-import { doc, getDoc, updateDoc, collection, setDoc } from "firebase/firestore";
+import { doc, getDoc, updateDoc, setDoc } from "firebase/firestore";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { useNotifications } from "@/contexts/NotificationContext";
 import { EmailAuthProvider, reauthenticateWithCredential, updatePassword } from "firebase/auth";

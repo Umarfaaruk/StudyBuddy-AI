@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { collection, getDocs, query, where, addDoc, updateDoc, doc, getDoc, writeBatch } from "firebase/firestore";
+import { collection, getDocs, query, where, updateDoc, doc, getDoc, writeBatch } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { useAuth } from "@/contexts/AuthContext";
 import { aiComplete, MODEL_SMALL } from "@/lib/aiService";

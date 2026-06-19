@@ -1,9 +1,8 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate, useParams, useLocation } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Clock, ArrowRight, Loader2, Lightbulb, BookOpen, Flame, SkipForward, X } from "lucide-react";
 import { toast } from "sonner";
-import { useAuth } from "@/contexts/AuthContext";
 import { useQuery } from "@tanstack/react-query";
 import { aiComplete, MODEL_SMALL } from "@/lib/aiService";
 import { QUIZ_SYSTEM_PROMPT, HINT_SYSTEM_PROMPT } from "@/lib/prompts";
@@ -24,7 +23,6 @@ const QuizPage = () => {
   const navigate = useNavigate();
   const { id } = useParams();
   const location = useLocation();
-  const { user } = useAuth();
 
   const topicTitle = (location.state as any)?.topicTitle ?? "Quiz";
   const subjectName = (location.state as any)?.subjectName ?? "";

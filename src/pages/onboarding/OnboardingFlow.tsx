@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import {
   ArrowRight, ArrowLeft, Target, Brain, Lightbulb,
-  Clock, BookOpen, Sparkles, Rocket, User2, Palette, Database
+  BookOpen, Sparkles, Rocket, User2, Palette, Database
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";

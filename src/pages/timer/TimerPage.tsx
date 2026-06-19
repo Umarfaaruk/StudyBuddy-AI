@@ -1,12 +1,11 @@
 import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, LineChart, Line, PieChart, Pie, Cell } from "recharts";
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts";
 import { Clock, Flame, Target, TrendingUp, Calendar, Award, Zap } from "lucide-react";
-import { collection, query, where, orderBy, limit, getDocs } from "firebase/firestore";
+import { collection, query, where, getDocs } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { useQuery } from "@tanstack/react-query";
 import { calculateProductivityScore, getConsistencyMetrics, getPerformanceBreakdown } from "@/lib/analytics";
@@ -48,7 +47,7 @@ const TimerPage = () => {
   const [monthlyStats, setMonthlyStats] = useState<MonthlyStats[]>([]);
   const [productivityScore, setProductivityScore] = useState<any>(null);
   const [consistencyMetrics, setConsistencyMetrics] = useState<any>(null);
-  const [performanceBreakdown, setPerformanceBreakdown] = useState<any>(null);
+  const [, setPerformanceBreakdown] = useState<any>(null);
 
   // Fetch recent study sessions
   const { data: sessions, isLoading } = useQuery({
@@ -111,9 +110,6 @@ const TimerPage = () => {
       dailyMap[date].minutes += Math.round(session.duration_seconds / 60);
       dailyMap[date].sessions += 1;
     });
-
-    const sortedDaily = Object.values(dailyMap)
-      .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
 
     // Show current week (Monday to Sunday) for daily view
     const currentWeekDays: DailyStats[] = [];
@@ -206,7 +202,6 @@ const TimerPage = () => {
   }, [sessions]);
 
   // Calculate totals
-  const totalMinutes = sessions?.reduce((acc, s) => acc + s.duration_seconds / 60, 0) ?? 0;
   const todayMinutes = sessions
     ?.filter((s) => new Date(s.started_at).toDateString() === new Date().toDateString())
     .reduce((acc, s) => acc + s.duration_seconds / 60, 0) ?? 0;
