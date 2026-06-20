@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { aiVisionComplete, ChatMessage } from "@/lib/aiService";
+import { compressImage } from "@/lib/imageUtils";
 import ReactMarkdown from "react-markdown";
 
 const CameraQnA = () => {
@@ -27,8 +28,14 @@ const CameraQnA = () => {
     }
 
     const reader = new FileReader();
-    reader.onloadend = () => {
-      setImagePreview(reader.result as string);
+    reader.onloadend = async () => {
+      const raw = reader.result as string;
+      // Downscale so large photos/screenshots stay within the vision proxy limit.
+      try {
+        setImagePreview(await compressImage(raw));
+      } catch {
+        setImagePreview(raw);
+      }
       setAnswer("");
     };
     reader.readAsDataURL(file);
@@ -109,11 +116,10 @@ const CameraQnA = () => {
                 <p className="font-medium text-foreground">Tap to open Camera or Gallery</p>
                 <p className="text-sm text-muted-foreground mt-1">Supports JPEG, PNG, WEBP</p>
               </div>
-              <input 
-                type="file" 
-                accept="image/*" 
-                capture="environment" 
-                className="hidden" 
+              <input
+                type="file"
+                accept="image/*"
+                className="hidden"
                 ref={fileInputRef}
                 onChange={handleImageCapture}
               />

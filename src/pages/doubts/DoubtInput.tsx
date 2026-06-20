@@ -7,7 +7,8 @@ import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
 import { addDoc, collection } from "firebase/firestore";
 import { db } from "@/lib/firebase";
-import { aiStream } from "@/lib/aiService";
+import { aiStream, aiVisionComplete, ChatMessage } from "@/lib/aiService";
+import { compressImage } from "@/lib/imageUtils";
 import ReactMarkdown from "react-markdown";
 
 const MAX_FILE_SIZE = 10 * 1024 * 1024;
@@ -119,7 +120,15 @@ const DoubtInput = () => {
     setAttachedFile(file);
     if (ALLOWED_IMAGE_TYPES.includes(file.type)) {
       const reader = new FileReader();
-      reader.onloadend = () => setFilePreview(reader.result as string);
+      reader.onloadend = async () => {
+        const raw = reader.result as string;
+        // Downscale so the base64 payload stays within the vision proxy limit.
+        try {
+          setFilePreview(await compressImage(raw));
+        } catch {
+          setFilePreview(raw);
+        }
+      };
       reader.readAsDataURL(file);
     } else {
       setFilePreview(null);
@@ -147,12 +156,18 @@ const DoubtInput = () => {
   const handleSend = async () => {
     if ((!question.trim() && !attachedFile) || streaming) return;
 
-    let userContent = question.trim();
+    const trimmed = question.trim();
+    // An image attachment routes through the vision model; capture its data now,
+    // before clearAttachment() wipes it.
+    const imageData =
+      attachedFile && ALLOWED_IMAGE_TYPES.includes(attachedFile.type) ? filePreview : null;
+
+    let userContent = trimmed;
     if (attachedFile) {
-      userContent = `[Attached: ${attachedFile.name}]\n\n${userContent}`;
+      userContent = (trimmed ? `${trimmed}\n\n` : "") + `[Attached: ${attachedFile.name}]`;
     }
 
-    if (!userContent) return;
+    if (!userContent && !imageData) return;
 
     const userMsg: Message = { role: "user", content: userContent };
     const newHistory = [...messages, userMsg];
@@ -168,40 +183,80 @@ const DoubtInput = () => {
     setMessages((prev) => [...prev, { role: "assistant", content: "" }]);
 
     try {
-      const apiMessages = [
-        { role: "system" as const, content: SYSTEM_PROMPT },
-        ...newHistory.map((m) => ({ role: m.role as "user" | "assistant", content: m.content })),
-      ];
-
       let full = "";
-      await aiStream(
-        {
-          messages: apiMessages,
-          temperature: 0.7,
-          maxTokens: 4096,
+
+      if (imageData) {
+        // ── Vision path: actually send the image to the vision model ──
+        // Groq's vision model rejects a `system` role alongside an image, so we
+        // fold the tutor instructions into the single user message (the same
+        // shape the Camera Q&A page uses successfully).
+        const visionInstruction =
+          "You are a patient tutor. Look at the attached image and help the student. " +
+          "Give a clear, step-by-step explanation, format with markdown (## headers, bullet points, **bold**), " +
+          "and end with a short summary.";
+        const userText = trimmed
+          ? `${visionInstruction}\n\nStudent's question: ${trimmed}`
+          : `${visionInstruction}\n\nExplain what's shown in this image and help me understand it.`;
+
+        const visionMessages: ChatMessage[] = [
+          {
+            role: "user",
+            content: [
+              { type: "text", text: userText },
+              { type: "image_url", image_url: { url: imageData } },
+            ],
+          },
+        ];
+
+        full = await aiVisionComplete({
+          messages: visionMessages,
+          temperature: 0.5,
+          maxTokens: 2048,
           signal: controller.signal,
-        },
-        (token) => {
-          if (token.includes("⏳") && token.includes("retrying")) {
-            full = "";
+        });
+
+        setMessages((prev) => {
+          const updated = [...prev];
+          updated[updated.length - 1] = { role: "assistant", content: full };
+          return updated;
+        });
+      } else {
+        // ── Text path: stream as before ──
+        const apiMessages = [
+          { role: "system" as const, content: SYSTEM_PROMPT },
+          ...newHistory.map((m) => ({ role: m.role as "user" | "assistant", content: m.content })),
+        ];
+
+        await aiStream(
+          {
+            messages: apiMessages,
+            temperature: 0.7,
+            maxTokens: 4096,
+            signal: controller.signal,
+          },
+          (token) => {
+            if (token.includes("⏳") && token.includes("retrying")) {
+              full = "";
+            }
+            full += token;
+            setMessages((prev) => {
+              const updated = [...prev];
+              updated[updated.length - 1] = { role: "assistant", content: full };
+              return updated;
+            });
           }
-          full += token;
+        );
+
+        // Clean up rate limit messages
+        const cleanResponse = full.replace(/\n*⏳\s*\*Rate limited[^*]*\*\n*/g, "").trim();
+        if (cleanResponse !== full) {
+          full = cleanResponse;
           setMessages((prev) => {
             const updated = [...prev];
-            updated[updated.length - 1] = { role: "assistant", content: full };
+            updated[updated.length - 1] = { role: "assistant", content: cleanResponse };
             return updated;
           });
         }
-      );
-
-      // Clean up rate limit messages
-      const cleanResponse = full.replace(/\n*⏳\s*\*Rate limited[^*]*\*\n*/g, "").trim();
-      if (cleanResponse !== full) {
-        setMessages((prev) => {
-          const updated = [...prev];
-          updated[updated.length - 1] = { role: "assistant", content: cleanResponse };
-          return updated;
-        });
       }
 
       if (!full.trim()) {
