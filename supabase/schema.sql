@@ -16,6 +16,26 @@
 
 create extension if not exists "pgcrypto";   -- gen_random_uuid()
 
+-- ============================================================================
+-- RESET — drop app objects first so this whole script is safely re-runnable.
+-- Safe on a fresh project (no real data yet). Remove this block once you have
+-- production data you want to keep.
+-- ============================================================================
+drop table if exists
+  public.complaint_history, public.complaints, public.feedback,
+  public.notifications, public.saved_notes, public.study_plans,
+  public.flashcards, public.materials, public.doubt_messages,
+  public.doubt_sessions, public.analytics_snapshots, public.topic_progress,
+  public.lesson_progress, public.quiz_attempts, public.study_sessions,
+  public.xp_logs, public.friendships, public.follows, public.lessons,
+  public.topics, public.analytics, public.user_preferences,
+  public.user_streaks, public.profiles
+  cascade;
+drop function if exists public.is_admin(uuid) cascade;
+drop function if exists public.add_xp(integer, text) cascade;
+drop function if exists public.handle_new_user() cascade;
+drop function if exists public.touch_updated_at() cascade;
+
 -- ── helpers ────────────────────────────────────────────────────────────────
 create or replace function public.touch_updated_at()
 returns trigger language plpgsql as $$
@@ -498,17 +518,24 @@ begin
   return new;
 end $$;
 
+drop trigger if exists on_auth_user_created on auth.users;
 create trigger on_auth_user_created
   after insert on auth.users
   for each row execute function public.handle_new_user();
 
 -- ============================================================================
--- STORAGE : avatars bucket (run after creating the bucket in the dashboard,
--- or via storage.create_bucket). Path convention: avatars/<uid>/...
+-- STORAGE : avatars + complaints buckets. Path convention: <bucket>/<uid>/...
 -- ============================================================================
 insert into storage.buckets (id, name, public)
 values ('avatars','avatars', true), ('complaints','complaints', true)
 on conflict (id) do nothing;
+
+drop policy if exists "avatar_read"    on storage.objects;
+drop policy if exists "avatar_write"   on storage.objects;
+drop policy if exists "avatar_update"  on storage.objects;
+drop policy if exists "avatar_delete"  on storage.objects;
+drop policy if exists "complaint_read" on storage.objects;
+drop policy if exists "complaint_write" on storage.objects;
 
 create policy "avatar_read"   on storage.objects for select using (bucket_id = 'avatars');
 create policy "avatar_write"  on storage.objects for insert
@@ -524,12 +551,18 @@ create policy "complaint_write" on storage.objects for insert
   with check (bucket_id = 'complaints' and (storage.foldername(name))[1] = auth.uid()::text);
 
 -- ============================================================================
--- ENABLE REALTIME (for the 4 onSnapshot files: notifications + others)
+-- ENABLE REALTIME — idempotent (skip if a table is already in the publication)
 -- ============================================================================
-alter publication supabase_realtime add table public.notifications;
-alter publication supabase_realtime add table public.complaints;
-alter publication supabase_realtime add table public.complaint_history;
-alter publication supabase_realtime add table public.saved_notes;
+do $$
+declare t text;
+begin
+  foreach t in array array['notifications','complaints','complaint_history','saved_notes'] loop
+    begin
+      execute format('alter publication supabase_realtime add table public.%I', t);
+    exception when duplicate_object then null;
+    end;
+  end loop;
+end $$;
 
 -- ============================================================================
 -- DONE. Next: point the app's data layer at these tables (see migration guide).
