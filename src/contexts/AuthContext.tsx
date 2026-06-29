@@ -68,10 +68,15 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const signUp = async (email: string, password: string, fullName: string): Promise<AuthResult> => {
     // The DB trigger handle_new_user() creates the profile + streak rows from
     // this metadata, so no client-side profile write is needed.
+    // emailRedirectTo sends the "Confirm email" link back to the login page so
+    // the user can sign in after confirming (instead of a dead default URL).
     const { error } = await supabase.auth.signUp({
       email,
       password,
-      options: { data: { full_name: fullName } },
+      options: {
+        data: { full_name: fullName },
+        emailRedirectTo: `${window.location.origin}/login`,
+      },
     });
     return { error: error ?? null };
   };
