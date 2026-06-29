@@ -2,12 +2,7 @@ import { useEffect, useRef } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Trophy, RotateCcw, ArrowRight, Target, TrendingUp, Zap } from "lucide-react";
-import { db } from "@/lib/firebase";
-// FIX Bug 17: Removed `setDoc` + `increment` — no longer writing profiles.total_xp here.
-// XP is the single source of truth in xp_logs and is always computed by summing that
-// collection. Writing a separate running total to profiles.total_xp caused it to drift
-// out of sync with xp_logs (different numbers shown on Dashboard vs Profile vs Progress).
-import { addDoc, collection, doc, getDoc, serverTimestamp } from "firebase/firestore";
+import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/contexts/AuthContext";
 
 const QuizResults = () => {
@@ -34,8 +29,8 @@ const QuizResults = () => {
 
     const save = async () => {
       try {
-        // Save quiz attempt to Firestore
-        await addDoc(collection(db, "quiz_attempts"), {
+        // Save quiz attempt
+        await supabase.from("quiz_attempts").insert({
           user_id: user.uid,
           topic_id: topicId || null,
           quiz_id: quizId || null,
@@ -43,59 +38,42 @@ const QuizResults = () => {
           score,
           total_questions: total,
           xp_awarded: xp,
-          created_at: serverTimestamp(),
         });
 
-        // Award XP — write the xp_logs audit entry AND increment the
-        // profiles.total_xp aggregate. xp_logs stays the source of truth
-        // (admin sums it); the aggregate lets the dashboard read one doc
-        // instead of scanning the whole collection. useDashboardData
-        // reconciles the aggregate against xp_logs once per account, so
-        // the two can never permanently disagree.
+        // Award XP via the add_xp() RPC (writes the xp_logs audit entry AND
+        // bumps profiles.total_xp atomically; xp_logs stays the source of truth).
         if (xp > 0) {
-          await addDoc(collection(db, "xp_logs"), {
-            user_id: user.uid,
-            source_type: "quiz",
-            xp_amount: xp,
-            created_at: serverTimestamp(),
-          });
-          const { setDoc: setDocXp, increment: incrementXp } = await import("firebase/firestore");
-          await setDocXp(
-            doc(db, "profiles", user.uid),
-            { total_xp: incrementXp(xp), updated_at: serverTimestamp() },
-            { merge: true }
-          );
+          await supabase.rpc("add_xp", { p_amount: xp, p_source: "quiz" });
         }
 
         // Update topic_progress if we have a topicId
         if (topicId) {
           const scorePct = total > 0 ? (score / total) * 100 : 0;
-          const progressRef = doc(db, "topic_progress", `${user.uid}_${topicId}`);
-          const progressSnap = await getDoc(progressRef);
+          const { data: existing } = await supabase
+            .from("topic_progress")
+            .select("*")
+            .eq("user_id", user.uid)
+            .eq("topic_id", topicId)
+            .maybeSingle();
 
-          if (progressSnap.exists()) {
-            const existing = progressSnap.data();
+          if (existing) {
             const newCount = (existing.quiz_count || 0) + 1;
             const newAvg = ((Number(existing.avg_quiz_score || 0) * (existing.quiz_count || 0)) + scorePct) / newCount;
             const mastery = Math.round(newAvg * 0.7 + (existing.lessons_completed > 0 ? 30 : 0));
-
-            const { setDoc } = await import("firebase/firestore");
-            await setDoc(progressRef, {
+            await supabase.from("topic_progress").update({
               quiz_count: newCount,
               avg_quiz_score: Math.round(newAvg),
               mastery_score: mastery,
-              last_updated: serverTimestamp(),
-            }, { merge: true });
+              updated_at: new Date().toISOString(),
+            }).eq("user_id", user.uid).eq("topic_id", topicId);
           } else {
             const mastery = Math.round(scorePct * 0.7);
-            const { setDoc } = await import("firebase/firestore");
-            await setDoc(progressRef, {
+            await supabase.from("topic_progress").insert({
               user_id: user.uid,
               topic_id: topicId,
               quiz_count: 1,
               avg_quiz_score: Math.round(scorePct),
               mastery_score: mastery,
-              created_at: serverTimestamp(),
             });
           }
         }

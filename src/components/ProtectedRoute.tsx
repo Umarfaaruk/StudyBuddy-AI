@@ -1,8 +1,7 @@
 import { Navigate, useLocation } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { doc, getDoc } from "firebase/firestore";
-import { db } from "@/lib/firebase";
+import { supabase } from "@/lib/supabase";
 import { useEffect } from "react";
 
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
@@ -25,8 +24,13 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
     queryKey: ["profile-onboarding-check", user?.uid],
     queryFn: async () => {
       if (!user) return null;
-      const snap = await getDoc(doc(db, "profiles", user.uid));
-      return snap.exists() ? snap.data() : null;
+      const { data, error } = await supabase
+        .from("profiles")
+        .select("onboarding_completed")
+        .eq("id", user.uid)
+        .maybeSingle();
+      if (error) throw error;
+      return data ?? null;
     },
     enabled: !!user,
     staleTime: 1000 * 30, // Cache for 30 seconds — short enough to catch post-onboarding writes
@@ -49,7 +53,7 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
     return <Navigate to="/login" state={{ from: location }} replace />;
   }
 
-  // If Firestore read failed (permissions error, offline, etc.)
+  // If the profile read failed (RLS, offline, etc.)
   // let the user through rather than blocking them entirely.
   // The onboarding page itself will handle re-checking.
   if (isError) {

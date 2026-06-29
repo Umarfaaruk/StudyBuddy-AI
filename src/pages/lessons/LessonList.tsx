@@ -6,8 +6,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/AuthContext";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { collection, query, getDocs, where, doc, writeBatch, deleteDoc } from "firebase/firestore";
-import { db } from "@/lib/firebase";
+import { supabase } from "@/lib/supabase";
 import { aiComplete } from "@/lib/aiService";
 import { toast } from "sonner";
 import { extractYouTubeVideoId } from "@/lib/youtube";
@@ -40,9 +39,8 @@ const LessonList = () => {
     queryKey: ["user-materials", user?.uid],
     queryFn: async () => {
       if (!user) return [];
-      const q = query(collection(db, "materials"), where("user_id", "==", user.uid));
-      const snap = await getDocs(q);
-      return snap.docs.map(d => ({ id: d.id, ...d.data() } as any));
+      const { data } = await supabase.from("materials").select("*").eq("user_id", user.uid);
+      return (data ?? []) as any[];
     },
     enabled: !!user
   });
@@ -53,72 +51,40 @@ const LessonList = () => {
     queryFn: async () => {
       if (!user) return [];
       try {
-        // Load the topics this user can see — public/official topics plus their
-        // own custom topics — without downloading every user's custom topics.
-        // SELF-HEALING: the optimized path needs public topics to carry
-        // is_custom:false (set by scripts/backfill-topic-flags.mjs). If the
-        // backfill hasn't run yet, the public query comes back empty, so we fall
-        // back to reading all topics and filtering client-side. The lessons page
-        // is therefore NEVER empty, whether or not the backfill has run.
-        const [publicSnap, customSnap] = await Promise.all([
-          getDocs(query(collection(db, "topics"), where("is_custom", "==", false))),
-          getDocs(query(collection(db, "topics"), where("user_id", "==", user.uid))),
-        ]);
-
-        let topicDocs;
-        if (publicSnap.empty) {
-          // Backfill not applied (or no public topics) — safe original behavior.
-          const allSnap = await getDocs(collection(db, "topics"));
-          topicDocs = allSnap.docs.filter(d => {
-            const x = d.data() as any;
-            return x.is_custom !== true || x.user_id === user.uid;
-          });
-        } else {
-          // De-dupe by id (a topic could match both queries in edge cases).
-          const byId = new Map<string, any>();
-          for (const d of [...publicSnap.docs, ...customSnap.docs]) byId.set(d.id, d);
-          topicDocs = [...byId.values()];
-        }
-        const topicsData = topicDocs.map(doc => ({
-          id: doc.id,
-          ...doc.data()
-        } as any));
+        // Public/official topics plus this user's own custom topics.
+        const { data: topicDocs } = await supabase
+          .from("topics")
+          .select("*")
+          .or(`is_custom.eq.false,user_id.eq.${user.uid}`);
+        const topicsData = (topicDocs ?? []) as any[];
 
         // Fetch user progress for each topic
-        const progressSnap = await getDocs(
-          query(
-            collection(db, "lesson_progress"),
-            where("user_id", "==", user.uid)
-          )
-        );
-        const progressMap = new Map(
-          progressSnap.docs.map(doc => [doc.id.split("_")[1], doc.data()])
-        );
+        const { data: progressRows } = await supabase
+          .from("lesson_progress")
+          .select("*")
+          .eq("user_id", user.uid);
+        const progressMap = new Map((progressRows ?? []).map((r: any) => [r.topic_id, r]));
 
         // Fetch topic quiz progress
-        const topicProgressSnap = await getDocs(
-          query(
-            collection(db, "topic_progress"),
-            where("user_id", "==", user.uid)
-          )
-        );
-        const topicProgressMap = new Map(
-          topicProgressSnap.docs.map(doc => [doc.data().topic_id, doc.data()])
-        );
+        const { data: tpRows } = await supabase
+          .from("topic_progress")
+          .select("*")
+          .eq("user_id", user.uid);
+        const topicProgressMap = new Map((tpRows ?? []).map((r: any) => [r.topic_id, r]));
 
         // topicsData is already scoped to public + this user's custom topics.
         return topicsData.map(topic => {
-          const progress = progressMap.get(topic.id);
+          const progress: any = progressMap.get(topic.id);
           const completed = progress?.completed_lessons?.length ?? 0;
           const total = topic.lesson_count ?? 0;
-          const topicProg = topicProgressMap.get(topic.id);
+          const topicProg: any = topicProgressMap.get(topic.id);
           return {
             ...topic,
             pct: total > 0 ? Math.round((completed / total) * 100) : 0,
             completedLessons: completed,
             totalLessons: total,
             avgQuizScore: topicProg?.avg_quiz_score ?? null,
-            completionDate: progress?.updated_at?.toDate() || progress?.created_at?.toDate() || null
+            completionDate: progress?.updated_at ? new Date(progress.updated_at) : null
           };
         });
       } catch (error) {
@@ -150,28 +116,14 @@ const LessonList = () => {
     if (!user) return;
     setDeletingId(topicId);
     try {
-      // 1. Delete all lessons for this topic
-      const lessonsSnap = await getDocs(
-        query(collection(db, "lessons"), where("topic_id", "==", topicId))
-      );
-      for (const d of lessonsSnap.docs) {
-        try {
-          await deleteDoc(d.ref);
-        } catch (e) {
-          console.error("Failed to delete lesson:", d.id, e);
-        }
-      }
+      // 1. Delete all lessons for this topic (cascade also covers this, but be explicit)
+      await supabase.from("lessons").delete().eq("topic_id", topicId);
 
       // 2. Delete lesson_progress for this topic + user
-      try {
-        const progressRef = doc(db, "lesson_progress", `${user.uid}_${topicId}`);
-        await deleteDoc(progressRef);
-      } catch (e) {
-        console.error("Failed to delete progress:", e);
-      }
+      await supabase.from("lesson_progress").delete().eq("user_id", user.uid).eq("topic_id", topicId);
 
-      // 3. Delete the topic document itself
-      await deleteDoc(doc(db, "topics", topicId));
+      // 3. Delete the topic itself
+      await supabase.from("topics").delete().eq("id", topicId);
 
       toast.success(`"${topicTitle}" removed successfully`);
       queryClient.invalidateQueries({ queryKey: ["topics", user.uid] });
@@ -267,38 +219,25 @@ ${materialContent}`;
     try {
       if (!parsed) throw lastError || new Error("Failed to generate course after multiple attempts.");
 
-      const batch = writeBatch(db);
-      const newTopicRef = doc(collection(db, "topics"));
-      
-      batch.set(newTopicRef, {
+      const newTopicId = crypto.randomUUID();
+      await supabase.from("topics").insert({
+        id: newTopicId,
         title: parsed.topic_title,
         subject: parsed.subject || "General",
-        subjectName: parsed.subject || "General",
-        subjectIcon: "file-text",
         description: parsed.description || "",
         lesson_count: parsed.lessons.length,
         is_custom: true,
         material_id: material.id,
         user_id: user.uid,
-        created_at: new Date()
       });
-
-      parsed.lessons.forEach((lesson: any, i: number) => {
-        const lessonRef = doc(collection(db, "lessons"));
-        batch.set(lessonRef, {
-          topic_id: newTopicRef.id,
+      await supabase.from("lessons").insert(
+        parsed.lessons.map((lesson: any, i: number) => ({
+          topic_id: newTopicId,
           title: lesson.title,
           content: lesson.content,
-          order: i + 1,
-          // Ownership stamp — lets Firestore rules allow the owner (and only
-          // the owner) to write custom lessons without a parent-topic lookup.
-          is_custom: true,
-          user_id: user.uid,
-          created_at: new Date()
-        });
-      });
-
-      await batch.commit();
+          position: i + 1,
+        }))
+      );
       toast.success(`AI Course "${parsed.topic_title}" generated with ${parsed.lessons.length} lessons!`);
       queryClient.invalidateQueries({ queryKey: ["topics", user.uid] });
       setFilter("Your Courses");
@@ -445,15 +384,12 @@ ${condensedContent.substring(0, 15000)}`;
 
       if (!parsed) throw lastError || new Error("Failed to generate course.");
 
-      // Step 5: Save to Firestore
-      const batch = writeBatch(db);
-      const newTopicRef = doc(collection(db, "topics"));
-
-      batch.set(newTopicRef, {
+      // Step 5: Save the course
+      const newTopicId = crypto.randomUUID();
+      await supabase.from("topics").insert({
+        id: newTopicId,
         title: parsed.topic_title,
         subject: parsed.subject || "General",
-        subjectName: parsed.subject || "General",
-        subjectIcon: "file-text",
         description: parsed.description || "",
         lesson_count: parsed.lessons.length,
         is_custom: true,
@@ -462,24 +398,15 @@ ${condensedContent.substring(0, 15000)}`;
         youtube_title: videoTitle,
         youtube_channel: videoChannel,
         user_id: user.uid,
-        created_at: new Date()
       });
-
-      parsed.lessons.forEach((lesson: any, i: number) => {
-        const lessonRef = doc(collection(db, "lessons"));
-        batch.set(lessonRef, {
-          topic_id: newTopicRef.id,
+      await supabase.from("lessons").insert(
+        parsed.lessons.map((lesson: any, i: number) => ({
+          topic_id: newTopicId,
           title: lesson.title,
           content: lesson.content,
-          order: i + 1,
-          // Ownership stamp — see note above.
-          is_custom: true,
-          user_id: user.uid,
-          created_at: new Date()
-        });
-      });
-
-      await batch.commit();
+          position: i + 1,
+        }))
+      );
       toast.success(`Course "${parsed.topic_title}" created with ${parsed.lessons.length} lessons from YouTube!`);
       queryClient.invalidateQueries({ queryKey: ["topics", user.uid] });
       setFilter("Your Courses");

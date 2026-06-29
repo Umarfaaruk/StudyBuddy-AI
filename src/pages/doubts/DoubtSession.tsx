@@ -1,8 +1,7 @@
 import { Link, useParams } from "react-router-dom";
 import { ArrowLeft, Sparkles, User } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
-import { db } from "@/lib/firebase";
-import { collection, query, where, getDocs } from "firebase/firestore";
+import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/contexts/AuthContext";
 import { Skeleton } from "@/components/ui/skeleton";
 import ReactMarkdown from "react-markdown";
@@ -16,26 +15,20 @@ const DoubtSession = () => {
     queryFn: async () => {
       if (!user || !id) return [];
       try {
-        // Equality-only query (no orderBy) avoids needing a composite index.
-        // Messages are sorted client-side by created_at below.
-        const q = query(
-          collection(db, "doubt_messages"),
-          where("user_id", "==", user.uid),
-          where("doubt_session_id", "==", id)
-        );
-        const snap = await getDocs(q);
-        return snap.docs
-          .map((d) => ({
-            id: d.id,
-            ...d.data()
-          } as {
-            id: string;
-            role: "user" | "assistant";
-            message_text: string;
-            created_at: string;
-            doubt_session_id: string;
-          }))
-          .sort((a, b) => (a.created_at < b.created_at ? -1 : a.created_at > b.created_at ? 1 : 0));
+        const { data, error } = await supabase
+          .from("doubt_messages")
+          .select("*")
+          .eq("user_id", user.uid)
+          .eq("doubt_session_id", id)
+          .order("created_at", { ascending: true });
+        if (error) throw error;
+        return (data ?? []) as Array<{
+          id: string;
+          role: "user" | "assistant";
+          message_text: string;
+          created_at: string;
+          doubt_session_id: string;
+        }>;
       } catch (error) {
         console.error("[DoubtSession] Query error:", error);
         return [];

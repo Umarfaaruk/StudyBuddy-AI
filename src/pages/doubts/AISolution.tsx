@@ -4,8 +4,7 @@ import { Button } from "@/components/ui/button";
 import { ArrowLeft, Sparkles, Gamepad2, Loader2, Square } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
-import { db } from "@/lib/firebase";
-import { addDoc, collection } from "firebase/firestore";
+import { supabase } from "@/lib/supabase";
 import ReactMarkdown from "react-markdown";
 import { aiStream } from "@/lib/aiService";
 import { getAuthHeaders } from "@/lib/authHeaders";
@@ -21,7 +20,7 @@ import { extractYouTubeVideoId } from "@/lib/youtube";
  * Includes:
  * - AbortController for cancelling streams on unmount
  * - Memory leak prevention
- * - Firestore persistence for doubt history
+ * - Supabase persistence for doubt history
  */
 const AISolution = () => {
   const location = useLocation();
@@ -120,30 +119,27 @@ const AISolution = () => {
           setAnswer("I couldn't generate a response. Please try rephrasing your question.");
         }
 
-        // Save doubt session + messages to Firestore for history
+        // Save doubt session + messages for history
         if (user && full.trim()) {
           try {
-            const sessionRef = await addDoc(collection(db, "doubt_sessions"), {
-              user_id: user.uid,
-              question_preview: question!.substring(0, 200),
-              created_at: new Date().toISOString(),
-            });
-            await addDoc(collection(db, "doubt_messages"), {
-              doubt_session_id: sessionRef.id,
-              user_id: user.uid,
-              role: "user",
-              message_text: question + (youtubeUrl ? `\n\nYouTube URL: ${youtubeUrl}` : ""),
-              created_at: new Date().toISOString(),
-            });
-            await addDoc(collection(db, "doubt_messages"), {
-              doubt_session_id: sessionRef.id,
-              user_id: user.uid,
-              role: "assistant",
-              message_text: full,
-              created_at: new Date().toISOString(),
-            });
+            const { data: session } = await supabase
+              .from("doubt_sessions")
+              .insert({ user_id: user.uid, question_preview: question!.substring(0, 200) })
+              .select("id")
+              .single();
+            if (session?.id) {
+              await supabase.from("doubt_messages").insert([
+                {
+                  doubt_session_id: session.id,
+                  user_id: user.uid,
+                  role: "user",
+                  message_text: question + (youtubeUrl ? `\n\nYouTube URL: ${youtubeUrl}` : ""),
+                },
+                { doubt_session_id: session.id, user_id: user.uid, role: "assistant", message_text: full },
+              ]);
+            }
           } catch (saveErr) {
-            console.error("[AISolution] Save to Firestore error:", saveErr);
+            console.error("[AISolution] Save error:", saveErr);
           }
         }
       } catch (e: any) {

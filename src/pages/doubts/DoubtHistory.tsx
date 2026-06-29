@@ -2,8 +2,7 @@ import { Link } from "react-router-dom";
 import { ArrowLeft, History, MessageSquare } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/contexts/AuthContext";
-import { db } from "@/lib/firebase";
-import { collection, query, where, getDocs } from "firebase/firestore";
+import { supabase } from "@/lib/supabase";
 import { Skeleton } from "@/components/ui/skeleton";
 
 const DoubtHistory = () => {
@@ -14,25 +13,19 @@ const DoubtHistory = () => {
     queryFn: async () => {
       if (!user) return [];
       try {
-        // Equality-only query (no composite index needed); sorted client-side.
-        const q = query(
-          collection(db, "doubt_sessions"),
-          where("user_id", "==", user.uid)
-        );
-        const snap = await getDocs(q);
-        return snap.docs
-          .map((d) => ({
-            id: d.id,
-            ...d.data()
-          } as {
-            id: string;
-            user_id: string;
-            created_at: string;
-            title?: string;
-            description?: string;
-            [key: string]: any;
-          }))
-          .sort((a, b) => (a.created_at < b.created_at ? 1 : a.created_at > b.created_at ? -1 : 0));
+        const { data, error } = await supabase
+          .from("doubt_sessions")
+          .select("*")
+          .eq("user_id", user.uid)
+          .order("created_at", { ascending: false });
+        if (error) throw error;
+        return (data ?? []) as Array<{
+          id: string;
+          user_id: string;
+          created_at: string;
+          question_preview?: string;
+          [key: string]: any;
+        }>;
       } catch (error) {
         console.error("[DoubtHistory] Query error:", error);
         return [];

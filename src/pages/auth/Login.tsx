@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Link, useNavigate, useLocation } from "react-router-dom";
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
@@ -6,10 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Mail, Lock, ArrowRight, Eye, EyeOff } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
-import { auth } from "@/lib/firebase";
-import { ensureGoogleUserProfile } from "@/lib/ensureGoogleProfile";
-import { GoogleAuthProvider, signInWithPopup, sendPasswordResetEmail } from "firebase/auth";
-import { getReadableFirebaseAuthError } from "@/lib/firebaseAuthErrors";
+import { getReadableAuthError } from "@/lib/authErrors";
 
 import eduonxLogo from "@/assets/eduonx-logo.png";
 import eduonxLogoOnDark from "@/assets/eduonx-logo-on-dark.png";
@@ -17,7 +14,7 @@ import eduonxLogoOnDark from "@/assets/eduonx-logo-on-dark.png";
 const Login = () => {
   const navigate = useNavigate();
   const location = useLocation();
-  const { signIn } = useAuth();
+  const { signIn, signInWithGoogle, sendPasswordReset, user } = useAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -26,6 +23,12 @@ const Login = () => {
   // Redirect to the page the user was trying to visit, or dashboard
   const from = (location.state as { from?: { pathname: string } })?.from?.pathname ?? "/dashboard";
 
+  // Once authenticated (incl. returning from the Google OAuth redirect), leave
+  // the login page. ProtectedRoute then routes new users to onboarding.
+  useEffect(() => {
+    if (user) navigate(from, { replace: true });
+  }, [user, from, navigate]);
+
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
@@ -33,7 +36,7 @@ const Login = () => {
     setIsLoading(false);
 
     if (error) {
-      toast.error(getReadableFirebaseAuthError(error));
+      toast.error(getReadableAuthError(error));
       return;
     }
     navigate(from, { replace: true });
@@ -45,29 +48,18 @@ const Login = () => {
       toast.error("Enter your email above first, then click “Forgot password?”");
       return;
     }
-    try {
-      await sendPasswordResetEmail(auth, target);
-      toast.success(`Password reset link sent to ${target}. Check your inbox (and spam).`);
-    } catch (error: any) {
-      toast.error(getReadableFirebaseAuthError(error));
+    const { error } = await sendPasswordReset(target);
+    if (error) {
+      toast.error(getReadableAuthError(error));
+      return;
     }
+    toast.success(`Password reset link sent to ${target}. Check your inbox (and spam).`);
   };
 
   const handleGoogleLogin = async () => {
-    try {
-      const provider = new GoogleAuthProvider();
-      provider.setCustomParameters({ prompt: 'select_account' });
-      const result = await signInWithPopup(auth, provider);
-      await ensureGoogleUserProfile(result.user);
-      
-      // ProtectedRoute will check if onboarding is completed.
-      // New users → redirected to /onboarding
-      // Returning users → go to dashboard
-      toast.success("Logged in with Google!");
-      navigate(from, { replace: true });
-    } catch (error: any) {
-      toast.error(getReadableFirebaseAuthError(error));
-    }
+    // Full-page redirect to Google; the app resumes via the useEffect above.
+    const { error } = await signInWithGoogle();
+    if (error) toast.error(getReadableAuthError(error));
   };
 
   return (

@@ -1,6 +1,5 @@
 import { createContext, useContext, useEffect, useState, ReactNode, useCallback } from "react";
-import { collection, query, where, limit, onSnapshot, updateDoc, doc, writeBatch, addDoc } from "firebase/firestore";
-import { db } from "@/lib/firebase";
+import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/contexts/AuthContext";
 
 export interface Notification {
@@ -28,73 +27,70 @@ export const NotificationProvider = ({ children }: { children: ReactNode }) => {
   const { user } = useAuth();
   const [notifications, setNotifications] = useState<Notification[]>([]);
 
-  // Real-time listener for notifications
+  // Initial fetch + realtime subscription (replaces Firestore onSnapshot).
   useEffect(() => {
     if (!user) {
       setNotifications([]);
       return;
     }
+    let active = true;
 
-    // Equality-only query (no orderBy) so NO composite index is required — we
-    // sort newest-first on the client instead. This was previously failing with
-    // "query requires an index" and silently breaking all notifications.
-    const q = query(
-      collection(db, "notifications"),
-      where("user_id", "==", user.uid),
-      limit(50)
-    );
+    const load = async () => {
+      const { data, error } = await supabase
+        .from("notifications")
+        .select("*")
+        .eq("user_id", user.uid)
+        .order("created_at", { ascending: false })
+        .limit(50);
+      if (error) {
+        console.error("[Notifications] load error:", error);
+        return;
+      }
+      if (active) setNotifications((data ?? []) as Notification[]);
+    };
 
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      const notifs: Notification[] = snapshot.docs.map((doc) => ({
-        id: doc.id,
-        ...doc.data(),
-      })) as Notification[];
-      notifs.sort((a, b) => (a.created_at < b.created_at ? 1 : a.created_at > b.created_at ? -1 : 0));
-      setNotifications(notifs);
-    }, (error) => {
-      console.error("[Notifications] Listener error:", error);
-    });
+    load();
 
-    return () => unsubscribe();
+    const channel = supabase
+      .channel(`notifications:${user.uid}`)
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "notifications", filter: `user_id=eq.${user.uid}` },
+        () => { load(); }
+      )
+      .subscribe();
+
+    return () => {
+      active = false;
+      supabase.removeChannel(channel);
+    };
   }, [user]);
 
   const unreadCount = notifications.filter((n) => !n.read).length;
 
   const markAsRead = useCallback(async (id: string) => {
-    try {
-      await updateDoc(doc(db, "notifications", id), { read: true });
-    } catch (error) {
-      console.error("[Notifications] Mark as read error:", error);
-    }
+    const { error } = await supabase.from("notifications").update({ read: true }).eq("id", id);
+    if (error) console.error("[Notifications] Mark as read error:", error);
   }, []);
 
   const markAllAsRead = useCallback(async () => {
     if (!user) return;
-    try {
-      const batch = writeBatch(db);
-      notifications
-        .filter((n) => !n.read)
-        .forEach((n) => {
-          batch.update(doc(db, "notifications", n.id), { read: true });
-        });
-      await batch.commit();
-    } catch (error) {
-      console.error("[Notifications] Mark all as read error:", error);
-    }
-  }, [user, notifications]);
+    const { error } = await supabase
+      .from("notifications")
+      .update({ read: true })
+      .eq("user_id", user.uid)
+      .eq("read", false);
+    if (error) console.error("[Notifications] Mark all as read error:", error);
+  }, [user]);
 
   const addNotification = useCallback(async (data: Omit<Notification, "id" | "user_id" | "read" | "created_at">) => {
     if (!user) return;
-    try {
-      await addDoc(collection(db, "notifications"), {
-        ...data,
-        user_id: user.uid,
-        read: false,
-        created_at: new Date().toISOString(),
-      });
-    } catch (error) {
-      console.error("[Notifications] Add notification error:", error);
-    }
+    const { error } = await supabase.from("notifications").insert({
+      ...data,
+      user_id: user.uid,
+      read: false,
+    });
+    if (error) console.error("[Notifications] Add notification error:", error);
   }, [user]);
 
   return (
@@ -111,7 +107,7 @@ export const useNotifications = () => {
 };
 
 /**
- * Standalone function to create a notification for a specific user.
+ * Standalone helper to create a notification for a specific user.
  * Can be called from anywhere (outside React components).
  */
 export async function createNotification(
@@ -119,18 +115,14 @@ export async function createNotification(
   data: { title: string; message: string; type: Notification["type"]; icon: string },
   fromUserId?: string
 ) {
-  try {
-    const payload: Record<string, unknown> = {
-      ...data,
-      user_id: userId,
-      read: false,
-      created_at: new Date().toISOString(),
-    };
-    if (fromUserId && fromUserId !== userId) {
-      payload.from_user_id = fromUserId;
-    }
-    await addDoc(collection(db, "notifications"), payload);
-  } catch (error) {
-    console.error("[Notifications] createNotification error:", error);
+  const payload: Record<string, unknown> = {
+    ...data,
+    user_id: userId,
+    read: false,
+  };
+  if (fromUserId && fromUserId !== userId) {
+    payload.from_user_id = fromUserId;
   }
+  const { error } = await supabase.from("notifications").insert(payload);
+  if (error) console.error("[Notifications] createNotification error:", error);
 }

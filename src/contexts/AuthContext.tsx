@@ -1,97 +1,125 @@
 import { createContext, useContext, useEffect, useState, ReactNode } from "react";
-import {
-  User,
-  createUserWithEmailAndPassword,
-  signInWithEmailAndPassword,
-  signOut as firebaseSignOut,
-  onAuthStateChanged,
-  updateProfile
-} from "firebase/auth";
-import { auth, db } from "@/lib/firebase";
-import { doc, setDoc } from "firebase/firestore";
+import type { User as SupabaseUser } from "@supabase/supabase-js";
+import { supabase } from "@/lib/supabase";
 
-// FIX Bug 20: Import the retry queue key so we can clear it on sign out,
-// preventing one user's unsaved sessions from being flushed under another
-// user's UID when they log in on the same browser.
+// FIX Bug 20: clear the study-session retry queue on sign out so one user's
+// unsaved sessions are never flushed under another user's id on a shared browser.
 import { RETRY_QUEUE_KEY } from "@/lib/studySession";
 
+/**
+ * AppUser — a thin, provider-agnostic shape.
+ * We keep the field name `uid` (not Supabase's `id`) so the ~134 existing
+ * `user.uid` call sites across the app keep working unchanged after the
+ * Firebase → Supabase migration.
+ */
+export interface AppUser {
+  uid: string;
+  email: string | null;
+  displayName: string | null;
+  photoURL: string | null;
+}
+
+interface AuthResult {
+  error: Error | null;
+}
+
 interface AuthContextType {
-  user: User | null;
-  session: User | null;
+  user: AppUser | null;
   loading: boolean;
-  signUp: (email: string, password: string, fullName: string) => Promise<{ error: Error | null }>;
-  signIn: (email: string, password: string) => Promise<{ error: Error | null }>;
+  signUp: (email: string, password: string, fullName: string) => Promise<AuthResult>;
+  signIn: (email: string, password: string) => Promise<AuthResult>;
+  signInWithGoogle: () => Promise<AuthResult>;
+  sendPasswordReset: (email: string) => Promise<AuthResult>;
   signOut: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
+function toAppUser(u: SupabaseUser | null | undefined): AppUser | null {
+  if (!u) return null;
+  const meta = (u.user_metadata ?? {}) as Record<string, unknown>;
+  return {
+    uid: u.id,
+    email: u.email ?? null,
+    displayName: (meta.full_name as string) ?? (meta.name as string) ?? null,
+    photoURL: (meta.avatar_url as string) ?? (meta.picture as string) ?? null,
+  };
+}
+
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
-  const [user, setUser] = useState<User | null>(null);
+  const [user, setUser] = useState<AppUser | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (user) => {
-      setUser(user);
+    // Seed from any persisted session, then subscribe to changes.
+    supabase.auth.getSession().then(({ data }) => {
+      setUser(toAppUser(data.session?.user));
       setLoading(false);
     });
 
-    return () => unsubscribe();
+    const { data: sub } = supabase.auth.onAuthStateChange((_event, session) => {
+      setUser(toAppUser(session?.user));
+      setLoading(false);
+    });
+
+    return () => sub.subscription.unsubscribe();
   }, []);
 
-  const signUp = async (email: string, password: string, fullName: string) => {
-    try {
-      const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-      await updateProfile(userCredential.user, { displayName: fullName });
-
-      await setDoc(doc(db, "profiles", userCredential.user.uid), {
-        user_id: userCredential.user.uid,
-        full_name: fullName,
-        email: email,
-        onboarding_completed: false,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-      });
-
-      return { error: null };
-    } catch (error: any) {
-      return { error };
-    }
+  const signUp = async (email: string, password: string, fullName: string): Promise<AuthResult> => {
+    // The DB trigger handle_new_user() creates the profile + streak rows from
+    // this metadata, so no client-side profile write is needed.
+    const { error } = await supabase.auth.signUp({
+      email,
+      password,
+      options: { data: { full_name: fullName } },
+    });
+    return { error: error ?? null };
   };
 
-  const signIn = async (email: string, password: string) => {
-    try {
-      await signInWithEmailAndPassword(auth, email, password);
-      return { error: null };
-    } catch (error: any) {
-      return { error };
-    }
+  const signIn = async (email: string, password: string): Promise<AuthResult> => {
+    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    return { error: error ?? null };
+  };
+
+  const signInWithGoogle = async (): Promise<AuthResult> => {
+    // OAuth is a full-page redirect (not a popup). After Google returns, the
+    // session is picked up by onAuthStateChange and the user lands on /dashboard.
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: "google",
+      options: {
+        redirectTo: `${window.location.origin}/dashboard`,
+        queryParams: { prompt: "select_account" },
+      },
+    });
+    return { error: error ?? null };
+  };
+
+  const sendPasswordReset = async (email: string): Promise<AuthResult> => {
+    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: `${window.location.origin}/login`,
+    });
+    return { error: error ?? null };
   };
 
   const signOut = async () => {
     try {
-      // Clear session data and notepad drafts
-      const keys = Object.keys(localStorage);
-      keys.forEach((key) => {
+      // Clear per-session local data and notepad drafts.
+      Object.keys(localStorage).forEach((key) => {
         if (key.startsWith("session_") || key.startsWith("notes_")) {
           localStorage.removeItem(key);
         }
       });
-
-      // FIX Bug 20: Clear the study session retry queue on sign out.
-      // Without this, User A's failed sessions could be replayed under User B's
-      // UID if they log in on the same browser.
       try { localStorage.removeItem(RETRY_QUEUE_KEY); } catch {}
 
-      await firebaseSignOut(auth);
-    } catch (error: any) {
+      await supabase.auth.signOut();
+    } catch (error) {
       console.error("Sign out error:", error);
       throw error;
     }
   };
 
   return (
-    <AuthContext.Provider value={{ user, session: user, loading, signUp, signIn, signOut }}>
+    <AuthContext.Provider value={{ user, loading, signUp, signIn, signInWithGoogle, sendPasswordReset, signOut }}>
       {children}
     </AuthContext.Provider>
   );

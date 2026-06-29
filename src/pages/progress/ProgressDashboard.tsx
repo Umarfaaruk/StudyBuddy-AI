@@ -5,8 +5,7 @@ import { useDashboardData } from "@/hooks/useDashboardData";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { useQuery } from "@tanstack/react-query";
-import { db } from "@/lib/firebase";
-import { collection, query, where, getDocs } from "firebase/firestore";
+import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
 import { toDateKey } from "@/lib/utils";
@@ -33,36 +32,26 @@ const ProgressDashboard = () => {
       // SELF-HEALING: falls back to reading all topics if the is_custom backfill
       // hasn't run yet (see scripts/backfill-topic-flags.mjs), so labels never
       // go missing.
-      const [publicTopicsSnap, customTopicsSnap] = await Promise.all([
-        getDocs(query(collection(db, "topics"), where("is_custom", "==", false))),
-        getDocs(query(collection(db, "topics"), where("user_id", "==", user.uid))),
-      ]);
-      let topicDocs;
-      if (publicTopicsSnap.empty) {
-        const allSnap = await getDocs(collection(db, "topics"));
-        topicDocs = allSnap.docs;
-      } else {
-        const byId = new Map<string, any>();
-        for (const d of [...publicTopicsSnap.docs, ...customTopicsSnap.docs]) byId.set(d.id, d);
-        topicDocs = [...byId.values()];
-      }
+      const { data: topicDocs } = await supabase
+        .from("topics")
+        .select("id, subject, title")
+        .or(`is_custom.eq.false,user_id.eq.${user.uid}`);
       const topicMap = new Map<string, { subject: string; title: string }>();
-      topicDocs.forEach(d => {
-        const data = d.data();
-        topicMap.set(d.id, {
-          subject: data.subject || data.subjectName || "General",
+      (topicDocs ?? []).forEach((data: any) => {
+        topicMap.set(data.id, {
+          subject: data.subject || "General",
           title: data.title || "General",
         });
       });
 
       // 2. Fetch quiz attempts
-      const quizSnap = await getDocs(query(collection(db, "quiz_attempts"), where("user_id", "==", user.uid)));
-      
+      const { data: quizSnap } = await supabase.from("quiz_attempts").select("*").eq("user_id", user.uid);
+
       // 3. Fetch study sessions
-      const sessionsSnap = await getDocs(query(collection(db, "study_sessions"), where("user_id", "==", user.uid)));
-      
+      const { data: sessionsSnap } = await supabase.from("study_sessions").select("*").eq("user_id", user.uid);
+
       // 4. Fetch lesson progress
-      const progressSnap = await getDocs(query(collection(db, "lesson_progress"), where("user_id", "==", user.uid)));
+      const { data: progressSnap } = await supabase.from("lesson_progress").select("*").eq("user_id", user.uid);
 
       const subjectMap: Record<string, { 
         totalScore: number; 
@@ -101,8 +90,7 @@ const ProgressDashboard = () => {
       }
 
       // Group quizzes
-      quizSnap.forEach((d) => {
-        const data = d.data();
+      (quizSnap ?? []).forEach((data: any) => {
         let subject = "General";
         if (data.topic_id && topicMap.has(data.topic_id)) {
           subject = topicMap.get(data.topic_id)!.subject;
@@ -121,8 +109,7 @@ const ProgressDashboard = () => {
       });
 
       // Group study sessions time
-      sessionsSnap.forEach((d) => {
-        const data = d.data();
+      (sessionsSnap ?? []).forEach((data: any) => {
         const dur = data.duration_seconds || 0;
         const topicId = data.topic_id;
         const subject = topicId && topicMap.has(topicId) ? topicMap.get(topicId)!.subject : "General";
@@ -134,10 +121,9 @@ const ProgressDashboard = () => {
       });
 
       // Group completed lessons
-      progressSnap.forEach((d) => {
-        const data = d.data();
+      (progressSnap ?? []).forEach((data: any) => {
         const completedCount = data.completed_lessons?.length || 0;
-        const topicId = data.topic_id || d.id.split("_")[1];
+        const topicId = data.topic_id;
         const subject = topicId && topicMap.has(topicId) ? topicMap.get(topicId)!.subject : "General";
 
         if (!subjectMap[subject]) {
@@ -767,27 +753,23 @@ const ProgressDashboard = () => {
                     setExpandedDate(entry.date);
                     setLoadingDetails(true);
                     try {
-                      const lessonsSnap = await getDocs(
-                        query(collection(db, "lesson_progress"), where("user_id", "==", user?.uid))
-                      );
+                      const { data: lessonsRows } = await supabase
+                        .from("lesson_progress").select("*").eq("user_id", user?.uid ?? "");
                       const dayLessons: string[] = [];
-                      lessonsSnap.forEach(d => {
-                        const data = d.data();
+                      (lessonsRows ?? []).forEach((data: any) => {
                         if (data.updated_at) {
-                          const updatedDate = data.updated_at?.toDate?.() ?? new Date(data.updated_at);
+                          const updatedDate = new Date(data.updated_at);
                           if (toDateKey(updatedDate) === entry.date) {
                             dayLessons.push(...(data.completed_lessons || []));
                           }
                         }
                       });
-                      const quizSnap = await getDocs(
-                        query(collection(db, "quiz_attempts"), where("user_id", "==", user?.uid))
-                      );
+                      const { data: quizRows } = await supabase
+                        .from("quiz_attempts").select("*").eq("user_id", user?.uid ?? "");
                       const dayQuizzes: { topic: string; score: number; total: number }[] = [];
-                      quizSnap.forEach(d => {
-                        const data = d.data();
-                        const createdAt = data.created_at?.toDate?.() ?? new Date(data.created_at);
-                        if (toDateKey(createdAt) === entry.date) {
+                      (quizRows ?? []).forEach((data: any) => {
+                        const createdAt = data.created_at ? new Date(data.created_at) : null;
+                        if (createdAt && toDateKey(createdAt) === entry.date) {
                           dayQuizzes.push({
                             topic: data.topic_title || "General",
                             score: data.score || 0,
@@ -795,12 +777,10 @@ const ProgressDashboard = () => {
                           });
                         }
                       });
-                      const doubtsSnap = await getDocs(
-                        query(collection(db, "doubt_sessions"), where("user_id", "==", user?.uid))
-                      );
+                      const { data: doubtsRows } = await supabase
+                        .from("doubt_sessions").select("*").eq("user_id", user?.uid ?? "");
                       const dayDoubts: string[] = [];
-                      doubtsSnap.forEach(d => {
-                        const data = d.data();
+                      (doubtsRows ?? []).forEach((data: any) => {
                         const createdAt = data.created_at ? new Date(data.created_at) : null;
                         if (createdAt && toDateKey(createdAt) === entry.date) {
                           dayDoubts.push(data.question_preview || "Question");

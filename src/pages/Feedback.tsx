@@ -8,8 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
-import { db } from "@/lib/firebase";
-import { collection, addDoc, serverTimestamp } from "firebase/firestore";
+import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/contexts/AuthContext";
 
 const feedbackSchema = z.object({
@@ -45,16 +44,18 @@ const Feedback = () => {
 
     while (retries <= maxRetries) {
       try {
-        await addDoc(collection(db, "feedback"), {
-          userId: user?.uid || "anonymous",
-          rating: data.rating,
-          comment: data.comment,
-          name: data.name || "Anonymous",
-          email: data.email || "",
-          createdAt: serverTimestamp(),
-          platform: "web",
-          version: "2.0",
-        });
+        {
+          const { error } = await supabase.from("feedback").insert({
+            user_id: user?.uid ?? null,
+            rating: data.rating,
+            comment: data.comment,
+            name: data.name || "Anonymous",
+            email: data.email || "",
+            platform: "web",
+            version: "2.0",
+          });
+          if (error) throw error;
+        }
         toast.success("Thank you for your feedback!");
         setSubmitted(true);
         form.reset({

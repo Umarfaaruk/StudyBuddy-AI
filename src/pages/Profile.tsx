@@ -3,11 +3,8 @@ import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { db, storage } from "@/lib/firebase";
-import { dedupedXpSum } from "@/lib/xp";
+import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/contexts/AuthContext";
-import { doc, getDoc, updateDoc, collection, query, where, getDocs } from "firebase/firestore";
-import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { toast } from "sonner";
 import { useRef } from "react";
 
@@ -21,9 +18,9 @@ const Profile = () => {
     queryFn: async () => {
       if (!user) return null;
       try {
-        const docRef = doc(db, "profiles", user.uid);
-        const docSnap = await getDoc(docRef);
-        return docSnap.exists() ? docSnap.data() : null;
+        const { data, error } = await supabase.from("profiles").select("*").eq("id", user.uid).maybeSingle();
+        if (error) throw error;
+        return data ?? null;
       } catch (error) {
         console.error("[Profile] Profile load error:", error);
         throw error;
@@ -37,25 +34,22 @@ const Profile = () => {
     queryFn: async () => {
       if (!user) return null;
       try {
-        // Get XP logs — de-duplicated sum (single source of truth, matches dashboard/leaderboard)
-        const xpQ = query(collection(db, "xp_logs"), where("user_id", "==", user.uid));
-        const xpDocs = await getDocs(xpQ);
-        const totalXp = dedupedXpSum(xpDocs.docs);
+        // XP — sum of xp_logs (de-dup enforced by DB unique index)
+        const { data: xpRows } = await supabase.from("xp_logs").select("xp_amount").eq("user_id", user.uid);
+        const totalXp = (xpRows ?? []).reduce((sum, r) => sum + (r.xp_amount || 0), 0);
 
-        // Get streak
-        const streakRef = doc(db, "user_streaks", user.uid);
-        const streakSnap = await getDoc(streakRef);
-        const streak = streakSnap.exists() ? streakSnap.data() : { current_streak: 0, longest_streak: 0 };
+        // Streak
+        const { data: streakRow } = await supabase.from("user_streaks").select("*").eq("user_id", user.uid).maybeSingle();
+        const streak = streakRow ?? { current_streak: 0, longest_streak: 0 };
 
-        // Get quiz attempts
-        const quizQ = query(collection(db, "quiz_attempts"), where("user_id", "==", user.uid));
-        const quizDocs = await getDocs(quizQ);
-        const quizCount = quizDocs.size;
+        // Quiz attempts (count)
+        const { count: quizCountRaw } = await supabase
+          .from("quiz_attempts").select("*", { count: "exact", head: true }).eq("user_id", user.uid);
+        const quizCount = quizCountRaw ?? 0;
 
-        // Get study sessions
-        const sessionsQ = query(collection(db, "study_sessions"), where("user_id", "==", user.uid));
-        const sessionDocs = await getDocs(sessionsQ);
-        const totalStudySeconds = sessionDocs.docs.reduce((sum, doc) => sum + (doc.data().duration_seconds || 0), 0);
+        // Study sessions
+        const { data: sessionRows } = await supabase.from("study_sessions").select("duration_seconds").eq("user_id", user.uid);
+        const totalStudySeconds = (sessionRows ?? []).reduce((sum, r) => sum + (r.duration_seconds || 0), 0);
 
         return {
           totalXp,
@@ -84,9 +78,8 @@ const Profile = () => {
     enabled: !!user,
   });
 
-  // FIX: Upload avatar to Firebase Storage, store only the download URL in Firestore.
-  // Previously the code stored a base64 data URL directly in the Firestore document,
-  // which can exceed Firestore's 1MB per-document limit and causes costly read bandwidth.
+  // Upload avatar to Supabase Storage, store only the public URL on the profile
+  // row (avoids embedding large base64 data in the database).
   const handleAvatarChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file || !user) return;
@@ -130,16 +123,21 @@ const Profile = () => {
         reader.readAsDataURL(file);
       });
 
-      // Upload to Firebase Storage at avatars/{uid}/profile.jpg
-      const storageRef = ref(storage, `avatars/${user.uid}/profile.jpg`);
-      await uploadBytes(storageRef, resizedBlob, { contentType: "image/jpeg" });
-      const downloadURL = await getDownloadURL(storageRef);
+      // Upload to Supabase Storage at avatars/{uid}/profile.jpg
+      const path = `${user.uid}/profile.jpg`;
+      const { error: uploadError } = await supabase.storage
+        .from("avatars")
+        .upload(path, resizedBlob, { contentType: "image/jpeg", upsert: true });
+      if (uploadError) throw uploadError;
+      // Cache-bust so the new image shows immediately
+      const { data: publicUrl } = supabase.storage.from("avatars").getPublicUrl(path);
+      const downloadURL = `${publicUrl.publicUrl}?t=${Date.now()}`;
 
-      // Save only the URL (not base64) to Firestore — stays well within 1MB doc limit
-      await updateDoc(doc(db, "profiles", user.uid), {
+      // Save only the URL (not base64) to the profile row
+      await supabase.from("profiles").update({
         avatar_url: downloadURL,
         updated_at: new Date().toISOString(),
-      });
+      }).eq("id", user.uid);
 
       queryClient.invalidateQueries({ queryKey: ["profile", user.uid] });
       queryClient.invalidateQueries({ queryKey: ["profile-sidebar", user.uid] });

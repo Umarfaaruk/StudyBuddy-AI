@@ -1,7 +1,7 @@
 /**
  * AUTH HEADERS HELPER
  * ===================
- * Attaches the current user's Firebase ID token as a Bearer token so our
+ * Attaches the current user's Supabase access token as a Bearer token so our
  * serverless endpoints (/api/groq, /api/youtube-transcript, /api/ndli) can
  * verify the caller is a real, logged-in EduOnx user before doing paid work.
  *
@@ -9,14 +9,13 @@
  * fetched — the server will then reject the request with 401, which is the
  * correct behavior (these endpoints require authentication).
  */
-import { auth } from "@/lib/firebase";
+import { supabase } from "@/lib/supabase";
 
 export async function getAuthHeaders(): Promise<Record<string, string>> {
-  const user = auth.currentUser;
-  if (!user) return {};
   try {
-    const token = await user.getIdToken();
-    return { Authorization: `Bearer ${token}` };
+    const { data } = await supabase.auth.getSession();
+    const token = data.session?.access_token;
+    return token ? { Authorization: `Bearer ${token}` } : {};
   } catch {
     return {};
   }

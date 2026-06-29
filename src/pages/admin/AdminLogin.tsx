@@ -1,14 +1,13 @@
 import { useState } from "react";
 import { ShieldCheck, Loader2, LogIn, Eye, EyeOff, AlertTriangle, Copy, CheckCheck } from "lucide-react";
-import { signInWithEmailAndPassword } from "firebase/auth";
-import { auth, db } from "@/lib/firebase";
-import { doc, getDoc } from "firebase/firestore";
+import { supabase } from "@/lib/supabase";
+import { getReadableAuthError } from "@/lib/authErrors";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 
 const AdminLogin = () => {
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { signIn, user } = useAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -20,31 +19,22 @@ const AdminLogin = () => {
   // If user is already logged in, check admin status immediately
   const [checkingExisting, setCheckingExisting] = useState(false);
 
+  // Admin role lives in profiles.role (the `users` collection was merged into
+  // profiles during the Supabase migration).
   const checkAdminAndRedirect = async (uid: string) => {
-    // Check users collection
     try {
-      const userDoc = await getDoc(doc(db, "users", uid));
-      const userData = userDoc.data();
-      if (userData?.is_admin === true || userData?.role === "admin") {
+      const { data } = await supabase
+        .from("profiles")
+        .select("role")
+        .eq("id", uid)
+        .single();
+      if (data?.role === "admin") {
         navigate("/admin", { replace: true });
         return true;
       }
     } catch (err) {
-      console.warn("Could not read users collection:", err);
+      console.warn("Could not read profile role:", err);
     }
-
-    // Check profiles collection
-    try {
-      const profileDoc = await getDoc(doc(db, "profiles", uid));
-      const profileData = profileDoc.data();
-      if (profileData?.is_admin === true || profileData?.role === "admin") {
-        navigate("/admin", { replace: true });
-        return true;
-      }
-    } catch (err) {
-      console.warn("Could not read profiles collection:", err);
-    }
-
     return false;
   };
 
@@ -54,28 +44,24 @@ const AdminLogin = () => {
     setError("");
     setDebugUid("");
 
-    try {
-      const credential = await signInWithEmailAndPassword(auth, email, password);
-      const uid = credential.user.uid;
-      setDebugUid(uid);
-
-      const isAdmin = await checkAdminAndRedirect(uid);
-      if (!isAdmin) {
-        setError(
-          `Login successful, but this account does not have admin privileges. Your UID is shown below — use it as the Document ID in the "users" collection in Firebase Console.`
-        );
-      }
-    } catch (err: any) {
-      if (err.code === "auth/user-not-found" || err.code === "auth/wrong-password" || err.code === "auth/invalid-credential") {
-        setError("Invalid email or password.");
-      } else if (err.code === "auth/too-many-requests") {
-        setError("Too many failed attempts. Please try again later.");
-      } else {
-        setError(err.message || "Login failed. Please try again.");
-      }
-    } finally {
+    const { error: signInError } = await signIn(email, password);
+    if (signInError) {
+      setError(getReadableAuthError(signInError));
       setLoading(false);
+      return;
     }
+
+    const { data: sessionData } = await supabase.auth.getUser();
+    const uid = sessionData.user?.id ?? "";
+    setDebugUid(uid);
+
+    const isAdmin = await checkAdminAndRedirect(uid);
+    if (!isAdmin) {
+      setError(
+        `Login successful, but this account does not have admin privileges. Your user ID is shown below — set role = 'admin' on this row in the "profiles" table (Supabase).`
+      );
+    }
+    setLoading(false);
   };
 
   const handleCheckExisting = async () => {
@@ -85,7 +71,7 @@ const AdminLogin = () => {
     const isAdmin = await checkAdminAndRedirect(user.uid);
     if (!isAdmin) {
       setError(
-        `Your current account does not have admin privileges. Your UID is shown below — use it as the Document ID in the "users" collection in Firebase Console.`
+        `Your current account does not have admin privileges. Your user ID is shown below — set role = 'admin' on this row in the "profiles" table (Supabase).`
       );
     }
     setCheckingExisting(false);
@@ -198,7 +184,7 @@ const AdminLogin = () => {
             {/* UID Display */}
             {debugUid && (
               <div className="p-3.5 rounded-xl bg-[#29ABE2]/10 border border-[#29ABE2]/20">
-                <p className="text-[10px] font-bold uppercase tracking-wider text-[#29ABE2] mb-1.5">Your Firebase UID</p>
+                <p className="text-[10px] font-bold uppercase tracking-wider text-[#29ABE2] mb-1.5">Your User ID</p>
                 <div className="flex items-center gap-2">
                   <code className="flex-1 text-xs text-white bg-black/30 rounded-lg px-3 py-2 font-mono break-all select-all">
                     {debugUid}
@@ -216,7 +202,7 @@ const AdminLogin = () => {
                   </button>
                 </div>
                 <p className="text-[10px] text-white/30 mt-2 leading-relaxed">
-                  Use this UID as the Document ID in Firestore → <code className="text-white/50">users</code> collection, then set <code className="text-white/50">is_admin: true</code>
+                  Find this ID in the <code className="text-white/50">profiles</code> table (Supabase), then set <code className="text-white/50">role = 'admin'</code> on that row
                 </p>
               </div>
             )}

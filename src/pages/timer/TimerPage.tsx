@@ -5,8 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts";
 import { Clock, Flame, Target, TrendingUp, Calendar, Award, Zap } from "lucide-react";
-import { collection, query, where, getDocs } from "firebase/firestore";
-import { db } from "@/lib/firebase";
+import { supabase } from "@/lib/supabase";
 import { useQuery } from "@tanstack/react-query";
 import { calculateProductivityScore, getConsistencyMetrics, getPerformanceBreakdown } from "@/lib/analytics";
 import { toDateKey } from "@/lib/utils";
@@ -55,22 +54,13 @@ const TimerPage = () => {
     enabled: !!user,
     queryFn: async () => {
       if (!user) return [];
-      
-      // Equality-only query (no composite index needed); sorted + capped client-side.
-      const q = query(
-        collection(db, "study_sessions"),
-        where("user_id", "==", user.uid)
-      );
-
-      const docs = await getDocs(q);
-      const ms = (t: any) => t?.toMillis?.() ?? (t ? new Date(t).getTime() : 0);
-      return docs.docs
-        .map((doc) => ({
-          id: doc.id,
-          ...(doc.data() as StudySession),
-        } as StudySession))
-        .sort((a: any, b: any) => ms(b.created_at) - ms(a.created_at))
-        .slice(0, 100);
+      const { data } = await supabase
+        .from("study_sessions")
+        .select("*")
+        .eq("user_id", user.uid)
+        .order("created_at", { ascending: false })
+        .limit(100);
+      return (data ?? []) as StudySession[];
     },
   });
 

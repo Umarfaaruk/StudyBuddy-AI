@@ -1,7 +1,6 @@
 import { Link } from "react-router-dom";
 import { useState, useEffect } from "react";
-import { db } from "@/lib/firebase";
-import { collection, query, where, onSnapshot } from "firebase/firestore";
+import { supabase } from "@/lib/supabase";
 import {
   BookOpen, MessageCircleQuestion, Gamepad2, Upload,
   Trophy, Flame, Lightbulb, AlertTriangle, CalendarDays, User, ArrowRight,
@@ -13,7 +12,7 @@ import { useAuth } from "@/contexts/AuthContext";
 // FIX Bug 1 + 4 + 13: Removed the `badgeStats` useQuery that was re-fetching
 // quiz_attempts, study_sessions, doubt_sessions, and user_streaks — all of which
 // useDashboardData already fetches. Badge data is now derived from what the hook
-// already returns: avgScore, totalXp, streak. This halves Firestore reads on every
+// already returns: avgScore, totalXp, streak. This halves DB reads on every
 // dashboard load.
 import NotificationPanel from "@/components/NotificationPanel";
 import FeedbackEnforcer from "@/components/FeedbackEnforcer";
@@ -38,25 +37,31 @@ const Dashboard = () => {
       return;
     }
 
-    const q = query(
-      collection(db, "complaints"),
-      where("user_id", "==", user.uid)
-    );
+    let active = true;
+    const load = async () => {
+      const { data, error } = await supabase
+        .from("complaints")
+        .select("*")
+        .eq("user_id", user.uid)
+        .order("created_at", { ascending: false });
+      if (error) {
+        console.error("Error loading user complaints:", error);
+        setComplaintsLoading(false);
+        return;
+      }
+      if (active) {
+        setMyComplaints(data ?? []);
+        setComplaintsLoading(false);
+      }
+    };
+    load();
 
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      const list = snapshot.docs.map((doc) => ({
-        id: doc.id,
-        ...doc.data()
-      }));
-      list.sort((a: any, b: any) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
-      setMyComplaints(list);
-      setComplaintsLoading(false);
-    }, (error) => {
-      console.error("Error listening to user complaints:", error);
-      setComplaintsLoading(false);
-    });
+    const channel = supabase
+      .channel(`complaints:${user.uid}`)
+      .on("postgres_changes", { event: "*", schema: "public", table: "complaints", filter: `user_id=eq.${user.uid}` }, () => load())
+      .subscribe();
 
-    return () => unsubscribe();
+    return () => { active = false; supabase.removeChannel(channel); };
   }, [user]);
 
   // Fetch history for selected complaint
@@ -67,25 +72,26 @@ const Dashboard = () => {
     }
 
     setHistoryLoading(true);
-    const q = query(
-      collection(db, "complaint_history"),
-      where("complaint_id", "==", selectedComplaint.id)
-    );
+    let active = true;
+    const load = async () => {
+      const { data } = await supabase
+        .from("complaint_history")
+        .select("*")
+        .eq("complaint_id", selectedComplaint.id)
+        .order("created_at", { ascending: true });
+      if (active) {
+        setSelectedComplaintHistory(data ?? []);
+        setHistoryLoading(false);
+      }
+    };
+    load();
 
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      const list = snapshot.docs.map((doc) => ({
-        id: doc.id,
-        ...doc.data()
-      }));
-      list.sort((a: any, b: any) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
-      setSelectedComplaintHistory(list);
-      setHistoryLoading(false);
-    }, (error) => {
-      console.error("Error listening to complaint history:", error);
-      setHistoryLoading(false);
-    });
+    const channel = supabase
+      .channel(`complaint_history:${selectedComplaint.id}`)
+      .on("postgres_changes", { event: "*", schema: "public", table: "complaint_history", filter: `complaint_id=eq.${selectedComplaint.id}` }, () => load())
+      .subscribe();
 
-    return () => unsubscribe();
+    return () => { active = false; supabase.removeChannel(channel); };
   }, [selectedComplaint, isDetailModalOpen]);
 
   const activeDetailComplaint = myComplaints.find(c => c.id === selectedComplaint?.id) || selectedComplaint;
@@ -103,7 +109,7 @@ const Dashboard = () => {
   const longestStreak = streak?.longest_streak ?? currentStreak;
   const studyHours = (progressAnalytics?.weekSeconds ?? 0) / 3600;
 
-  // FIX Bug 1 + 4 + 13: Badges derived entirely from useDashboardData — no extra Firestore queries.
+  // FIX Bug 1 + 4 + 13: Badges derived entirely from useDashboardData — no extra queries.
   // materialsCount and doubtCount are not in the hook, so those badge thresholds
   // are removed (they were minor cosmetic badges). Core badges still work correctly.
   const earnedBadges = (() => {

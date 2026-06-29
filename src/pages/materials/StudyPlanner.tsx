@@ -1,7 +1,6 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { collection, getDocs, query, where, updateDoc, doc, getDoc, writeBatch } from "firebase/firestore";
-import { db } from "@/lib/firebase";
+import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/contexts/AuthContext";
 import { aiComplete, MODEL_SMALL } from "@/lib/aiService";
 import { PLANNER_SYSTEM_PROMPT } from "@/lib/prompts";
@@ -46,9 +45,8 @@ export default function StudyPlanner() {
     queryKey: ["user-preferences", user?.uid],
     queryFn: async () => {
       if (!user) return null;
-      const docRef = doc(db, "user_preferences", user.uid);
-      const snap = await getDoc(docRef);
-      return snap.exists() ? snap.data() : null;
+      const { data } = await supabase.from("user_preferences").select("*").eq("user_id", user.uid).maybeSingle();
+      return data ?? null;
     },
     enabled: !!user,
   });
@@ -58,9 +56,8 @@ export default function StudyPlanner() {
     queryKey: ["profile-planner", user?.uid],
     queryFn: async () => {
       if (!user) return null;
-      const docRef = doc(db, "profiles", user.uid);
-      const snap = await getDoc(docRef);
-      return snap.exists() ? snap.data() : null;
+      const { data } = await supabase.from("profiles").select("*").eq("id", user.uid).maybeSingle();
+      return data ?? null;
     },
     enabled: !!user,
   });
@@ -70,9 +67,8 @@ export default function StudyPlanner() {
     queryKey: ["user-materials", user?.uid],
     queryFn: async () => {
       if (!user) return [];
-      const q = query(collection(db, "materials"), where("user_id", "==", user.uid));
-      const snap = await getDocs(q);
-      return snap.docs.map(d => ({ id: d.id, ...d.data() } as any));
+      const { data } = await supabase.from("materials").select("*").eq("user_id", user.uid);
+      return (data ?? []) as any[];
     },
     enabled: !!user,
   });
@@ -82,9 +78,8 @@ export default function StudyPlanner() {
     queryKey: ["study-plans-all", user?.uid],
     queryFn: async () => {
       if (!user) return [];
-      const q = query(collection(db, "study_plans"), where("user_id", "==", user.uid));
-      const snap = await getDocs(q);
-      return snap.docs.map(d => ({ id: d.id, ...d.data() } as StudyPlan)).sort((a, b) => b.created_at - a.created_at);
+      const { data } = await supabase.from("study_plans").select("*").eq("user_id", user.uid);
+      return ((data ?? []) as StudyPlan[]).sort((a, b) => b.created_at - a.created_at);
     },
     enabled: !!user,
   });
@@ -218,36 +213,25 @@ Limit the response to match the number of days (${daysDiff} days), max 14 entrie
     try {
       if (!scheduleData) throw lastError || new Error("Failed to generate study plan after multiple attempts.");
 
-      const batch = writeBatch(db);
-      const newTopicRef = doc(collection(db, "topics"));
-      
-      batch.set(newTopicRef, {
+      const newTopicId = crypto.randomUUID();
+      await supabase.from("topics").insert({
+        id: newTopicId,
         title: scheduleData.topic_title,
         subject: scheduleData.subject || "General",
-        subjectName: scheduleData.subject || "General",
-        subjectIcon: "file-text",
         description: scheduleData.description || "",
         lesson_count: scheduleData.lessons.length,
         is_custom: true,
         material_id: selectedMaterial?.id || null,
         user_id: user.uid,
-        created_at: new Date()
       });
-
-      scheduleData.lessons.forEach((lesson: any, i: number) => {
-        const lessonRef = doc(collection(db, "lessons"));
-        batch.set(lessonRef, {
-          topic_id: newTopicRef.id,
+      await supabase.from("lessons").insert(
+        scheduleData.lessons.map((lesson: any, i: number) => ({
+          topic_id: newTopicId,
           title: lesson.title,
           content: lesson.content,
-          order: lesson.day || i + 1,
-          // Ownership stamp — lets Firestore rules allow only the owner to
-          // write custom lessons without a parent-topic lookup.
-          is_custom: true,
-          user_id: user.uid,
-          created_at: new Date()
-        });
-      });
+          position: lesson.day || i + 1,
+        }))
+      );
 
       const maxDailyMinutes = hoursPerDay * 60;
       const sanitizedSchedule = scheduleData.schedule.map((d: any, i: number) => ({
@@ -258,8 +242,7 @@ Limit the response to match the number of days (${daysDiff} days), max 14 entrie
         completed: false,
       })).sort((a: any, b: any) => a.day - b.day).slice(0, 14);
 
-      const newPlanRef = doc(collection(db, "study_plans"));
-      batch.set(newPlanRef, {
+      await supabase.from("study_plans").insert({
         user_id: user.uid,
         plan_type: planMode,
         material_id: selectedMaterial?.id || null,
@@ -267,11 +250,9 @@ Limit the response to match the number of days (${daysDiff} days), max 14 entrie
         target_date: examDate.toISOString(),
         subjects: preferences?.subjects || [],
         schedule: sanitizedSchedule,
-        topic_id: newTopicRef.id,
-        created_at: Date.now()
+        topic_id: newTopicId,
+        created_at: Date.now(),
       });
-
-      await batch.commit();
 
       toast.success("🎯 Smart Study Plan generated!");
       setShowCreationForm(false);
@@ -289,7 +270,7 @@ Limit the response to match the number of days (${daysDiff} days), max 14 entrie
     try {
       const newSchedule = [...activePlan.schedule];
       newSchedule[dayIndex].completed = !newSchedule[dayIndex].completed;
-      await updateDoc(doc(db, "study_plans", activePlan.id), { schedule: newSchedule });
+      await supabase.from("study_plans").update({ schedule: newSchedule }).eq("id", activePlan.id);
       refetchPlans();
     } catch (e) {
       toast.error("Failed to update progress");

@@ -5,14 +5,13 @@ import {
   Star, AlertTriangle, Target, Trash2, Eye, Image, CheckCircle, X
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
-import { db } from "@/lib/firebase";
-import { collection, onSnapshot, doc, updateDoc, setDoc } from "firebase/firestore";
+import { supabase } from "@/lib/supabase";
 import { createNotification } from "@/contexts/NotificationContext";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
 import {
   computeAvgQuizScore,
-  parseFirestoreDate,
+  parseDate,
   formatLastActive,
   pickLatestIso
 } from "@/lib/userStats";
@@ -69,9 +68,10 @@ const AdminPanel = () => {
   useEffect(() => {
     if (!user) return;
 
-    const collectionsToListen = [
+    // The `users` collection was merged into `profiles` during the Supabase
+    // migration, so it is no longer fetched.
+    const tablesToLoad: { name: string; setter: (rows: any[]) => void }[] = [
       { name: "profiles",       setter: setProfiles },
-      { name: "users",          setter: setUsersData },
       { name: "xp_logs",        setter: setXpLogs },
       { name: "user_streaks",   setter: setUserStreaks },
       { name: "study_sessions", setter: setStudySessions },
@@ -84,31 +84,24 @@ const AdminPanel = () => {
       { name: "complaints",     setter: setComplaints },
     ];
 
-    const unsubs = collectionsToListen.map(({ name, setter }) => {
-      return onSnapshot(
-        collection(db, name),
-        (snapshot) => {
-          setter(snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() })));
-          setLoadedListeners((prev) => ({ ...prev, [name]: true }));
-        },
-        (err) => {
-          console.warn(`[Admin Realtime] Error listening to "${name}":`, err.message);
-          // Mark as loaded even on error so isLoading resolves
-          setLoadedListeners((prev) => ({ ...prev, [name]: true }));
-        }
-      );
+    let active = true;
+    tablesToLoad.forEach(async ({ name, setter }) => {
+      const { data, error } = await supabase.from(name).select("*");
+      if (!active) return;
+      if (error) console.warn(`[Admin] Error loading "${name}":`, error.message);
+      // Ensure every row exposes an `id` (some tables are keyed by user_id).
+      setter((data ?? []).map((r: any) => ({ id: r.id ?? r.user_id, ...r })));
+      setLoadedListeners((prev) => ({ ...prev, [name]: true }));
     });
 
-    return () => {
-      unsubs.forEach((unsub) => unsub());
-    };
+    return () => { active = false; };
   }, [user]);
 
   // FIX: Check against named required keys, not a raw count,
   // so adding/removing collections doesn't silently break the loading state.
   const isLoading = useMemo(() => {
     const required = [
-      "profiles", "users", "xp_logs", "user_streaks", "study_sessions",
+      "profiles", "xp_logs", "user_streaks", "study_sessions",
       "quiz_attempts", "materials", "doubt_sessions", "flashcards",
       "study_plans", "feedback", "complaints",
     ];
@@ -165,7 +158,7 @@ const AdminPanel = () => {
       const uid = d.user_id;
       if (!uid) continue;
       const duration = Number(d.duration_seconds) || 0;
-      const date = parseFirestoreDate(d);
+      const date = parseDate(d);
       const endedAt = date ? toDateKey(date) : "";
 
       if (!studyByUser[uid]) studyByUser[uid] = { seconds: 0, lastActive: "" };
@@ -184,7 +177,7 @@ const AdminPanel = () => {
         score: Number(d.score) || 0,
         total_questions: Number(d.total_questions) || 0,
       });
-      const date = parseFirestoreDate(d);
+      const date = parseDate(d);
       if (date) {
         const endedAt = toDateKey(date);
         if (!studyByUser[uid]) studyByUser[uid] = { seconds: 0, lastActive: "" };
@@ -204,7 +197,7 @@ const AdminPanel = () => {
       const uid = d.user_id;
       if (!uid) continue;
       doubtsByUser[uid] = (doubtsByUser[uid] || 0) + 1;
-      const date = parseFirestoreDate(d);
+      const date = parseDate(d);
       if (date) {
         const endedAt = toDateKey(date);
         if (!studyByUser[uid]) studyByUser[uid] = { seconds: 0, lastActive: "" };
@@ -234,12 +227,11 @@ const AdminPanel = () => {
         email: (p.email as string) || "—",
         avatar_url: p.avatar_url as string | undefined,
         grade_level: p.grade_level as string | undefined,
-        // ACCURACY FIX: normalize through parseFirestoreDate so the join date
-        // renders correctly whether stored as an ISO string or a Firestore
-        // Timestamp (prevents "Invalid Date" in the admin user list).
+        // Normalize through parseDate so the join date renders correctly
+        // (prevents "Invalid Date" in the admin user list).
         joined:
-          (parseFirestoreDate({ created_at: p.created_at }) ??
-            parseFirestoreDate({ updated_at: p.updated_at }))?.toISOString() ?? "—",
+          (parseDate({ created_at: p.created_at }) ??
+            parseDate({ updated_at: p.updated_at }))?.toISOString() ?? "—",
         xp: xpByUser[uid] || 0,
         streak: streakByUser[uid]?.current || 0,
         longestStreak: streakByUser[uid]?.longest || 0,
@@ -339,14 +331,14 @@ const AdminPanel = () => {
       const nowStr = new Date().toISOString();
       const oldStatus = complaint.status;
 
-      await updateDoc(doc(db, "complaints", complaintId), {
+      await supabase.from("complaints").update({
         status: newStatus,
         admin_notes: editAdminNotes,
         updated_at: nowStr,
-      });
+      }).eq("id", complaintId);
 
       const historyId = `HST-${Math.floor(100000 + Math.random() * 900000)}`;
-      await setDoc(doc(db, "complaint_history", historyId), {
+      await supabase.from("complaint_history").insert({
         id: historyId,
         complaint_id: complaintId,
         old_status: oldStatus,
@@ -406,17 +398,17 @@ const AdminPanel = () => {
       const nowStr = new Date().toISOString();
       const oldStatus = complaint.status;
 
-      await updateDoc(doc(db, "complaints", selectedComplaintId), {
+      await supabase.from("complaints").update({
         status: "Resolved",
         admin_notes: editAdminNotes,
         resolution_notes: resolutionNotes.trim(),
         fix_summary: fixSummary.trim(),
         resolved_at: nowStr,
         updated_at: nowStr,
-      });
+      }).eq("id", selectedComplaintId);
 
       const historyId = `HST-${Math.floor(100000 + Math.random() * 900000)}`;
-      await setDoc(doc(db, "complaint_history", historyId), {
+      await supabase.from("complaint_history").insert({
         id: historyId,
         complaint_id: selectedComplaintId,
         old_status: oldStatus,
@@ -453,29 +445,23 @@ const AdminPanel = () => {
   const feedbackLoading = isLoading;
   const statsError = null;
 
-  // COMPLETE-DELETION FIX: all data cleanup now happens SERVER-SIDE in
-  // /api/admin-delete-user via the Firebase Admin SDK, which bypasses
-  // Firestore security rules. The previous client-side cleanup was being
-  // silently blocked by rules for several collections (analytics,
-  // notifications, analytics_snapshots) and missed follows/friends_list
-  // and Storage avatars entirely. The server now deletes: the Auth
-  // account, every Firestore doc across 18 collection queries (including
-  // the social graph in both directions), 5 doc-id collections, and the
-  // user's Storage files — and reports exactly what was removed.
+  // All data cleanup happens SERVER-SIDE in /api/admin-delete-user using the
+  // Supabase service role. Deleting the Supabase Auth account cascades (ON
+  // DELETE CASCADE) to every user-owned table in one transaction; the server
+  // also best-effort removes the user's avatar from Storage.
   const handleDeleteUser = async (uid: string) => {
     // Guard: prevent double-fire if a delete is already in progress
     if (deletingUserId) return;
     setDeletingUserId(uid);
 
     try {
-      const { getAuth: getClientAuth } = await import("firebase/auth");
-      const currentUser = getClientAuth().currentUser;
-      if (!currentUser) {
+      const { data: sessionData } = await supabase.auth.getSession();
+      const adminToken = sessionData.session?.access_token;
+      if (!adminToken) {
         toast.error("Admin session expired. Please log in again.");
         return;
       }
 
-      const adminToken = await currentUser.getIdToken();
       const resp = await fetch("/api/admin-delete-user", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -602,7 +588,7 @@ const AdminPanel = () => {
           <div>
             <p className="text-sm font-semibold text-amber-800">Some data may be unavailable</p>
             <p className="text-xs text-amber-600 mt-0.5">
-              There was an error loading platform data. Ensure your Firestore rules allow admin reads.
+              There was an error loading platform data. Ensure your Supabase RLS policies allow admin reads.
             </p>
           </div>
         </div>

@@ -1,9 +1,9 @@
 /**
- * EduOnx k6 — AI endpoint resilience (requires FIREBASE_ID_TOKEN)
+ * EduOnx k6 — AI endpoint resilience (requires SUPABASE_ACCESS_TOKEN)
  *
  * Usage:
  *   k6 run -e BASE_URL=https://your-app.vercel.app \
- *          -e FIREBASE_ID_TOKEN=<token> \
+ *          -e SUPABASE_ACCESS_TOKEN=<token> \
  *          tests/k6/ai-groq-stress.js
  */
 
@@ -31,11 +31,11 @@ export const options = {
 };
 
 const BASE = __ENV.BASE_URL || "http://localhost:5000";
-const TOKEN = __ENV.FIREBASE_ID_TOKEN;
+const TOKEN = __ENV.SUPABASE_ACCESS_TOKEN;
 
 export function setup() {
   if (!TOKEN) {
-    throw new Error("FIREBASE_ID_TOKEN is required for AI stress tests");
+    throw new Error("SUPABASE_ACCESS_TOKEN is required for AI stress tests");
   }
 }
 

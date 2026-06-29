@@ -9,8 +9,7 @@ import {
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
-import { db } from "@/lib/firebase";
-import { doc, setDoc, getDoc } from "firebase/firestore";
+import { supabase } from "@/lib/supabase";
 
 import eduonxLogo from "@/assets/eduonx-logo.png";
 
@@ -195,25 +194,18 @@ const OnboardingFlow = () => {
     if (!user) return;
     setIsLoading(true);
     try {
-      const docRef = doc(db, "profiles", user.uid);
-      const docSnap = await getDoc(docRef);
-      const existingData = docSnap.exists() ? docSnap.data() : null;
-
-      // Save profile baseline
-      await setDoc(docRef, {
-        user_id: user.uid,
-        full_name: existingData?.full_name || user.displayName || "Unknown",
-        email: existingData?.email || user.email || "—",
+      // Save profile baseline (row already exists via the handle_new_user trigger).
+      const { error: profileError } = await supabase.from("profiles").upsert({
+        id: user.uid,
+        full_name: user.displayName || "Unknown",
+        email: user.email || "—",
         onboarding_completed: true,
-        learner_type: learnerType,
-        main_purpose: mainPurpose,
-        current_goal: currentGoal,
-        created_at: existingData?.created_at || new Date().toISOString(),
         updated_at: new Date().toISOString(),
-      }, { merge: true });
+      }, { onConflict: "id" });
+      if (profileError) throw profileError;
 
       // Save comprehensive preferences
-      await setDoc(doc(db, "user_preferences", user.uid), {
+      const { error: prefsError } = await supabase.from("user_preferences").upsert({
         user_id: user.uid,
         learner_type: learnerType,
         main_purpose: mainPurpose,
@@ -231,7 +223,8 @@ const OnboardingFlow = () => {
         biggest_reason: biggestReason.trim(),
         onboarding_version: 3,
         updated_at: new Date().toISOString(),
-      }, { merge: true });
+      }, { onConflict: "user_id" });
+      if (prefsError) throw prefsError;
 
       toast.success("Welcome to EduOnx! 🚀");
       // Update cache synchronously to prevent race conditions during navigation

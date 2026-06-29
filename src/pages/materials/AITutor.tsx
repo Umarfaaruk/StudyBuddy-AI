@@ -7,8 +7,7 @@ import ReactMarkdown from "react-markdown";
 import { aiStream, aiComplete } from "@/lib/aiService";
 import { TUTOR_SYSTEM_PROMPT, getDocSystemPrompt, DOC_ANALYSIS_SYSTEM_PROMPT } from "@/lib/prompts";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { collection, query, where, getDocs, addDoc } from "firebase/firestore";
-import { db } from "@/lib/firebase";
+import { supabase } from "@/lib/supabase";
 import {
   Select,
   SelectContent,
@@ -260,26 +259,19 @@ const AITutor = ({ hideHeader = false }: { hideHeader?: boolean } = {}) => {
     queryKey: ["materials", user?.uid],
     queryFn: async () => {
       if (!user) return [];
-      const q = query(
-        collection(db, "materials"),
-        where("user_id", "==", user.uid)
-      );
-      const docs = await getDocs(q);
-      const fetched = docs.docs.map(doc => ({
-        id: doc.id,
-        file_name: doc.data().file_name,
-        summary: doc.data().summary || "",
-        extracted_text: doc.data().extracted_text || "",
-        key_topics: doc.data().key_topics || [],
-        _uploaded_at: doc.data().uploaded_at || "",
+      const { data } = await supabase
+        .from("materials")
+        .select("id, file_name, summary, extracted_text, key_topics, uploaded_at")
+        .eq("user_id", user.uid)
+        .order("uploaded_at", { ascending: false });
+      const fetched = (data ?? []).map((m: any) => ({
+        id: m.id,
+        file_name: m.file_name,
+        summary: m.summary || "",
+        extracted_text: m.extracted_text || "",
+        key_topics: m.key_topics || [],
+        _uploaded_at: m.uploaded_at || "",
       }));
-      
-      fetched.sort((a, b) => {
-        const timeA = a._uploaded_at ? new Date(a._uploaded_at).getTime() : 0;
-        const timeB = b._uploaded_at ? new Date(b._uploaded_at).getTime() : 0;
-        return timeB - timeA;
-      });
-      
       return fetched as unknown as Material[];
     },
     enabled: !!user,
@@ -331,7 +323,7 @@ const AITutor = ({ hideHeader = false }: { hideHeader?: boolean } = {}) => {
       const analysis = await analyzeWithAI(extractedText, file.name);
       const { summary, keyTopics } = analysis;
 
-      const materialRef = await addDoc(collection(db, "materials"), {
+      const { data: materialRow } = await supabase.from("materials").insert({
         user_id: user.uid,
         file_name: file.name,
         content_type: file.type,
@@ -343,10 +335,10 @@ const AITutor = ({ hideHeader = false }: { hideHeader?: boolean } = {}) => {
         content_length: extractedText.length,
         uploaded_at: new Date().toISOString(),
         processed_at: new Date().toISOString(),
-      });
+      }).select("id").single();
 
       await queryClient.invalidateQueries({ queryKey: ["materials", user.uid] });
-      setSelectedMaterialId(materialRef.id);
+      if (materialRow?.id) setSelectedMaterialId(materialRow.id);
       setShowFiles(true); // reveal the file panel now that a document is attached
       setMessages([]);
       toast.success(`${file.name} uploaded and ready! You can now ask questions about it.`);

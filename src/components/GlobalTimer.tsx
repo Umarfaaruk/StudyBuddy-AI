@@ -100,7 +100,7 @@ const GlobalTimer = () => {
     queryClient.invalidateQueries({ queryKey: ["studySessions", uid] });
   }, [user, queryClient]);
 
-  // ── Streak data (placeholder until loaded from Firestore) ──
+  // ── Streak data (placeholder until loaded) ──
   const streak = useMemo(() => ({
     current_streak: 0, longest_streak: 0, last_study_date: null
   }), []);
@@ -229,7 +229,7 @@ const GlobalTimer = () => {
     return () => window.removeEventListener("storage", handler);
   }, [sessionKey, invalidateProgress]);
 
-  // ── Save session to Firestore ─────────────────────────────
+  // ── Save session ─────────────────────────────
   const handleSave = useCallback(async (resetAfter = true) => {
     if (isSavingRef.current) return;
     const dur = secondsRef.current;
@@ -271,7 +271,7 @@ const GlobalTimer = () => {
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
       console.error("[Timer] ❌ Save failed:", msg);
-      toast.error("Session queued for retry. Check Firestore rules if this persists.");
+      toast.error("Session queued for retry. Check your Supabase policies if this persists.");
 
       // Keep data in localStorage for recovery
       if (sessionKey) {
@@ -468,7 +468,7 @@ const GlobalTimer = () => {
               save_trigger: "page_unload",
             });
             // sendBeacon to a logging endpoint if available; otherwise localStorage is our fallback
-            // Note: We can't sendBeacon to Firestore directly, so localStorage + pendingSave is our main strategy
+            // Note: localStorage + pendingSave is our offline-save strategy
             console.log("[Timer] 📡 Saving via localStorage on unload:", beaconData);
           } catch {}
         }

@@ -6,7 +6,7 @@ An intelligent learning platform with AI tutoring, study tracking, gamification,
 
 - **Framework**: Vite + React 18 + TypeScript
 - **Styling**: Tailwind CSS + shadcn/ui
-- **Backend**: Firebase (Auth, Firestore)
+- **Backend**: Supabase (Auth, Postgres, Storage, Realtime)
 - **AI**: Groq API (Llama 3.3 70B) via server proxy
 - **Charts**: Recharts
 - **Animation**: Framer Motion + GSAP
@@ -34,7 +34,7 @@ npm install
 
 # Set up environment variables
 cp .env.example .env.local
-# Edit .env.local with your Firebase and Groq API keys
+# Edit .env.local with your Supabase and Groq API keys
 
 # Start development server
 npm run dev
@@ -47,7 +47,7 @@ src/
 ├── components/       # Shared components (layout, UI, landing)
 ├── contexts/         # React contexts (Auth)
 ├── hooks/            # Custom hooks (dashboard data, deep focus)
-├── lib/              # Services (AI, Firebase, analytics, utils)
+├── lib/              # Services (AI, Supabase, analytics, utils)
 ├── pages/            # Route pages
 │   ├── auth/         # Login, Signup
 │   ├── doubts/       # Ask Doubt, AI Solution, Camera Q&A
@@ -63,16 +63,30 @@ src/
 
 ## Environment Variables
 
-| Variable | Description |
-|---|---|
-| `VITE_FIREBASE_API_KEY` | Firebase API key |
-| `VITE_FIREBASE_AUTH_DOMAIN` | Firebase auth domain |
-| `VITE_FIREBASE_PROJECT_ID` | Firebase project ID |
-| `VITE_FIREBASE_STORAGE_BUCKET` | Firebase storage bucket |
-| `VITE_FIREBASE_MESSAGING_SENDER_ID` | Firebase messaging sender ID |
-| `VITE_FIREBASE_APP_ID` | Firebase app ID |
-| `GROQ_API_KEY` | Groq API key (server-side only) |
+See [`.env.example`](./.env.example) for the full list. Copy it to `.env.local` and fill in your values.
+
+| Variable | Scope | Description |
+|---|---|---|
+| `VITE_SUPABASE_URL` | client | Supabase project URL |
+| `VITE_SUPABASE_ANON_KEY` | client | Supabase anon key (safe in browser; RLS protects data) |
+| `VITE_SENTRY_DSN` | client | Sentry DSN for error monitoring (optional) |
+| `VITE_SENTRY_TRACES_SAMPLE_RATE` | client | Sentry trace sample rate (optional) |
+| `GROQ_API_KEY` | server | Groq API key for the `/api/groq` proxy |
+| `SUPABASE_URL` | server | Supabase project URL (server functions) |
+| `SUPABASE_SERVICE_ROLE_KEY` | server | Supabase service-role key — bypasses RLS, server-only |
+| `YOUTUBE_API_KEY` | server | YouTube Data API key (video metadata) |
+| `SUPADATA_API_KEY` | server | Supadata key (YouTube transcripts) |
+| `RESEND_API_KEY` | server | Resend API key (weekly email digest) |
+| `RESEND_FROM` | server | Verified "from" address for Resend emails |
+| `CRON_SECRET` | server | Secret guarding the weekly-email cron endpoint |
 
 ## License
 
-© 2026 EduOnx. All rights reserved.
+This project was built as part of a freelancing engagement for a company called
+**Edunox**. Edunox holds all rights to this product and its associated
+deliverables. My role was specifically that of the **developer and UI designer**.
+
+This repository and its contents are proprietary to Edunox and are not licensed
+for reuse, redistribution, or modification without their explicit permission.
+
+© 2026 Edunox. All rights reserved.

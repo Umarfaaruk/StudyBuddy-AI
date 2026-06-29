@@ -148,14 +148,8 @@ export default defineConfig(({ mode }) => {
         manualChunks: {
           // Core React runtime
           "vendor-react": ["react", "react-dom", "react-router-dom"],
-          // Firebase SDK (large)
-          "vendor-firebase": [
-            "firebase/app",
-            "firebase/auth",
-            "firebase/firestore",
-            "firebase/storage",
-            "firebase/analytics",
-          ],
+          // Supabase SDK
+          "vendor-supabase": ["@supabase/supabase-js"],
           // Charting library (large)
           "vendor-recharts": ["recharts"],
           // Radix UI primitives

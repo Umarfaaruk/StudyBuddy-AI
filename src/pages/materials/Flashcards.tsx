@@ -1,8 +1,7 @@
 import { useState } from "react";
 import { useLocation, Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
-import { collection, getDocs, query, where, addDoc, updateDoc, doc } from "firebase/firestore";
-import { db } from "@/lib/firebase";
+import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/contexts/AuthContext";
 import { aiComplete } from "@/lib/aiService";
 import { Button } from "@/components/ui/button";
@@ -35,9 +34,8 @@ export default function Flashcards() {
     queryKey: ["user-materials", user?.uid],
     queryFn: async () => {
       if (!user) return [];
-      const q = query(collection(db, "materials"), where("user_id", "==", user.uid));
-      const snap = await getDocs(q);
-      return snap.docs.map(d => ({ id: d.id, ...d.data() }));
+      const { data } = await supabase.from("materials").select("*").eq("user_id", user.uid);
+      return (data ?? []) as any[];
     },
     enabled: !!user,
   });
@@ -46,17 +44,12 @@ export default function Flashcards() {
     queryKey: ["flashcards", selectedMaterial?.id],
     queryFn: async () => {
       if (!selectedMaterial?.id || !user) return [];
-      const q = query(
-        collection(db, "flashcards"), 
-        where("material_id", "==", selectedMaterial.id),
-        where("user_id", "==", user.uid)
-      );
-      const snap = await getDocs(q);
-      return (snap.docs.map(d => ({ id: d.id, ...d.data() })) as FlashcardDoc[]).sort((a, b) => {
-        const aDate = a.next_review || 0;
-        const bDate = b.next_review || 0;
-        return aDate - bDate;
-      });
+      const { data } = await supabase
+        .from("flashcards")
+        .select("*")
+        .eq("material_id", selectedMaterial.id)
+        .eq("user_id", user.uid);
+      return ((data ?? []) as FlashcardDoc[]).sort((a, b) => (a.next_review || 0) - (b.next_review || 0));
     },
     enabled: !!selectedMaterial?.id && !!user,
   });
@@ -110,9 +103,9 @@ ${selectedMaterial.extracted_text?.substring(0, 8000) || selectedMaterial.summar
         throw lastError || new Error("AI returned no flashcard pairs after multiple attempts.");
       }
 
-      for (const pair of pairs) {
-        if (!pair.question || !pair.answer) continue;
-        await addDoc(collection(db, "flashcards"), {
+      const rows = pairs
+        .filter((pair: any) => pair.question && pair.answer)
+        .map((pair: any) => ({
           user_id: user.uid,
           material_id: selectedMaterial.id,
           question: String(pair.question).trim(),
@@ -120,9 +113,9 @@ ${selectedMaterial.extracted_text?.substring(0, 8000) || selectedMaterial.summar
           created_at: Date.now(),
           next_review: Date.now(),
           interval: 0,
-          ease: 2.5
-        });
-      }
+          ease: 2.5,
+        }));
+      if (rows.length > 0) await supabase.from("flashcards").insert(rows);
       toast.success("Flashcards generated!");
       refetchCards();
     } catch (error) {
@@ -149,10 +142,10 @@ ${selectedMaterial.extracted_text?.substring(0, 8000) || selectedMaterial.summar
     const nextReview = Date.now() + newInterval * 24 * 60 * 60 * 1000;
 
     try {
-      await updateDoc(doc(db, "flashcards", card.id), {
+      await supabase.from("flashcards").update({
         interval: newInterval,
-        next_review: nextReview
-      });
+        next_review: nextReview,
+      }).eq("id", card.id);
       
       setIsFlipped(false);
       if (currentCardIndex < flashcards.length - 1) {

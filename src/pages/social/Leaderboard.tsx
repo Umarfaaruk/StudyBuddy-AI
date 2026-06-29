@@ -2,8 +2,7 @@ import { Trophy, Zap, Flame, Users, Crown, Award, Star, UserPlus, UserCheck, Sea
 import { useState, useMemo } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/contexts/AuthContext";
-import { db } from "@/lib/firebase";
-import { collection, query, where, getDocs, doc, getDoc, limit, Timestamp, documentId } from "firebase/firestore";
+import { supabase } from "@/lib/supabase";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
@@ -28,13 +27,13 @@ const ProfileModal = ({
   const { data, isLoading } = useQuery({
     queryKey: ["profile-modal", uid],
     queryFn: async () => {
-      const [pSnap, sSnap] = await Promise.all([
-        getDoc(doc(db, "profiles", uid)),
-        getDoc(doc(db, "user_streaks", uid)),
+      const [pRes, sRes] = await Promise.all([
+        supabase.from("profiles").select("*").eq("id", uid).maybeSingle(),
+        supabase.from("user_streaks").select("*").eq("user_id", uid).maybeSingle(),
       ]);
       return {
-        profile: pSnap.exists() ? (pSnap.data() as any) : null,
-        streak: sSnap.exists() ? (sSnap.data() as any) : null,
+        profile: (pRes.data as any) ?? null,
+        streak: (sRes.data as any) ?? null,
       };
     },
   });
@@ -110,8 +109,8 @@ const Leaderboard = () => {
     queryKey: ["my-profile", user?.uid],
     queryFn: async () => {
       if (!user) return null;
-      const snap = await getDoc(doc(db, "profiles", user.uid));
-      return snap.exists() ? snap.data() : null;
+      const { data } = await supabase.from("profiles").select("*").eq("id", user.uid).maybeSingle();
+      return data ?? null;
     },
     enabled: !!user,
   });
@@ -120,8 +119,8 @@ const Leaderboard = () => {
     queryKey: ["streak-lb", user?.uid],
     queryFn: async () => {
       if (!user) return null;
-      const snap = await getDoc(doc(db, "user_streaks", user.uid));
-      return snap.exists() ? snap.data() : { current_streak: 0 };
+      const { data } = await supabase.from("user_streaks").select("*").eq("user_id", user.uid).maybeSingle();
+      return data ?? { current_streak: 0 };
     },
     enabled: !!user,
   });
@@ -167,12 +166,12 @@ const Leaderboard = () => {
     setSearching(true);
     try {
       const [byName, byEmail] = await Promise.all([
-        getDocs(query(collection(db, "profiles"), where("full_name", ">=", term), where("full_name", "<=", term + ""), limit(10))),
-        getDocs(query(collection(db, "profiles"), where("email", ">=", term.toLowerCase()), where("email", "<=", term.toLowerCase() + ""), limit(10))),
+        supabase.from("profiles").select("id, full_name, email, avatar_url").ilike("full_name", `%${term}%`).limit(10),
+        supabase.from("profiles").select("id, full_name, email, avatar_url").ilike("email", `%${term.toLowerCase()}%`).limit(10),
       ]);
       const map = new Map<string, any>();
-      [...byName.docs, ...byEmail.docs].forEach((d) => {
-        if (d.id !== user.uid) map.set(d.id, { uid: d.id, ...(d.data() as any) });
+      [...(byName.data ?? []), ...(byEmail.data ?? [])].forEach((d: any) => {
+        if (d.id !== user.uid) map.set(d.id, { uid: d.id, ...d });
       });
       setSearchResults([...map.values()]);
     } catch {
@@ -200,15 +199,14 @@ const Leaderboard = () => {
       // Aggregate XP per user from the event log, DE-DUPLICATING identical
       // entries (same user + amount + source + timestamp = an accidental
       // double-write) so totals are exact.
-      const snap = thr
-        ? await getDocs(query(collection(db, "xp_logs"), where("created_at", ">=", Timestamp.fromDate(thr))))
-        : await getDocs(collection(db, "xp_logs"));
+      let xpQuery = supabase.from("xp_logs").select("user_id, xp_amount, source_type, created_at");
+      if (thr) xpQuery = xpQuery.gte("created_at", thr.toISOString());
+      const { data: xpRows } = await xpQuery;
       const seen = new Set<string>();
       const totals = new Map<string, number>();
-      snap.forEach((d) => {
-        const x = d.data() as any;
+      (xpRows ?? []).forEach((x: any) => {
         if (!x.user_id || typeof x.xp_amount !== "number") return;
-        const ms = x.created_at?.toMillis?.() ?? (x.created_at ? new Date(x.created_at).getTime() : 0);
+        const ms = x.created_at ? new Date(x.created_at).getTime() : 0;
         const sig = `${x.user_id}|${x.xp_amount}|${x.source_type}|${ms}`;
         if (seen.has(sig)) return;
         seen.add(sig);
@@ -224,14 +222,12 @@ const Leaderboard = () => {
       entries.sort((a, b) => b[1] - a[1]);
       const top = entries.slice(0, 20);
 
-      // Resolve names (profiles are public-read) in chunks of 10
+      // Resolve names (profiles are public-read) — one `in` query, no chunking.
       const uids = top.map(([uid]) => uid);
       const nameMap = new Map<string, string>();
-      for (let i = 0; i < uids.length; i += 10) {
-        const chunk = uids.slice(i, i + 10);
-        if (!chunk.length) continue;
-        const psnap = await getDocs(query(collection(db, "profiles"), where(documentId(), "in", chunk)));
-        psnap.forEach((p) => nameMap.set(p.id, (p.data() as any).full_name || "Student"));
+      if (uids.length > 0) {
+        const { data: profs } = await supabase.from("profiles").select("id, full_name").in("id", uids);
+        (profs ?? []).forEach((p: any) => nameMap.set(p.id, p.full_name || "Student"));
       }
 
       const users = top.map(([uid, xpVal], i) => {

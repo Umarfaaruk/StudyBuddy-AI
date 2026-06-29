@@ -1,19 +1,16 @@
 /**
  * FRIEND SYSTEM HELPERS
  * =====================
- * One canonical social graph in `friends_list`:
- *   { requester_id, addressee_id, status: "pending" | "accepted", created_at }
+ * One canonical social graph in the `friendships` table:
+ *   { id, requester_id, addressee_id, status: "pending" | "accepted", created_at }
  *
  * Flow:
- *   X sends request to Y  → pending doc + notification to Y
+ *   X sends request to Y  → pending row + notification to Y
  *   Y accepts             → status "accepted" + notification to X
  *   Both then see each other in their friends list (accepted records where
  *   the user is requester OR addressee).
  */
-import { db } from "@/lib/firebase";
-import {
-  collection, query, where, getDocs, addDoc, updateDoc, doc, deleteDoc,
-} from "firebase/firestore";
+import { supabase } from "@/lib/supabase";
 import { createNotification } from "@/contexts/NotificationContext";
 
 export type FriendStatus = "none" | "pending_sent" | "pending_received" | "friends";
@@ -25,17 +22,14 @@ export interface FriendRecord {
   status: "pending" | "accepted" | "declined";
 }
 
-/** All friend_list records involving the user (both directions). */
+/** All friendship records involving the user (both directions). */
 export async function fetchFriendRecords(uid: string): Promise<FriendRecord[]> {
-  const [sent, received] = await Promise.all([
-    getDocs(query(collection(db, "friends_list"), where("requester_id", "==", uid))),
-    getDocs(query(collection(db, "friends_list"), where("addressee_id", "==", uid))),
-  ]);
-  const map = new Map<string, FriendRecord>();
-  for (const d of [...sent.docs, ...received.docs]) {
-    map.set(d.id, { id: d.id, ...(d.data() as any) });
-  }
-  return [...map.values()];
+  const { data, error } = await supabase
+    .from("friendships")
+    .select("id, requester_id, addressee_id, status")
+    .or(`requester_id.eq.${uid},addressee_id.eq.${uid}`);
+  if (error || !data) return [];
+  return data as FriendRecord[];
 }
 
 /** Relationship of `uid` to `otherUid` given the user's records. */
@@ -65,12 +59,13 @@ export async function sendFriendRequest(
   const { status } = friendStatusFor(records, fromUid, toUid);
   if (status !== "none") return "exists";
 
-  await addDoc(collection(db, "friends_list"), {
+  const { error } = await supabase.from("friendships").insert({
     requester_id: fromUid,
     addressee_id: toUid,
     status: "pending",
-    created_at: new Date().toISOString(),
   });
+  if (error) return "exists";
+
   await createNotification(toUid, {
     title: "New friend request",
     message: `${fromName || "Someone"} sent you a friend request.`,
@@ -87,7 +82,7 @@ export async function acceptFriendRequest(
   requesterUid: string,
   accepterUid: string
 ): Promise<void> {
-  await updateDoc(doc(db, "friends_list", recordId), { status: "accepted" });
+  await supabase.from("friendships").update({ status: "accepted" }).eq("id", recordId);
   await createNotification(requesterUid, {
     title: "Friend request accepted",
     message: `${accepterName || "Someone"} accepted your friend request.`,
@@ -98,5 +93,5 @@ export async function acceptFriendRequest(
 
 /** Remove/cancel/decline a relationship (delete the record). */
 export async function removeFriendRecord(recordId: string): Promise<void> {
-  await deleteDoc(doc(db, "friends_list", recordId));
+  await supabase.from("friendships").delete().eq("id", recordId);
 }

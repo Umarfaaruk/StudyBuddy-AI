@@ -67,7 +67,7 @@ const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
       // Dashboard-style data stays fresh for 5 min — avoids refetching
-      // (and re-reading Firestore) on every back/forward navigation.
+      // (and re-reading the DB) on every back/forward navigation.
       staleTime: 1000 * 60 * 5,
       gcTime: 1000 * 60 * 30,
       retry: 1,

@@ -1,17 +1,13 @@
 import { Trophy, Star, Flame, Target, Zap, BookOpen, Medal, Award, Clock, MessageCircleQuestion } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
-import { db } from "@/lib/firebase";
-import { dedupedXpSum } from "@/lib/xp";
-import { collection, query, where, getDocs, doc, getDoc } from "firebase/firestore";
+import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/contexts/AuthContext";
 import { Skeleton } from "@/components/ui/skeleton";
 
 /**
- * Achievements page — migrated from Supabase to Firebase/Firestore
- *
- * Since the `achievements` collection (definitions) may not exist yet
- * in Firestore, we use hardcoded achievement definitions as fallback.
- * User progress is computed from real Firestore data.
+ * Achievements page — stats sourced from Supabase.
+ * Achievement definitions are hardcoded below; user progress is computed
+ * from the user's real Supabase data.
  */
 
 const iconMap: Record<string, React.ElementType> = {
@@ -27,7 +23,7 @@ const iconMap: Record<string, React.ElementType> = {
   "message-circle-question": MessageCircleQuestion,
 };
 
-// Hardcoded achievement definitions (fallback if Firestore collection doesn't exist)
+// Hardcoded achievement definitions
 const DEFAULT_ACHIEVEMENTS = [
   { id: "streak_7", key: "streak_7", name: "Week Warrior", description: "Maintain a 7-day study streak", icon: "flame", xp_reward: 50, threshold: 7, sort_order: 1 },
   { id: "streak_30", key: "streak_30", name: "Monthly Master", description: "Maintain a 30-day study streak", icon: "flame", xp_reward: 200, threshold: 30, sort_order: 2 },
@@ -40,29 +36,28 @@ const DEFAULT_ACHIEVEMENTS = [
 const Achievements = () => {
   const { user } = useAuth();
 
-  // Fetch user stats from Firestore
+  // Fetch user stats from Supabase
   const { data: stats, isLoading } = useQuery({
     queryKey: ["achievement-stats", user?.uid],
     queryFn: async () => {
       if (!user) return null;
 
       try {
-        const [xpSnap, streakSnap, quizSnap, studySnap] = await Promise.all([
-          getDocs(query(collection(db, "xp_logs"), where("user_id", "==", user.uid))),
-          getDoc(doc(db, "user_streaks", user.uid)),
-          getDocs(query(collection(db, "quiz_attempts"), where("user_id", "==", user.uid))),
-          getDocs(query(collection(db, "study_sessions"), where("user_id", "==", user.uid))),
+        const [xpRes, streakRes, quizRes, studyRes] = await Promise.all([
+          supabase.from("xp_logs").select("xp_amount").eq("user_id", user.uid),
+          supabase.from("user_streaks").select("*").eq("user_id", user.uid).maybeSingle(),
+          supabase.from("quiz_attempts").select("score, total_questions").eq("user_id", user.uid),
+          supabase.from("study_sessions").select("duration_seconds").eq("user_id", user.uid),
         ]);
 
-        const totalXp = dedupedXpSum(xpSnap.docs);
+        const totalXp = (xpRes.data ?? []).reduce((s, r) => s + (r.xp_amount || 0), 0);
 
-        const streakData = streakSnap.exists() ? streakSnap.data() : { current_streak: 0, longest_streak: 0 };
+        const streakData = streakRes.data ?? { current_streak: 0, longest_streak: 0 };
 
-        const quizzes: any[] = [];
-        quizSnap.forEach((d) => quizzes.push(d.data()));
+        const quizzes: any[] = quizRes.data ?? [];
 
         let totalStudySeconds = 0;
-        studySnap.forEach((d) => { totalStudySeconds += d.data().duration_seconds || 0; });
+        (studyRes.data ?? []).forEach((d) => { totalStudySeconds += d.duration_seconds || 0; });
 
         const perfectQuizzes = quizzes.filter((q) => q.score === q.total_questions && q.total_questions > 0).length;
         const high90 = quizzes.filter((q) => q.total_questions > 0 && (q.score / q.total_questions) >= 0.9).length;

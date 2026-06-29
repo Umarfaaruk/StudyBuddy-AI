@@ -7,7 +7,7 @@
  *
  * Env vars:
  *   BASE_URL          — app origin (default http://localhost:5000)
- *   FIREBASE_ID_TOKEN — optional Bearer token for /api/groq auth tests
+ *   SUPABASE_ACCESS_TOKEN — optional Bearer token for /api/groq auth tests
  */
 
 import http from "k6/http";
@@ -56,7 +56,7 @@ export const options = {
 };
 
 const BASE = __ENV.BASE_URL || "http://localhost:5000";
-const TOKEN = __ENV.FIREBASE_ID_TOKEN || "";
+const TOKEN = __ENV.SUPABASE_ACCESS_TOKEN || "";
 
 export default function () {
   const pages = ["/", "/login", "/signup", "/about"];

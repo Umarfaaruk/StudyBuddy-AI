@@ -6,8 +6,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
 import { useQuery } from "@tanstack/react-query";
-import { collection, getDocs, query, where } from "firebase/firestore";
-import { db } from "@/lib/firebase";
+import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/contexts/AuthContext";
 import { getAuthHeaders } from "@/lib/authHeaders";
 
@@ -62,9 +61,9 @@ const PracticeArena = () => {
     queryFn: async () => {
       if (!user) return [];
       try {
-        const q = query(collection(db, "materials"), where("user_id", "==", user.uid));
-        const snap = await getDocs(q);
-        return snap.docs.map((d) => ({ id: d.id, ...d.data() } as any));
+        const { data, error } = await supabase.from("materials").select("*").eq("user_id", user.uid);
+        if (error) throw error;
+        return (data ?? []) as any[];
       } catch (e) {
         console.error("Error fetching materials:", e);
         return [];

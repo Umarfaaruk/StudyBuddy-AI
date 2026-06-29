@@ -9,15 +9,14 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/contexts/AuthContext";
-import { db } from "@/lib/firebase";
 import { useDeepFocus } from "@/hooks/useDeepFocus";
 import { awardXP } from "@/lib/studySession";
 import { toast } from "sonner";
-import { doc, getDoc, collection, getDocs, query, where, writeBatch, addDoc, deleteDoc, onSnapshot } from "firebase/firestore";
+import { supabase } from "@/lib/supabase";
 
 const LESSON_XP = 20; // XP awarded per lesson completion
 
-// ── Mini Quick Notes (Study Area - Backed by Firestore) ───────────────────────────────
+// ── Mini Quick Notes (Study Area - Backed by Supabase) ───────────────────────────────
 const MiniNotes = ({
   lessonId,
   lessonTitle,
@@ -34,45 +33,48 @@ const MiniNotes = ({
   const [draft, setDraft] = useState("");
   const [loading, setLoading] = useState(true);
 
-  // Subscribe to notes in Firestore for this lesson + user
+  // Subscribe to notes for this lesson + user
   useEffect(() => {
     if (!user || !lessonId) return;
 
-    // Equality-only query (no orderBy) avoids needing a composite index — sorted
-    // newest-first on the client below.
-    const q = query(
-      collection(db, "saved_notes"),
-      where("user_id", "==", user.uid),
-      where("lesson_id", "==", lessonId)
-    );
+    let active = true;
+    const load = async () => {
+      const { data, error } = await supabase
+        .from("saved_notes")
+        .select("*")
+        .eq("user_id", user.uid)
+        .eq("lesson_id", lessonId)
+        .order("created_at", { ascending: false });
+      if (error) {
+        console.error("Error loading saved notes:", error);
+        setLoading(false);
+        return;
+      }
+      if (active) {
+        setNotes((data ?? []) as any[]);
+        setLoading(false);
+      }
+    };
+    load();
 
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      const fetched = snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
-      })) as any[];
-      fetched.sort((a, b) => (a.created_at < b.created_at ? 1 : a.created_at > b.created_at ? -1 : 0));
-      setNotes(fetched);
-      setLoading(false);
-    }, (error) => {
-      console.error("Error listening to saved notes:", error);
-      setLoading(false);
-    });
+    const channel = supabase
+      .channel(`saved_notes:${user.uid}:${lessonId}`)
+      .on("postgres_changes", { event: "*", schema: "public", table: "saved_notes", filter: `user_id=eq.${user.uid}` }, () => load())
+      .subscribe();
 
-    return () => unsubscribe();
+    return () => { active = false; supabase.removeChannel(channel); };
   }, [user, lessonId]);
 
   const add = async () => {
     if (!draft.trim() || !user) return;
     try {
-      await addDoc(collection(db, "saved_notes"), {
+      await supabase.from("saved_notes").insert({
         user_id: user.uid,
         lesson_id: lessonId,
         lesson_title: lessonTitle || "Untitled Lesson",
         topic_id: topicId || "",
         topic_title: topicTitle || "Untitled Topic",
         text: draft.trim(),
-        created_at: new Date().toISOString()
       });
       setDraft("");
       toast.success("Note saved!");
@@ -84,7 +86,7 @@ const MiniNotes = ({
 
   const remove = async (id: string) => {
     try {
-      await deleteDoc(doc(db, "saved_notes", id));
+      await supabase.from("saved_notes").delete().eq("id", id);
       toast.success("Note deleted");
     } catch (err) {
       console.error("Failed to delete note:", err);
@@ -146,21 +148,14 @@ const LessonViewer = () => {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [showTools, setShowTools] = useState(false);
 
-  // Fetch topic and lessons from Firestore
+  // Fetch topic and lessons
   const { data: topic, isLoading: topicLoading } = useQuery({
     queryKey: ["topic", topicId],
     queryFn: async () => {
       if (!topicId) return null;
       try {
-        const topicDoc = await getDoc(doc(db, "topics", topicId));
-        return topicDoc.exists() ? { id: topicDoc.id, ...topicDoc.data() } as {
-          id: string;
-          title?: string;
-          subject?: string;
-          subjectName?: string;
-          subjects?: { name?: string };
-          [key: string]: any;
-        } : null;
+        const { data } = await supabase.from("topics").select("*").eq("id", topicId).maybeSingle();
+        return (data as any) ?? null;
       } catch (error) {
         console.error("[LessonViewer] Topic fetch error:", error);
         return null;
@@ -173,24 +168,20 @@ const LessonViewer = () => {
     queryFn: async () => {
       if (!topicId) return [];
       try {
-        const lessonsSnap = await getDocs(
-          query(
-            collection(db, "lessons"),
-            where("topic_id", "==", topicId)
-          )
-        );
-        const docs = lessonsSnap.docs.map(doc => ({
-          id: doc.id,
-          ...doc.data()
-        } as {
+        const { data, error } = await supabase
+          .from("lessons")
+          .select("*")
+          .eq("topic_id", topicId)
+          .order("position", { ascending: true });
+        if (error) throw error;
+        return (data ?? []) as Array<{
           id: string;
           topic_id: string;
           title: string;
           content?: string;
-          order?: number;
+          position?: number;
           [key: string]: any;
-        }));
-        return docs.sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+        }>;
       } catch (error) {
         console.error("[LessonViewer] Lessons fetch error:", error);
         return [];
@@ -205,22 +196,14 @@ const LessonViewer = () => {
     queryFn: async () => {
       if (!topicId || !user) return [];
       try {
-        // The progress doc ID is deterministic (`${uid}_${topicId}`), so a single
-        // getDoc is faster and cheaper than a filtered collection query.
-        const progressRef = doc(db, "lesson_progress", `${user.uid}_${topicId}`);
-        const snap = await getDoc(progressRef);
-        if (!snap.exists()) return [];
-        return [{
-          id: snap.id,
-          ...snap.data()
-        } as {
-          id: string;
-          user_id: string;
-          topic_id: string;
-          lesson_id: string;
-          completed: boolean;
-          [key: string]: any;
-        }];
+        const { data } = await supabase
+          .from("lesson_progress")
+          .select("*")
+          .eq("user_id", user.uid)
+          .eq("topic_id", topicId)
+          .maybeSingle();
+        if (!data) return [];
+        return [data as any];
       } catch (error) {
         console.error("[LessonViewer] Progress fetch error:", error);
         return [];
@@ -250,18 +233,15 @@ const LessonViewer = () => {
       // again (prevents duplicate XP from a re-click or a stale-state race).
       if (alreadyCompleted) return;
 
-      const batch = writeBatch(db);
-      const progressRef = doc(db, "lesson_progress", `${user.uid}_${topicId}`);
       const updated = Array.from(new Set([...(existingProgress.completed_lessons || []), currentLesson.id]));
 
-      batch.set(progressRef, {
+      await supabase.from("lesson_progress").upsert({
         user_id: user.uid,
         topic_id: topicId,
         completed_lessons: updated,
-        updated_at: new Date()
-      }, { merge: true });
+        updated_at: new Date().toISOString(),
+      }, { onConflict: "user_id,topic_id" });
 
-      await batch.commit();
       await awardXP(user.uid, LESSON_XP, "lesson");
     },
     onSuccess: () => {

@@ -1,21 +1,18 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Mail, Lock, User, ArrowRight, CheckCircle2, Eye, EyeOff } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
-import { auth } from "@/lib/firebase";
-import { GoogleAuthProvider, signInWithPopup } from "firebase/auth";
-import { ensureGoogleUserProfile } from "@/lib/ensureGoogleProfile";
-import { getReadableFirebaseAuthError } from "@/lib/firebaseAuthErrors";
+import { getReadableAuthError } from "@/lib/authErrors";
 
 import eduonxLogo from "@/assets/eduonx-logo.png";
 import eduonxLogoOnDark from "@/assets/eduonx-logo-on-dark.png";
 
 const Signup = () => {
   const navigate = useNavigate();
-  const { signUp } = useAuth();
+  const { signUp, signInWithGoogle, user } = useAuth();
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -24,6 +21,11 @@ const Signup = () => {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [isGoogleLoading, setIsGoogleLoading] = useState(false);
+
+  // Returning from the Google OAuth redirect lands here authenticated; move on.
+  useEffect(() => {
+    if (user) navigate("/dashboard", { replace: true });
+  }, [user, navigate]);
 
   const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -40,8 +42,8 @@ const Signup = () => {
     setIsLoading(false);
 
     if (error) {
-      toast.error(getReadableFirebaseAuthError(error));
-      console.error("Firebase Signup Error:", error);
+      toast.error(getReadableAuthError(error));
+      console.error("Signup error:", error);
       return;
     }
     toast.success("Account created successfully!");
@@ -50,18 +52,10 @@ const Signup = () => {
 
   const handleGoogleSignup = async () => {
     setIsGoogleLoading(true);
-    try {
-      const provider = new GoogleAuthProvider();
-      provider.setCustomParameters({ prompt: "select_account" });
-      const result = await signInWithPopup(auth, provider);
-      await ensureGoogleUserProfile(result.user);
-
-      toast.success("Signed in with Google!");
-      // ProtectedRoute checks onboarding_completed and redirects accordingly
-      navigate("/dashboard");
-    } catch (error: any) {
-      toast.error(getReadableFirebaseAuthError(error));
-    } finally {
+    // Full-page redirect to Google; the app resumes via the useEffect above.
+    const { error } = await signInWithGoogle();
+    if (error) {
+      toast.error(getReadableAuthError(error));
       setIsGoogleLoading(false);
     }
   };

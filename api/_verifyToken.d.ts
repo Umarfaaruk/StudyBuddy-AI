@@ -6,5 +6,5 @@ export interface VerifiedUser {
   unverified?: boolean;
 }
 
-export function verifyAuthToken(req: any, projectId?: string): Promise<VerifiedUser>;
+export function verifyAuthToken(req: any): Promise<VerifiedUser>;
 export function requireAuth(req: any, res: any): Promise<VerifiedUser | null>;

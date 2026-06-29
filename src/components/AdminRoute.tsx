@@ -1,12 +1,9 @@
 import { Navigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
-import { doc, getDoc } from "firebase/firestore";
-import { db } from "@/lib/firebase";
+import { supabase } from "@/lib/supabase";
 import { Loader2 } from "lucide-react";
-// FIX Bug 19: Replaced raw useState/useEffect with useQuery so React Query
-// caches the admin check for 5 minutes. Previously, every navigation to any
-// admin route fired two fresh getDoc calls. Now the same cached result is
-// reused across navigations — Firestore reads cut from N per session to 2.
+// useQuery caches the admin check for 5 minutes so navigating between admin
+// routes reuses the cached result instead of re-querying every time.
 import { useQuery } from "@tanstack/react-query";
 
 const AdminRoute = ({ children }: { children: React.ReactNode }) => {
@@ -16,24 +13,19 @@ const AdminRoute = ({ children }: { children: React.ReactNode }) => {
     queryKey: ["admin-check", user?.uid],
     queryFn: async () => {
       if (!user) return false;
-
+      // Admin role lives in profiles.role (the `users` collection was merged
+      // into profiles during the Supabase migration).
       try {
-        const userDoc = await getDoc(doc(db, "users", user.uid));
-        const userData = userDoc.data();
-        if (userData?.role === "admin" || userData?.is_admin === true) return true;
+        const { data } = await supabase
+          .from("profiles")
+          .select("role")
+          .eq("id", user.uid)
+          .maybeSingle();
+        return data?.role === "admin";
       } catch (err) {
-        console.warn("Could not read users collection:", err);
+        console.warn("Could not read profile role:", err);
+        return false;
       }
-
-      try {
-        const profileDoc = await getDoc(doc(db, "profiles", user.uid));
-        const profileData = profileDoc.data();
-        if (profileData?.role === "admin" || profileData?.is_admin === true) return true;
-      } catch (err) {
-        console.warn("Could not read profiles collection:", err);
-      }
-
-      return false;
     },
     enabled: !!user,
     staleTime: 1000 * 60 * 5, // Cache for 5 minutes — admin status rarely changes

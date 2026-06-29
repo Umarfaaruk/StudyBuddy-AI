@@ -5,11 +5,8 @@ import { Input } from "@/components/ui/input";
 import { Bell, User, LogOut, Shield, Bot, Camera, AlertTriangle, FileImage, X, Loader2 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
-import { db, auth, storage } from "@/lib/firebase";
-import { doc, getDoc, updateDoc, setDoc } from "firebase/firestore";
-import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { useNotifications } from "@/contexts/NotificationContext";
-import { EmailAuthProvider, reauthenticateWithCredential, updatePassword } from "firebase/auth";
+import { supabase } from "@/lib/supabase";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 
 const tabs = [
@@ -86,15 +83,19 @@ const Settings = () => {
       let screenshotUrl = null;
       if (screenshot) {
         const fileExtension = screenshot.name.split(".").pop();
-        const screenshotRef = ref(storage, `complaints/${user!.uid}/${Date.now()}_screenshot.${fileExtension}`);
-        await uploadBytes(screenshotRef, screenshot, { contentType: screenshot.type });
-        screenshotUrl = await getDownloadURL(screenshotRef);
+        const path = `${user!.uid}/${Date.now()}_screenshot.${fileExtension}`;
+        const { error: upErr } = await supabase.storage
+          .from("complaints")
+          .upload(path, screenshot, { contentType: screenshot.type, upsert: true });
+        if (!upErr) {
+          screenshotUrl = supabase.storage.from("complaints").getPublicUrl(path).data.publicUrl;
+        }
       }
 
       const complaintId = `CMP-${Math.floor(100000 + Math.random() * 900000)}`;
       const nowStr = new Date().toISOString();
 
-      await setDoc(doc(db, "complaints", complaintId), {
+      await supabase.from("complaints").insert({
         id: complaintId,
         user_id: user!.uid,
         title: title.trim(),
@@ -106,11 +107,11 @@ const Settings = () => {
         admin_notes: "",
         resolution_notes: "",
         created_at: nowStr,
-        updated_at: nowStr
+        updated_at: nowStr,
       });
 
       const historyId = `HST-${Math.floor(100000 + Math.random() * 900000)}`;
-      await setDoc(doc(db, "complaint_history", historyId), {
+      await supabase.from("complaint_history").insert({
         id: historyId,
         complaint_id: complaintId,
         old_status: "",
@@ -118,7 +119,7 @@ const Settings = () => {
         changed_by: "user",
         notes: "Complaint submitted",
         created_at: nowStr,
-        user_id: user!.uid
+        user_id: user!.uid,
       });
 
       await addNotification({
@@ -155,7 +156,7 @@ const Settings = () => {
   const [changingPassword, setChangingPassword] = useState(false);
 
   const handleChangePassword = async () => {
-    if (!auth.currentUser || !user?.email) {
+    if (!user?.email) {
       toast.error("You must be signed in to change your password.");
       return;
     }
@@ -178,41 +179,39 @@ const Settings = () => {
 
     setChangingPassword(true);
     try {
-      // Re-authenticate first (Firebase requires a recent login to change a password).
-      const credential = EmailAuthProvider.credential(user.email, currentPassword);
-      await reauthenticateWithCredential(auth.currentUser, credential);
-      // Persist the new password in Firebase Authentication (the secure password store).
-      await updatePassword(auth.currentUser, newPassword);
+      // Verify the current password by re-authenticating (this also refreshes
+      // the session, which Supabase needs before a password update).
+      const { error: reauthError } = await supabase.auth.signInWithPassword({
+        email: user.email,
+        password: currentPassword,
+      });
+      if (reauthError) {
+        toast.error("Your current password is incorrect.");
+        return;
+      }
+      const { error } = await supabase.auth.updateUser({ password: newPassword });
+      if (error) {
+        toast.error(error.message || "Could not change password. Please try again.");
+        return;
+      }
       setCurrentPassword("");
       setNewPassword("");
       setConfirmPassword("");
       toast.success("Password changed successfully.");
     } catch (err: any) {
-      const code = err?.code as string | undefined;
-      if (code === "auth/wrong-password" || code === "auth/invalid-credential") {
-        toast.error("Your current password is incorrect.");
-      } else if (code === "auth/weak-password") {
-        toast.error("That password is too weak. Use at least 6 characters.");
-      } else if (code === "auth/too-many-requests") {
-        toast.error("Too many attempts. Please wait a moment and try again.");
-      } else if (code === "auth/requires-recent-login") {
-        toast.error("Please sign out and sign in again, then change your password.");
-      } else {
-        toast.error(err?.message || "Could not change password. Please try again.");
-      }
+      toast.error(err?.message || "Could not change password. Please try again.");
     } finally {
       setChangingPassword(false);
     }
   };
 
-  // Load profile from Firebase
+  // Load profile from Supabase
   const { data: profile } = useQuery({
     queryKey: ["settings-profile", user?.uid],
     queryFn: async () => {
       if (!user) return null;
-      const docRef = doc(db, "profiles", user.uid);
-      const snap = await getDoc(docRef);
-      return snap.exists() ? snap.data() : null;
+      const { data } = await supabase.from("profiles").select("*").eq("id", user.uid).maybeSingle();
+      return data ?? null;
     },
     enabled: !!user,
   });
@@ -250,17 +249,16 @@ const Settings = () => {
     if (!user) return;
     setIsSaving(true);
     try {
-      const docRef = doc(db, "profiles", user.uid);
-      await updateDoc(docRef, {
+      await supabase.from("profiles").update({
         full_name: name,
         university: university,
         stream: stream,
         age: age,
         bio: bio,
         place: place,
-        // email usually handled by Firebase Auth, but we can store it too
         email: email,
-      });
+        updated_at: new Date().toISOString(),
+      }).eq("id", user.uid);
       toast.success("Profile updated successfully");
     } catch (error) {
       console.error("Error updating profile:", error);
@@ -375,7 +373,7 @@ const Settings = () => {
                               const minDim = Math.min(img.width, img.height);
                               ctx?.drawImage(img, (img.width - minDim) / 2, (img.height - minDim) / 2, minDim, minDim, 0, 0, size, size);
                               const dataUrl = canvas.toDataURL('image/jpeg', 0.8);
-                              await updateDoc(doc(db, 'profiles', user.uid), { avatar_url: dataUrl });
+                              await supabase.from('profiles').update({ avatar_url: dataUrl }).eq('id', user.uid);
                               queryClient.invalidateQueries({ queryKey: ['settings-profile', user.uid] });
                               queryClient.invalidateQueries({ queryKey: ['profile', user.uid] });
                               toast.success('Profile picture updated!');
@@ -515,7 +513,7 @@ const Settings = () => {
               <div>
                 <h3 className="font-bold text-foreground">Change Password</h3>
                 <p className="text-xs text-muted-foreground mt-1">
-                  Enter your current password, then choose a new one. Your password is stored securely in Firebase Authentication.
+                  Enter your current password, then choose a new one. Your password is stored securely by Supabase Authentication.
                 </p>
               </div>
               <div className="space-y-3 max-w-md">

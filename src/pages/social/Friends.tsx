@@ -4,10 +4,9 @@ import { Button } from "@/components/ui/button";
 import { Users, UserPlus, Search, Check, X, Loader2, UserMinus } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/contexts/AuthContext";
-import { db } from "@/lib/firebase";
+import { supabase } from "@/lib/supabase";
 import { toast } from "sonner";
-import { collection, query, where, getDocs, deleteDoc, doc, getDoc, documentId } from "firebase/firestore";
-import { sendFriendRequest, acceptFriendRequest } from "@/lib/friends";
+import { sendFriendRequest, acceptFriendRequest, removeFriendRecord } from "@/lib/friends";
 
 const Friends = () => {
   const { user } = useAuth();
@@ -16,8 +15,8 @@ const Friends = () => {
     queryKey: ["friends-my-profile", user?.uid],
     queryFn: async () => {
       if (!user) return null;
-      const snap = await getDoc(doc(db, "profiles", user.uid));
-      return snap.exists() ? (snap.data() as any) : null;
+      const { data } = await supabase.from("profiles").select("*").eq("id", user.uid).maybeSingle();
+      return (data as any) ?? null;
     },
     enabled: !!user,
   });
@@ -32,41 +31,18 @@ const Friends = () => {
     queryFn: async () => {
       if (!user) return [];
       try {
-        const snap = await getDocs(
-          query(
-            collection(db, "friends_list"),
-            where("requester_id", "==", user.uid)
-          )
-        );
-        const records1 = snap.docs.map(doc => ({ 
-          id: doc.id, 
-          ...doc.data() 
-        } as {
+        const { data, error } = await supabase
+          .from("friendships")
+          .select("id, requester_id, addressee_id, status, created_at")
+          .or(`requester_id.eq.${user.uid},addressee_id.eq.${user.uid}`);
+        if (error) throw error;
+        return (data ?? []) as Array<{
           id: string;
           requester_id: string;
           addressee_id: string;
           status: "pending" | "accepted" | "declined";
           created_at?: any;
-        }));
-
-        const snap2 = await getDocs(
-          query(
-            collection(db, "friends_list"),
-            where("addressee_id", "==", user.uid)
-          )
-        );
-        const records2 = snap2.docs.map(doc => ({ 
-          id: doc.id, 
-          ...doc.data() 
-        } as {
-          id: string;
-          requester_id: string;
-          addressee_id: string;
-          status: "pending" | "accepted" | "declined";
-          created_at?: any;
-        }));
-
-        return [...records1, ...records2];
+        }>;
       } catch (error) {
         console.error("[Friends] Fetch records error:", error);
         return [];
@@ -90,13 +66,12 @@ const Friends = () => {
     queryFn: async () => {
       if (relevantIds.length === 0) return [];
       try {
-        const out: { user_id: string; full_name?: string; [k: string]: any }[] = [];
-        for (let i = 0; i < relevantIds.length; i += 10) {
-          const chunk = relevantIds.slice(i, i + 10);
-          const snap = await getDocs(query(collection(db, "profiles"), where(documentId(), "in", chunk)));
-          snap.docs.forEach((d) => out.push({ user_id: d.id, ...(d.data() as any) }));
-        }
-        return out;
+        const { data, error } = await supabase
+          .from("profiles")
+          .select("id, full_name, avatar_url")
+          .in("id", relevantIds);
+        if (error) throw error;
+        return (data ?? []).map((d: any) => ({ user_id: d.id, ...d }));
       } catch (error) {
         console.error("[Friends] Fetch profiles error:", error);
         return [];
@@ -122,14 +97,13 @@ const Friends = () => {
     if (!search.trim() || !user) return;
     setSearching(true);
     try {
-      const snap = await getDocs(
-        query(
-          collection(db, "profiles"),
-          where("full_name", ">=", search),
-          where("full_name", "<=", search + "\uf8ff")
-        )
-      );
-      setSearchResults(snap.docs.map(doc => ({ user_id: doc.id, ...doc.data() })));
+      const { data, error } = await supabase
+        .from("profiles")
+        .select("id, full_name, avatar_url")
+        .ilike("full_name", `%${search}%`)
+        .limit(10);
+      if (error) throw error;
+      setSearchResults((data ?? []).map((d: any) => ({ user_id: d.id, ...d })));
     } catch (error) {
       console.error("[Friends] Search error:", error);
       toast.error("Search failed");
@@ -162,7 +136,7 @@ const Friends = () => {
 
   const removeFriend = useMutation({
     mutationFn: async (friendId: string) => {
-      await deleteDoc(doc(db, "friends_list", friendId));
+      await removeFriendRecord(friendId);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["friendRecords", user?.uid] });

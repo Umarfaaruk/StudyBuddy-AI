@@ -38,23 +38,12 @@ export function computeAvgQuizScore(
   return count > 0 ? Math.round((totalPct / count) * 100) : 0;
 }
 
-export function parseFirestoreDate(data: Record<string, any>): Date | null {
-  const candidates = [
-    data.ended_at,
-    data.updated_at,
-    data.created_at,
-    data.createdAt,
-  ];
-
+/** Pick the first valid timestamp from a row's common date fields. */
+export function parseDate(data: Record<string, any>): Date | null {
+  const candidates = [data.ended_at, data.updated_at, data.created_at, data.createdAt];
   for (const val of candidates) {
     if (!val) continue;
-    // Firestore Timestamp object
-    if (typeof val?.toDate === "function") {
-      const d = val.toDate();
-      if (!isNaN(d.getTime())) return d;
-    }
-    // ISO string or any parseable string
-    if (typeof val === "string") {
+    if (typeof val === "string" || typeof val === "number") {
       const d = new Date(val);
       if (!isNaN(d.getTime())) return d;
     }

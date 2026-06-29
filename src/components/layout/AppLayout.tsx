@@ -13,8 +13,7 @@ import SnapEnhance from "@/components/SnapEnhance";
 import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useQuery } from "@tanstack/react-query";
-import { db } from "@/lib/firebase";
-import { doc, getDoc } from "firebase/firestore";
+import { supabase } from "@/lib/supabase";
 import eduonxLogoOnDark from "@/assets/eduonx-logo-on-dark.png";
 
 const sidebarLinks = [
@@ -124,8 +123,8 @@ const AppLayout = () => {
     queryKey: ["profile-sidebar", user?.uid],
     queryFn: async () => {
       if (!user) return null;
-      const snap = await getDoc(doc(db, "profiles", user.uid));
-      return snap.exists() ? snap.data() : null;
+      const { data } = await supabase.from("profiles").select("full_name").eq("id", user.uid).maybeSingle();
+      return data ?? null;
     },
     enabled: !!user,
     staleTime: 1000 * 60 * 5,
@@ -133,22 +132,17 @@ const AppLayout = () => {
 
   // Shares the SAME query key as AdminRoute (["admin-check", uid]) so the admin
   // check runs once and is served from cache here instead of firing a second
-  // pair of Firestore reads for the sidebar.
+  // pair of reads for the sidebar.
   const { data: isAdmin } = useQuery({
     queryKey: ["admin-check", user?.uid],
     queryFn: async () => {
       if (!user) return false;
       try {
-        const userSnap = await getDoc(doc(db, "users", user.uid));
-        const userData = userSnap.data();
-        if (userData?.role === "admin" || userData?.is_admin === true) return true;
-      } catch {}
-      try {
-        const profileSnap = await getDoc(doc(db, "profiles", user.uid));
-        const profileData = profileSnap.data();
-        if (profileData?.role === "admin" || profileData?.is_admin === true) return true;
-      } catch {}
-      return false;
+        const { data } = await supabase.from("profiles").select("role").eq("id", user.uid).maybeSingle();
+        return data?.role === "admin";
+      } catch {
+        return false;
+      }
     },
     enabled: !!user,
     staleTime: 1000 * 60 * 5,

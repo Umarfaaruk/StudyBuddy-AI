@@ -4,10 +4,9 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Upload, FileText, ArrowRight, Loader2, Search, FolderOpen, Sparkles, LayoutGrid, List, Plus, Library, BookOpenCheck, ExternalLink, Trash2, Clock, AlertTriangle, StickyNote, Database } from "lucide-react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { db } from "@/lib/firebase";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
-import { collection, query, where, getDocs, deleteDoc, doc, addDoc, updateDoc } from "firebase/firestore";
+import { supabase } from "@/lib/supabase";
 import { aiComplete } from "@/lib/aiService";
 import { getAuthHeaders } from "@/lib/authHeaders";
 
@@ -222,27 +221,22 @@ const MaterialUpload = () => {
     queryFn: async () => {
       if (!user) return [];
       try {
-        // Equality-only query (no composite index needed); sorted client-side.
-        const q = query(
-          collection(db, "saved_notes"),
-          where("user_id", "==", user.uid)
-        );
-        const docs = await getDocs(q);
-        return docs.docs
-          .map(doc => ({
-            id: doc.id,
-            ...doc.data()
-          } as {
-            id: string;
-            user_id: string;
-            lesson_id: string;
-            lesson_title: string;
-            topic_id: string;
-            topic_title: string;
-            text: string;
-            created_at: string;
-          }))
-          .sort((a, b) => (a.created_at < b.created_at ? 1 : a.created_at > b.created_at ? -1 : 0));
+        const { data, error } = await supabase
+          .from("saved_notes")
+          .select("*")
+          .eq("user_id", user.uid)
+          .order("created_at", { ascending: false });
+        if (error) throw error;
+        return (data ?? []) as Array<{
+          id: string;
+          user_id: string;
+          lesson_id: string;
+          lesson_title: string;
+          topic_id: string;
+          topic_title: string;
+          text: string;
+          created_at: string;
+        }>;
       } catch (err) {
         console.error("Failed to fetch saved notes:", err);
         return [];
@@ -258,7 +252,7 @@ const MaterialUpload = () => {
       (old: any[] | undefined) => (old || []).filter((n: any) => n.id !== id)
     );
     try {
-      await deleteDoc(doc(db, "saved_notes", id));
+      await supabase.from("saved_notes").delete().eq("id", id);
       toast.success("Note deleted");
     } catch (error) {
       toast.error("Failed to delete note");
@@ -285,21 +279,12 @@ const MaterialUpload = () => {
     queryKey: ["materials", user?.uid],
     queryFn: async (): Promise<MaterialItem[]> => {
       if (!user) return [];
-      // Equality-only query (no composite index needed); sorted client-side.
-      const q = query(
-        collection(db, "materials"),
-        where("user_id", "==", user.uid)
-      );
-      const docs = await getDocs(q);
-      return docs.docs
-        .map(doc => ({
-          id: doc.id,
-          ...doc.data()
-        } as MaterialItem))
-        .sort((a: any, b: any) => {
-          const ms = (t: any) => t?.toMillis?.() ?? (t ? new Date(t).getTime() : 0);
-          return ms(b.uploaded_at) - ms(a.uploaded_at);
-        });
+      const { data } = await supabase
+        .from("materials")
+        .select("*")
+        .eq("user_id", user.uid)
+        .order("uploaded_at", { ascending: false });
+      return (data ?? []) as MaterialItem[];
     },
     enabled: !!user,
     refetchInterval: uploading ? 3000 : false, // Auto-refresh while uploading
@@ -321,19 +306,20 @@ const MaterialUpload = () => {
 
         const uploadTimestamp = new Date().toISOString();
 
-        // Step 1: Create Firestore doc with "processing" status
-        const materialRef = await addDoc(collection(db, "materials"), {
+        // Step 1: Create the material row with "processing" status
+        const { data: materialRow } = await supabase.from("materials").insert({
           user_id: user.uid,
           file_name: file.name,
           content_type: file.type,
           file_size: file.size,
           processing_status: "processing",
           uploaded_at: uploadTimestamp,
-        });
+        }).select("id").single();
+        const materialId = materialRow?.id as string;
 
         // Optimistic update: immediately add the new file to the cache so it shows in the UI
         const optimisticEntry: MaterialItem = {
-          id: materialRef.id,
+          id: materialId,
           file_name: file.name,
           content_type: file.type,
           file_size: file.size,
@@ -392,8 +378,8 @@ const MaterialUpload = () => {
           const analysis = await analyzeWithAI(extractedText, file.name);
           const { summary, keyTopics } = analysis;
 
-          // Step 3: Update Firestore doc with extracted content & mark as completed
-          await updateDoc(doc(db, "materials", materialRef.id), {
+          // Step 3: Update the material with extracted content & mark as completed
+          await supabase.from("materials").update({
             processing_status: "completed",
             extracted_text: extractedText.substring(0, 100000), // Cap at 100K chars for larger PDFs
             summary: summary,
@@ -405,13 +391,13 @@ const MaterialUpload = () => {
               importance: i < 3 ? "critical" : "important",
             })),
             processed_at: new Date().toISOString(),
-          });
+          }).eq("id", materialId);
 
           // Update the optimistic entry in cache with the completed data
           queryClient.setQueryData<MaterialItem[]>(
             ["materials", user.uid],
             (old) => (old || []).map(m =>
-              m.id === materialRef.id
+              m.id === materialId
                 ? {
                     ...m,
                     processing_status: "completed",
@@ -431,20 +417,20 @@ const MaterialUpload = () => {
 
           // Still mark as completed with minimal data so AI tutor can work
           try {
-            await updateDoc(doc(db, "materials", materialRef.id), {
+            await supabase.from("materials").update({
               processing_status: "completed",
               summary: `Study material: ${file.name}`,
               key_topics: [file.name.replace(/\.[^.]+$/, "")],
               content_length: file.size,
               processed_at: new Date().toISOString(),
-            });
+            }).eq("id", materialId);
           } catch { }
 
           // Update optimistic entry for error case too
           queryClient.setQueryData<MaterialItem[]>(
             ["materials", user.uid],
             (old) => (old || []).map(m =>
-              m.id === materialRef.id
+              m.id === materialId
                 ? { ...m, processing_status: "completed", summary: `Study material: ${file.name}` }
                 : m
             )
@@ -468,7 +454,7 @@ const MaterialUpload = () => {
       (old) => (old || []).filter(m => m.id !== id)
     );
     try {
-      await deleteDoc(doc(db, "materials", id));
+      await supabase.from("materials").delete().eq("id", id);
       toast.success("File deleted");
     } catch (error) {
       toast.error("Failed to delete file");

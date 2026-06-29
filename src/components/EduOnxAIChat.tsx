@@ -3,8 +3,7 @@ import { Bot, X, Send, Loader2, Sparkles, GripVertical } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { aiComplete } from "@/lib/aiService";
 import ReactMarkdown from "react-markdown";
-import { addDoc, collection } from "firebase/firestore";
-import { db } from "@/lib/firebase";
+import { supabase } from "@/lib/supabase";
 import { useDraggable } from "@/hooks/useDraggable";
 
 interface Message {
@@ -148,16 +147,15 @@ const EduOnxAIChat = () => {
 
       setMessages((prev) => [...prev, { role: "assistant", content: response }]);
 
-      // Auto-save feedback to Firestore if detected
+      // Auto-save feedback if detected
       if (isFeedback && user) {
         try {
-          await addDoc(collection(db, "feedback"), {
-            userId: user.uid,
+          await supabase.from("feedback").insert({
+            user_id: user.uid,
             rating: 0,
             comment: `[EduOnx AI Chat] ${userMsg}`,
             name: user.displayName || "User",
             email: user.email || "",
-            createdAt: new Date(),
             platform: "web",
             version: "2.0",
             source: "ai_chat",

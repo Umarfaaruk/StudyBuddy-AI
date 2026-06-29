@@ -1,10 +1,8 @@
 import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
-import { db } from "@/lib/firebase";
-import { collection, query, where, getDocs, doc, getDoc, setDoc } from "firebase/firestore";
+import { supabase } from "@/lib/supabase";
 import { MessageSquare, Star, Send, Loader2 } from "lucide-react";
 import { toast } from "sonner";
-import { addDoc, serverTimestamp } from "firebase/firestore";
 
 const FEEDBACK_INTERVAL_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
 
@@ -13,7 +11,7 @@ const FEEDBACK_INTERVAL_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
  * If not, shows a blocking modal requiring them to submit before continuing.
  * 
  * Logic:
- * 1. Check Firestore `feedback` collection for user's most recent submission
+ * 1. Check the `feedback` table for user's most recent submission
  * 2. Also check `user_preferences/{uid}` for `last_feedback_at` timestamp
  * 3. If > 7 days since last feedback, show mandatory modal
  * 4. Users can only dismiss after submitting
@@ -36,57 +34,52 @@ const FeedbackEnforcer = () => {
     const checkFeedbackStatus = async () => {
       try {
         // Check user preferences for last feedback timestamp
-        const prefDoc = await getDoc(doc(db, "user_preferences", user.uid));
-        const prefData = prefDoc.exists() ? prefDoc.data() : {};
-        const lastFeedbackAt = prefData?.last_feedback_at;
+        const { data: prefData } = await supabase
+          .from("user_preferences")
+          .select("last_feedback_at")
+          .eq("user_id", user.uid)
+          .maybeSingle();
+        const lastFeedbackAt = (prefData as any)?.last_feedback_at;
 
         if (lastFeedbackAt) {
           const lastDate = new Date(lastFeedbackAt).getTime();
-          const now = Date.now();
-          if (now - lastDate < FEEDBACK_INTERVAL_MS) {
-            // Recent feedback exists
+          if (Date.now() - lastDate < FEEDBACK_INTERVAL_MS) {
             setChecking(false);
             return;
           }
         }
 
-        // Also check the feedback collection directly. Equality-only query (no
-        // composite index needed); we pick the most recent on the client.
-        const feedbackQuery = query(
-          collection(db, "feedback"),
-          where("userId", "==", user.uid)
-        );
-        const feedbackSnap = await getDocs(feedbackQuery);
+        // Also check the feedback table directly — most recent first.
+        const { data: feedbackRows } = await supabase
+          .from("feedback")
+          .select("created_at")
+          .eq("user_id", user.uid)
+          .order("created_at", { ascending: false })
+          .limit(1);
 
-        if (!feedbackSnap.empty) {
-          const ms = (v: any) => (v?.toDate?.() ? v.toDate().getTime() : new Date(v).getTime());
-          const latestFeedback = feedbackSnap.docs
-            .map((d) => d.data())
-            .sort((a, b) => ms(b.createdAt) - ms(a.createdAt))[0];
-          const createdAt = latestFeedback.createdAt?.toDate?.() || new Date(latestFeedback.createdAt);
-          const now = Date.now();
-
-          if (now - createdAt.getTime() < FEEDBACK_INTERVAL_MS) {
-            // Update preferences cache
-            await setDoc(doc(db, "user_preferences", user.uid), {
-              last_feedback_at: createdAt.toISOString(),
-            }, { merge: true });
+        if (feedbackRows && feedbackRows.length > 0) {
+          const createdAt = new Date(feedbackRows[0].created_at);
+          if (Date.now() - createdAt.getTime() < FEEDBACK_INTERVAL_MS) {
+            await supabase.from("user_preferences").upsert(
+              { user_id: user.uid, last_feedback_at: createdAt.toISOString() },
+              { onConflict: "user_id" }
+            );
             setChecking(false);
             return;
           }
         }
 
         // No recent feedback — check if user account is at least 7 days old
-        const profileDoc = await getDoc(doc(db, "profiles", user.uid));
-        if (profileDoc.exists()) {
-          const createdAt = profileDoc.data()?.created_at;
-          if (createdAt) {
-            const accountAge = Date.now() - new Date(createdAt).getTime();
-            if (accountAge < FEEDBACK_INTERVAL_MS) {
-              // Account too new — skip feedback requirement
-              setChecking(false);
-              return;
-            }
+        const { data: profileRow } = await supabase
+          .from("profiles")
+          .select("created_at")
+          .eq("id", user.uid)
+          .maybeSingle();
+        if (profileRow?.created_at) {
+          const accountAge = Date.now() - new Date(profileRow.created_at).getTime();
+          if (accountAge < FEEDBACK_INTERVAL_MS) {
+            setChecking(false);
+            return;
           }
         }
 
@@ -116,22 +109,22 @@ const FeedbackEnforcer = () => {
 
     setIsSubmitting(true);
     try {
-      await addDoc(collection(db, "feedback"), {
-        userId: user.uid,
+      await supabase.from("feedback").insert({
+        user_id: user.uid,
         rating,
         comment: comment.trim(),
         name: user.displayName || "User",
         email: user.email || "",
-        createdAt: serverTimestamp(),
         platform: "web",
         version: "2.0",
         source: "enforced_modal",
       });
 
       // Update user preferences with the current timestamp
-      await setDoc(doc(db, "user_preferences", user.uid), {
-        last_feedback_at: new Date().toISOString(),
-      }, { merge: true });
+      await supabase.from("user_preferences").upsert(
+        { user_id: user.uid, last_feedback_at: new Date().toISOString() },
+        { onConflict: "user_id" }
+      );
 
       toast.success("Thank you for your feedback! 🎉");
       setShowModal(false);

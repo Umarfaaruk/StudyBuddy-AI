@@ -5,8 +5,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
-import { addDoc, collection } from "firebase/firestore";
-import { db } from "@/lib/firebase";
+import { supabase } from "@/lib/supabase";
 import { aiStream, aiVisionComplete, ChatMessage } from "@/lib/aiService";
 import { compressImage } from "@/lib/imageUtils";
 import ReactMarkdown from "react-markdown";
@@ -270,31 +269,23 @@ const DoubtInput = () => {
         });
       }
 
-      // Save to Firestore for history
+      // Save to the backend for history
       if (user && full.trim()) {
         try {
           if (!sessionIdRef.current) {
-            const sessionRef = await addDoc(collection(db, "doubt_sessions"), {
-              user_id: user.uid,
-              question_preview: userContent.substring(0, 200),
-              created_at: new Date().toISOString(),
-            });
-            sessionIdRef.current = sessionRef.id;
+            const { data: session } = await supabase
+              .from("doubt_sessions")
+              .insert({ user_id: user.uid, question_preview: userContent.substring(0, 200) })
+              .select("id")
+              .single();
+            sessionIdRef.current = session?.id ?? null;
           }
-          await addDoc(collection(db, "doubt_messages"), {
-            doubt_session_id: sessionIdRef.current,
-            user_id: user.uid,
-            role: "user",
-            message_text: userContent,
-            created_at: new Date().toISOString(),
-          });
-          await addDoc(collection(db, "doubt_messages"), {
-            doubt_session_id: sessionIdRef.current,
-            user_id: user.uid,
-            role: "assistant",
-            message_text: full,
-            created_at: new Date().toISOString(),
-          });
+          if (sessionIdRef.current) {
+            await supabase.from("doubt_messages").insert([
+              { doubt_session_id: sessionIdRef.current, user_id: user.uid, role: "user", message_text: userContent },
+              { doubt_session_id: sessionIdRef.current, user_id: user.uid, role: "assistant", message_text: full },
+            ]);
+          }
         } catch (saveErr) {
           console.error("[DoubtInput] Save error:", saveErr);
         }

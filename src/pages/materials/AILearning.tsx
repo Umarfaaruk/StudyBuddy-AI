@@ -4,10 +4,9 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ArrowLeft, FileText, Send, Sparkles, Loader2, AlertTriangle, Copy, Check, Square } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
-import { db } from "@/lib/firebase";
 import { toast } from "sonner";
 import ReactMarkdown from "react-markdown";
-import { doc, getDoc } from "firebase/firestore";
+import { supabase } from "@/lib/supabase";
 import { aiStream } from "@/lib/aiService";
 
 interface Message {
@@ -55,12 +54,10 @@ const AILearning = () => {
     queryFn: async () => {
       if (!id) return null;
       try {
-        const docRef = doc(db, "materials", id);
-        const docSnap = await getDoc(docRef);
-        if (docSnap.exists()) {
-          const data = docSnap.data();
+        const { data } = await supabase.from("materials").select("*").eq("id", id).maybeSingle();
+        if (data) {
           return {
-            id: docSnap.id,
+            id: data.id,
             file_name: data.file_name,
             summary: data.summary || "No summary available",
             key_topics: data.key_topics || [],

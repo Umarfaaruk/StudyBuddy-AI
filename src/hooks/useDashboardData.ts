@@ -1,28 +1,19 @@
 import { useAuth } from "@/contexts/AuthContext";
 import { useQuery } from "@tanstack/react-query";
-import { db } from "@/lib/firebase";
-import { doc, getDoc, collection, query, where, getDocs, documentId, setDoc } from "firebase/firestore";
+import { supabase } from "@/lib/supabase";
 import { computeAvgQuizScore } from "@/lib/userStats";
 import { toDateKey } from "@/lib/utils";
-import { dedupedXpSum } from "@/lib/xp";
 
 /* ──────────────────────────────────────────────────────────────────────────
- * FIRESTORE READ CONSOLIDATION
- * ============================
- * Before: 8 separate useQuery blocks —
- *   study_sessions read 2× (studyTime + progressAnalytics)
- *   quiz_attempts  read 3× (avgScore + weakTopics + continueLearning fallback)
- *   topics fetched one-by-one in a sequential N+1 loop
- *
- * After: each collection is read EXACTLY ONCE per dashboard load —
+ * DASHBOARD DATA (Supabase / Postgres)
+ * ====================================
+ * Each table is read exactly once per dashboard load:
  *   1 × profiles, 1 × user_streaks, 1 × xp_logs,
- *   1 × study_sessions  → studyTime + full progressAnalytics
- *   1 × quiz_attempts   → avgScore + weakTopics + continue-learning fallback
- *   1 × lesson_progress + batched `in` queries for topics (10 per read)
- *
- * Combined with the 5-minute staleTime set in App.tsx's QueryClient,
- * navigating away and back to the dashboard re-reads NOTHING for 5 minutes.
- * Net effect: ~60-70% fewer Firestore document reads per active user.
+ *   1 × study_sessions → studyTime + full progressAnalytics,
+ *   1 × quiz_attempts  → avgScore + weakTopics + continue-learning fallback,
+ *   1 × lesson_progress + a single `in` query for topics.
+ * Combined with the 5-minute staleTime in App.tsx, navigating away and back
+ * re-reads nothing for 5 minutes.
  * ────────────────────────────────────────────────────────────────────────── */
 
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -35,13 +26,6 @@ const startOfWeek = (date: Date) => {
   current.setDate(current.getDate() + diff);
   current.setHours(0, 0, 0, 0);
   return current;
-};
-
-/** Split an array into chunks of n (Firestore `in` queries allow max 10 ids) */
-const chunk = <T,>(arr: T[], n: number): T[][] => {
-  const out: T[][] = [];
-  for (let i = 0; i < arr.length; i += n) out.push(arr.slice(i, i + n));
-  return out;
 };
 
 export type RetentionPoint = {
@@ -103,8 +87,8 @@ export const useDashboardData = () => {
     queryKey: ["profile", user?.uid],
     queryFn: async () => {
       if (!user) return null;
-      const docSnap = await getDoc(doc(db, "profiles", user.uid));
-      return docSnap.exists() ? docSnap.data() : null;
+      const { data } = await supabase.from("profiles").select("*").eq("id", user.uid).maybeSingle();
+      return data ?? null;
     },
     enabled: !!user,
   });
@@ -114,34 +98,27 @@ export const useDashboardData = () => {
     queryKey: ["streak", user?.uid],
     queryFn: async () => {
       if (!user) return null;
-      const docSnap = await getDoc(doc(db, "user_streaks", user.uid));
-      return docSnap.exists() ? docSnap.data() : { current_streak: 0 };
+      const { data } = await supabase.from("user_streaks").select("*").eq("user_id", user.uid).maybeSingle();
+      return data ?? { current_streak: 0 };
     },
     enabled: !!user,
   });
 
-  /* ── totalXp: ALWAYS the de-duplicated sum of xp_logs ──────────
-   * xp_logs is the single source of truth. We sum it (de-duplicating any
-   * accidental double-writes) on every load, so the number shown here can
-   * never be inflated by duplicate entries and always matches the
-   * leaderboard. We also write the corrected value back to
-   * profiles.total_xp so any other read of the aggregate self-heals. */
+  /* ── totalXp: sum of xp_logs (de-dup enforced by a DB unique index) ──────
+   * xp_logs is the single source of truth; we sum it on every load and write
+   * the corrected value back to profiles.total_xp so any other read self-heals. */
   const { data: totalXp } = useQuery({
     queryKey: ["totalXp", user?.uid],
     queryFn: async () => {
       if (!user) return 0;
-
-      const snapshot = await getDocs(
-        query(collection(db, "xp_logs"), where("user_id", "==", user.uid))
-      );
-      const total = dedupedXpSum(snapshot.docs);
-
+      const { data } = await supabase.from("xp_logs").select("xp_amount").eq("user_id", user.uid);
+      const total = (data ?? []).reduce((sum, r) => sum + (r.xp_amount || 0), 0);
       try {
-        await setDoc(
-          doc(db, "profiles", user.uid),
-          { total_xp: total, xp_reconciled: true, updated_at: new Date().toISOString() },
-          { merge: true }
-        );
+        await supabase.from("profiles").update({
+          total_xp: total,
+          xp_reconciled: true,
+          updated_at: new Date().toISOString(),
+        }).eq("id", user.uid);
       } catch {
         // Cache write failure is non-fatal — we still return the correct sum.
       }
@@ -157,9 +134,10 @@ export const useDashboardData = () => {
     queryFn: async () => {
       if (!user) return { studyTime: "0h", analytics: emptyAnalytics() };
 
-      const snapshot = await getDocs(
-        query(collection(db, "study_sessions"), where("user_id", "==", user.uid))
-      );
+      const { data: rows } = await supabase
+        .from("study_sessions")
+        .select("duration_seconds, ended_at, created_at")
+        .eq("user_id", user.uid);
 
       const now = new Date();
       const todayKey = toDateKey(now);
@@ -176,20 +154,17 @@ export const useDashboardData = () => {
       let totalDurationAll = 0;
       const byDate = new Map<string, { seconds: number; sessions: number }>();
 
-      snapshot.forEach((item) => {
-        const data = item.data();
+      (rows ?? []).forEach((data) => {
         const duration = Number(data.duration_seconds ?? 0);
         allTimeSeconds += duration;
 
-        const date = data.ended_at ? new Date(data.ended_at) : data.created_at?.toDate?.() ?? null;
+        const raw = data.ended_at ?? data.created_at;
+        const date = raw ? new Date(raw) : null;
         if (!date || Number.isNaN(date.getTime())) return;
 
         const key = toDateKey(date);
         const existing = byDate.get(key) || { seconds: 0, sessions: 0 };
-        byDate.set(key, {
-          seconds: existing.seconds + duration,
-          sessions: existing.sessions + 1,
-        });
+        byDate.set(key, { seconds: existing.seconds + duration, sessions: existing.sessions + 1 });
 
         totalSessions++;
         totalDurationAll += duration;
@@ -210,11 +185,7 @@ export const useDashboardData = () => {
       });
 
       const dayWiseRecords = Array.from(byDate.entries())
-        .map(([date, data]) => ({
-          date,
-          minutes: Math.round(data.seconds / 60),
-          sessions: data.sessions,
-        }))
+        .map(([date, data]) => ({ date, minutes: Math.round(data.seconds / 60), sessions: data.sessions }))
         .sort((a, b) => b.date.localeCompare(a.date))
         .slice(0, 30);
 
@@ -223,14 +194,8 @@ export const useDashboardData = () => {
       return {
         studyTime: `${(allTimeSeconds / 3600).toFixed(1)}h`,
         analytics: {
-          todaySeconds,
-          weekSeconds,
-          monthSeconds,
-          prevWeekSeconds,
-          chartData,
-          dayWiseRecords,
-          sessionCount: totalSessions,
-          avgSessionMinutes,
+          todaySeconds, weekSeconds, monthSeconds, prevWeekSeconds,
+          chartData, dayWiseRecords, sessionCount: totalSessions, avgSessionMinutes,
         },
       };
     },
@@ -250,28 +215,22 @@ export const useDashboardData = () => {
         };
       }
 
-      const snapshot = await getDocs(
-        query(collection(db, "quiz_attempts"), where("user_id", "==", user.uid))
-      );
+      const { data: rows } = await supabase
+        .from("quiz_attempts")
+        .select("score, total_questions, topic_title, topic_id, created_at")
+        .eq("user_id", user.uid);
+      const attempts = rows ?? [];
 
       // a) average score
-      const attempts = snapshot.docs.map((d) => {
-        const data = d.data();
-        return { score: data.score, total_questions: data.total_questions };
-      });
-      const avgScore = snapshot.empty ? 0 : computeAvgQuizScore(attempts);
+      const avgScore = attempts.length === 0 ? 0 : computeAvgQuizScore(attempts);
 
-      // b) weak topics (below-average scores)
+      // b) weak topics, c) continue-learning fallback, d) per-day accuracy
       const topicScores: Record<string, { total: number; count: number; totalQuestions: number }> = {};
-      // c) continue-learning fallback (latest attempt per topic with a topic_id)
       const topicMap: Record<string, { id: string; title: string; subject: string; pct: number }> = {};
-      // d) per-day accuracy → knowledge-retention line of the trajectory chart
       const dailyAccuracy: Record<string, { correct: number; total: number }> = {};
 
-      snapshot.forEach((quizDoc) => {
-        const data = quizDoc.data();
-
-        const attemptDate = data.created_at?.toDate?.() ?? (data.created_at ? new Date(data.created_at) : null);
+      attempts.forEach((data: any) => {
+        const attemptDate = data.created_at ? new Date(data.created_at) : null;
         if (attemptDate && !Number.isNaN(attemptDate.getTime()) && data.total_questions > 0) {
           const key = toDateKey(attemptDate);
           const entry = dailyAccuracy[key] || { correct: 0, total: 0 };
@@ -281,14 +240,12 @@ export const useDashboardData = () => {
         }
 
         const topic = data.topic_title || "General";
-        if (!topicScores[topic]) {
-          topicScores[topic] = { total: 0, count: 0, totalQuestions: 0 };
-        }
+        if (!topicScores[topic]) topicScores[topic] = { total: 0, count: 0, totalQuestions: 0 };
         topicScores[topic].total += data.score || 0;
         topicScores[topic].totalQuestions += data.total_questions || 0;
         topicScores[topic].count += 1;
 
-        const topicTitle = data.topic_title || data.topic;
+        const topicTitle = data.topic_title;
         const topicId = data.topic_id;
         if (topicTitle && topicId && !topicMap[topicTitle]) {
           const pct = data.total_questions > 0 ? Math.round((data.score / data.total_questions) * 100) : 0;
@@ -316,62 +273,49 @@ export const useDashboardData = () => {
     enabled: !!user,
   });
 
-  /* ── 1 read lesson_progress + batched topic lookups ──────── */
+  /* ── 1 read lesson_progress + 1 read topics ──────────────── */
   const { data: continueLearning = [] } = useQuery({
     queryKey: ["continueLearning", user?.uid],
     queryFn: async () => {
       if (!user) return [];
       try {
-        const progressSnap = await getDocs(
-          query(collection(db, "lesson_progress"), where("user_id", "==", user.uid))
-        );
+        const { data: progress } = await supabase
+          .from("lesson_progress")
+          .select("topic_id, completed_lessons")
+          .eq("user_id", user.uid);
 
-        if (progressSnap.size > 0) {
-          // Collect topic ids + their progress docs first
+        if (progress && progress.length > 0) {
           const progressByTopic = new Map<string, { completed: number }>();
-          progressSnap.forEach((progressDoc) => {
-            const data = progressDoc.data();
-            const topicId = data.topic_id || progressDoc.id.split("_")[1];
-            if (topicId) {
-              progressByTopic.set(topicId, {
-                completed: data.completed_lessons?.length ?? 0,
-              });
+          progress.forEach((row: any) => {
+            if (row.topic_id) {
+              progressByTopic.set(row.topic_id, { completed: row.completed_lessons?.length ?? 0 });
             }
           });
 
           const topicIds = Array.from(progressByTopic.keys());
-
-          // Batched `in` queries (10 ids per read) instead of N sequential getDocs.
-          // 30 in-progress topics: 3 reads instead of 30, fetched in parallel.
-          const batches = chunk(topicIds, 10);
-          const batchSnaps = await Promise.all(
-            batches.map((ids) =>
-              getDocs(query(collection(db, "topics"), where(documentId(), "in", ids)))
-            )
-          );
+          // Postgres `in` has no 10-id limit, so a single query covers them all.
+          const { data: topics } = await supabase
+            .from("topics")
+            .select("id, title, subject, lesson_count")
+            .in("id", topicIds);
 
           const items: { id: string; title: string; subject: string; pct: number }[] = [];
-          for (const snap of batchSnaps) {
-            snap.forEach((topicSnap) => {
-              const topicData = topicSnap.data();
-              const progress = progressByTopic.get(topicSnap.id);
-              if (!progress) return;
-              const total = topicData.lesson_count ?? 0;
-              const pct = total > 0 ? Math.round((progress.completed / total) * 100) : 0;
-              if (pct < 100) {
-                items.push({
-                  id: topicSnap.id,
-                  title: topicData.title || "Untitled",
-                  subject: topicData.subject || topicData.subjectName || "General",
-                  pct,
-                });
-              }
-            });
-          }
+          (topics ?? []).forEach((topicData: any) => {
+            const progressForTopic = progressByTopic.get(topicData.id);
+            if (!progressForTopic) return;
+            const total = topicData.lesson_count ?? 0;
+            const pct = total > 0 ? Math.round((progressForTopic.completed / total) * 100) : 0;
+            if (pct < 100) {
+              items.push({
+                id: topicData.id,
+                title: topicData.title || "Untitled",
+                subject: topicData.subject || "General",
+                pct,
+              });
+            }
+          });
 
-          if (items.length > 0) {
-            return items.sort((a, b) => b.pct - a.pct).slice(0, 3);
-          }
+          if (items.length > 0) return items.sort((a, b) => b.pct - a.pct).slice(0, 3);
         }
 
         // Fallback: derived from the quiz_attempts already fetched above — zero extra reads
@@ -391,8 +335,7 @@ export const useDashboardData = () => {
     return "Good evening";
   };
 
-  /* ── retention trajectory — combines study minutes/day + quiz accuracy/day.
-   * Derived from data the two queries above already fetched (zero extra reads). */
+  /* ── retention trajectory — derived from data already fetched (zero extra reads). */
   const minutesByDate = new Map<string, number>();
   for (const r of sessionStats?.analytics?.dayWiseRecords ?? []) minutesByDate.set(r.date, r.minutes);
   const accByDate = new Map(Object.entries(quizStats?.dailyAccuracy ?? {}));

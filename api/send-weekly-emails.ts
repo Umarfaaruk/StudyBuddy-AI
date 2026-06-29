@@ -11,7 +11,7 @@
  *
  * Required env (set in Vercel):
  *   RESEND_API_KEY                – your Resend API key
- *   FIREBASE_SERVICE_ACCOUNT_KEY  – already used by admin-delete-user
+ *   SUPABASE_URL + SUPABASE_SERVICE_ROLE_KEY – server DB access
  * Optional:
  *   RESEND_FROM                   – e.g. "EduOnx <noreply@yourdomain.com>"
  *                                   (defaults to Resend's onboarding sender)
@@ -19,18 +19,13 @@
  *                                   Authorization: Bearer <CRON_SECRET>
  */
 import { Resend } from "resend";
-import { initializeApp, cert, getApps } from "firebase-admin/app";
-import { getFirestore, Timestamp } from "firebase-admin/firestore";
+import { createClient } from "@supabase/supabase-js";
 
 function getDb() {
-  if (!getApps().length) {
-    const raw = process.env.FIREBASE_SERVICE_ACCOUNT_KEY;
-    if (!raw) throw new Error("Missing FIREBASE_SERVICE_ACCOUNT_KEY");
-    const sa = JSON.parse(raw);
-    if (sa.private_key) sa.private_key = sa.private_key.replace(/\\n/g, "\n");
-    initializeApp({ credential: cert(sa) });
-  }
-  return getFirestore();
+  const url = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL;
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (!url || !key) throw new Error("Missing SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY");
+  return createClient(url, key, { auth: { persistSession: false, autoRefreshToken: false } });
 }
 
 function emailHtml(name: string, weeklyXp: number, totalXp: number, streak: number, awards: number) {
@@ -93,18 +88,18 @@ export default async function handler(req: any, res: any) {
     weekAgo.setDate(weekAgo.getDate() - 7);
 
     // Aggregate this week's XP per user from the event log (de-duplicated).
-    const logs = await db
-      .collection("xp_logs")
-      .where("created_at", ">=", Timestamp.fromDate(weekAgo))
-      .get();
+    const { data: logs, error: logsErr } = await db
+      .from("xp_logs")
+      .select("user_id, xp_amount, source_type, created_at")
+      .gte("created_at", weekAgo.toISOString());
+    if (logsErr) throw logsErr;
 
     const seen = new Set<string>();
     const weeklyXp = new Map<string, number>();
     const counts = new Map<string, number>();
-    logs.forEach((d) => {
-      const x = d.data() as any;
+    (logs ?? []).forEach((x: any) => {
       if (!x.user_id || typeof x.xp_amount !== "number") return;
-      const ms = x.created_at?.toMillis?.() ?? 0;
+      const ms = x.created_at ? new Date(x.created_at).getTime() : 0;
       const sig = `${x.user_id}|${x.xp_amount}|${x.source_type}|${ms}`;
       if (seen.has(sig)) return;
       seen.add(sig);
@@ -118,15 +113,15 @@ export default async function handler(req: any, res: any) {
 
     for (const [uid, xpWeek] of weeklyXp) {
       try {
-        const [pSnap, sSnap] = await Promise.all([
-          db.collection("profiles").doc(uid).get(),
-          db.collection("user_streaks").doc(uid).get(),
+        const [pRes, sRes] = await Promise.all([
+          db.from("profiles").select("email, full_name, total_xp").eq("id", uid).maybeSingle(),
+          db.from("user_streaks").select("current_streak").eq("user_id", uid).maybeSingle(),
         ]);
-        const profile = pSnap.data() as any;
+        const profile = pRes.data as any;
         if (!profile?.email) { skippedNoEmail++; continue; }
         const name = (profile.full_name || "there").split(" ")[0];
         const totalXp = profile.total_xp || 0;
-        const streak = (sSnap.data() as any)?.current_streak || 0;
+        const streak = (sRes.data as any)?.current_streak || 0;
 
         // Resend resolves with { data, error } and does NOT throw on API
         // errors (invalid key, unverified domain, bad recipient, rate limit),
