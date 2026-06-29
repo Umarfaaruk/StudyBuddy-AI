@@ -23,9 +23,13 @@ begin new.updated_at = now(); return new; end; $$;
 
 -- is_admin(): used by admin RLS policies. SECURITY DEFINER so the policy can
 -- read profiles without recursing through profiles' own RLS.
+-- plpgsql (not sql) so the profiles reference is resolved at call time, not at
+-- CREATE time — this function is defined before the profiles table exists.
 create or replace function public.is_admin(uid uuid)
-returns boolean language sql security definer stable as $$
-  select exists (select 1 from public.profiles p where p.id = uid and p.role = 'admin');
+returns boolean language plpgsql security definer stable as $$
+begin
+  return exists (select 1 from public.profiles p where p.id = uid and p.role = 'admin');
+end;
 $$;
 
 -- ============================================================================
