@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Link, useNavigate, useLocation } from "react-router-dom";
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
@@ -23,24 +23,31 @@ const Login = () => {
   // Redirect to the page the user was trying to visit, or onboarding
   const from = (location.state as { from?: { pathname: string } })?.from?.pathname ?? "/onboarding";
 
-  // Once authenticated (incl. returning from the Google OAuth redirect), leave
-  // the login page. ProtectedRoute then routes new users to onboarding.
+  // Only true once the user has *just* logged in on this page. We deliberately
+  // do NOT redirect simply because a session already exists — otherwise a user
+  // who is still logged in from a previous visit would be bounced straight to
+  // the dashboard the instant they open /login and never see the form.
+  const justAuthed = useRef(false);
+
+  // After an explicit login the session is set asynchronously (onAuthStateChange);
+  // navigate once `user` is populated so ProtectedRoute reads a valid session.
   useEffect(() => {
-    if (user) navigate(from, { replace: true });
+    if (user && justAuthed.current) navigate(from, { replace: true });
   }, [user, from, navigate]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
+    justAuthed.current = true;
     const { error } = await signIn(email, password);
-    setIsLoading(false);
 
     if (error) {
+      justAuthed.current = false;
+      setIsLoading(false);
       toast.error(getReadableAuthError(error));
       return;
     }
-    // Redirect is handled by the `user` effect above (fires once auth state
-    // updates) — avoids a double navigate.
+    // Success: the effect above navigates once the auth state updates.
   };
 
   const handleForgotPassword = async () => {
@@ -58,7 +65,8 @@ const Login = () => {
   };
 
   const handleGoogleLogin = async () => {
-    // Full-page redirect to Google; the app resumes via the useEffect above.
+    // Full-page redirect to Google; on return the OAuth callback lands directly
+    // on /onboarding (redirectTo), so no in-page navigation is needed here.
     const { error } = await signInWithGoogle();
     if (error) toast.error(getReadableAuthError(error));
   };

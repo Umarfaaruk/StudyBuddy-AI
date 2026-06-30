@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -22,10 +22,17 @@ const Signup = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [isGoogleLoading, setIsGoogleLoading] = useState(false);
 
-  // Once authenticated (email signup with confirmation off, or Google return),
-  // go to onboarding. ProtectedRoute sends already-onboarded users to dashboard.
+  // Only true once the user has *just* signed up here. We don't redirect merely
+  // because a session already exists, so a returning logged-in user still sees
+  // the form instead of being bounced straight through to onboarding/dashboard.
+  const justAuthed = useRef(false);
+
+  // After a successful signup with confirmation OFF, a session is created
+  // asynchronously — navigate to onboarding once `user` is populated. With
+  // confirmation ON there's no session, so this never fires and we show the
+  // "confirm your email" toast below.
   useEffect(() => {
-    if (user) navigate("/onboarding", { replace: true });
+    if (user && justAuthed.current) navigate("/onboarding", { replace: true });
   }, [user, navigate]);
 
   const handleSignup = async (e: React.FormEvent) => {
@@ -39,10 +46,12 @@ const Signup = () => {
       return;
     }
     setIsLoading(true);
+    justAuthed.current = true;
     const { error } = await signUp(email, password, name);
     setIsLoading(false);
 
     if (error) {
+      justAuthed.current = false;
       toast.error(getReadableAuthError(error));
       console.error("Signup error:", error);
       return;
@@ -55,7 +64,8 @@ const Signup = () => {
 
   const handleGoogleSignup = async () => {
     setIsGoogleLoading(true);
-    // Full-page redirect to Google; the app resumes via the useEffect above.
+    // Full-page redirect to Google; on return the OAuth callback lands directly
+    // on /onboarding (redirectTo), so no in-page navigation is needed here.
     const { error } = await signInWithGoogle();
     if (error) {
       toast.error(getReadableAuthError(error));
