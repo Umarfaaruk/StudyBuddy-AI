@@ -9,6 +9,7 @@ import { supabase } from "@/lib/supabase";
 import { createNotification } from "@/contexts/NotificationContext";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
+import AdminInsights from "./AdminInsights";
 import {
   computeAvgQuizScore,
   parseDate,
@@ -33,9 +34,10 @@ const AdminPanel = () => {
   const { user } = useAuth();
   const [searchQuery, setSearchQuery] = useState("");
   const [expandedUserId, setExpandedUserId] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<"users" | "feedback" | "analytics" | "complaints">("users");
+  const [activeTab, setActiveTab] = useState<"insights" | "users" | "feedback" | "analytics" | "complaints">("insights");
   const [confirmDeleteUserId, setConfirmDeleteUserId] = useState<string | null>(null);
   const [deletingUserId, setDeletingUserId] = useState<string | null>(null);
+  const [togglingUserId, setTogglingUserId] = useState<string | null>(null);
 
   // Real-time collections state
   const [profiles, setProfiles] = useState<any[]>([]);
@@ -493,6 +495,21 @@ const AdminPanel = () => {
     }
   };
 
+  // Suspend / activate a user (Phase-2 admin action; needs profiles.is_active).
+  const handleToggleActive = async (uid: string, makeActive: boolean) => {
+    setTogglingUserId(uid);
+    try {
+      const { error } = await supabase.from("profiles").update({ is_active: makeActive }).eq("id", uid);
+      if (error) throw error;
+      setProfiles((prev) => prev.map((p) => (p.id === uid ? { ...p, is_active: makeActive } : p)));
+      toast.success(makeActive ? "User activated" : "User suspended");
+    } catch (e: any) {
+      toast.error(e?.message || "Failed to update user");
+    } finally {
+      setTogglingUserId(null);
+    }
+  };
+
   const filteredUsers = (platformStats?.users || []).filter((u) => {
     if (!searchQuery.trim()) return true;
     const q = searchQuery.toLowerCase();
@@ -627,7 +644,16 @@ const AdminPanel = () => {
       )}
 
       {/* Tabs */}
-      <div className="flex items-center gap-2 border-b border-gray-200/60 pb-3">
+      <div className="flex items-center flex-wrap gap-2 border-b border-gray-200/60 pb-3">
+        <button
+          onClick={() => { setActiveTab("insights"); setSearchQuery(""); }}
+          className={`px-4 py-2 rounded-xl text-sm font-semibold transition-all ${
+            activeTab === "insights" ? "bg-[#0F172A] text-white shadow-md" : "text-gray-400 hover:text-gray-900 hover:bg-gray-100"
+          }`}
+        >
+          <BarChart3 className="h-4 w-4 inline mr-1.5 -mt-0.5" />
+          Insights
+        </button>
         <button
           onClick={() => { setActiveTab("users"); setSearchQuery(""); }}
           className={`px-4 py-2 rounded-xl text-sm font-semibold transition-all ${
@@ -666,8 +692,11 @@ const AdminPanel = () => {
         </button>
       </div>
 
+      {/* Insights — operations-oriented analytics + Learning Intelligence Center */}
+      {activeTab === "insights" && <AdminInsights />}
+
       {/* Search */}
-      {activeTab !== "analytics" && (
+      {activeTab !== "analytics" && activeTab !== "insights" && (
         <div className="relative">
           <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
           <input
@@ -806,8 +835,30 @@ const AdminPanel = () => {
                       </div>
                     )}
 
-                    {/* Delete User */}
-                    <div className="mt-4 pt-3 border-t border-gray-200/60">
+                    {/* Suspend / Activate + Delete */}
+                    <div className="mt-4 pt-3 border-t border-gray-200/60 flex flex-wrap items-center gap-3">
+                      {(() => {
+                        const isActive = profiles.find((p) => p.id === u.uid)?.is_active !== false;
+                        return (
+                          <button
+                            onClick={(e) => { e.stopPropagation(); handleToggleActive(u.uid, !isActive); }}
+                            disabled={togglingUserId === u.uid}
+                            className={`flex items-center gap-2 text-xs font-semibold px-3 py-2 rounded-lg transition-all disabled:opacity-60 ${
+                              isActive
+                                ? "text-amber-600 hover:text-amber-700 hover:bg-amber-50"
+                                : "text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50"
+                            }`}
+                          >
+                            {togglingUserId === u.uid ? (
+                              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                            ) : isActive ? (
+                              <><AlertTriangle className="h-3.5 w-3.5" /> Suspend User</>
+                            ) : (
+                              <><CheckCircle className="h-3.5 w-3.5" /> Activate User</>
+                            )}
+                          </button>
+                        );
+                      })()}
                       {confirmDeleteUserId === u.uid ? (
                         <div className="flex items-center gap-3 bg-red-50 border border-red-200 rounded-xl p-3 animate-in fade-in zoom-in-95 duration-200">
                           <AlertTriangle className="h-5 w-5 text-red-500 flex-shrink-0" />

@@ -69,6 +69,7 @@ create table public.profiles (
   bio                  text,
   place                text,
   role                 text not null default 'student',   -- 'student' | 'admin'
+  is_active            boolean not null default true,      -- admin suspend/activate
   onboarding_completed boolean not null default false,
   total_xp             integer not null default 0,        -- cached aggregate of xp_logs
   xp_reconciled        boolean not null default false,
@@ -284,6 +285,7 @@ create table public.doubt_sessions (
   id               uuid primary key default gen_random_uuid(),
   user_id          uuid not null references auth.users(id) on delete cascade,
   question_preview text,
+  status           text not null default 'pending',   -- 'pending' | 'solved'
   created_at       timestamptz not null default now()
 );
 
@@ -325,6 +327,7 @@ create table public.feedback (             -- old field was camelCase userId →
   comment    text,
   name       text,
   email      text,
+  category   text,          -- 'general' | 'bug' | 'feature' (admin triage)
   platform   text,
   version    text,
   source     text,
