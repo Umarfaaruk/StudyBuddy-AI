@@ -33,19 +33,7 @@ const HeroSection = () => (
             Solve homework instantly. Study with AI guidance. Track progress, compete with friends, and build daily study habits.
           </p>
 
-          <div className="flex flex-wrap gap-4">
-            <Button className="bg-cta text-white hover:bg-cta/90 font-semibold text-sm h-12 px-7 rounded-xl gap-2 shadow-sm animate-float" asChild>
-              <Link to="/signup">
-                Sign Up Free
-                <ArrowRight className="h-4 w-4" />
-              </Link>
-            </Button>
-            <Button variant="outline" className="border-white/10 text-white hover:bg-white/10 hover:text-white font-medium h-12 px-7 rounded-xl gap-2 bg-transparent" asChild>
-              <Link to="/login">
-                Log In
-              </Link>
-            </Button>
-          </div>
+
 
           <div className="flex items-center gap-6 pt-2 text-sm text-slate-400">
             <span className="flex items-center gap-1.5">✓ Free to start</span>

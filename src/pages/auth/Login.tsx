@@ -20,8 +20,8 @@ const Login = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
 
-  // Redirect to the page the user was trying to visit, or dashboard
-  const from = (location.state as { from?: { pathname: string } })?.from?.pathname ?? "/dashboard";
+  // Redirect to the page the user was trying to visit, or onboarding
+  const from = (location.state as { from?: { pathname: string } })?.from?.pathname ?? "/onboarding";
 
   // Once authenticated (incl. returning from the Google OAuth redirect), leave
   // the login page. ProtectedRoute then routes new users to onboarding.

@@ -22,9 +22,9 @@ const Signup = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [isGoogleLoading, setIsGoogleLoading] = useState(false);
 
-  // Returning from the Google OAuth redirect lands here authenticated; move on.
+  // Returning from the Google OAuth redirect lands here authenticated; move on to onboarding.
   useEffect(() => {
-    if (user) navigate("/dashboard", { replace: true });
+    if (user) navigate("/onboarding", { replace: true });
   }, [user, navigate]);
 
   const handleSignup = async (e: React.FormEvent) => {

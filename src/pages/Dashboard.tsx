@@ -399,27 +399,7 @@ const Dashboard = () => {
       )}
       </StaggerItem>
 
-      <StaggerItem>
-      <div className="grid grid-cols-3 md:grid-cols-6 gap-3">
-        {[
-          { icon: MessageCircleQuestion, label: "Doubts", to: "/doubts" },
-          { icon: Gamepad2, label: "Practice", to: "/quiz" },
-          { icon: BookOpen, label: "Lessons", to: "/lessons" },
-          { icon: Upload, label: "Resources", to: "/materials" },
-          { icon: CalendarDays, label: "Planner", to: "/planner" },
-          { icon: Trophy, label: "Rewards", to: "/achievements" },
-        ].map((a) => (
-          <Link
-            key={a.label}
-            to={a.to}
-            className="group glass-card rounded-2xl p-4 hover-lift text-center"
-          >
-            <a.icon className="h-5 w-5 text-primary mx-auto mb-2 group-hover:scale-110 transition-transform duration-300" />
-            <div className="text-xs font-semibold text-muted-foreground group-hover:text-primary transition-colors">{a.label}</div>
-          </Link>
-        ))}
-      </div>
-      </StaggerItem>
+
 
       <StaggerItem>
       <div className="glass-card rounded-2xl p-6 hover-glow">

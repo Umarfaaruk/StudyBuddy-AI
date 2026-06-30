@@ -287,7 +287,7 @@ const Settings = () => {
                 onClick={() => setActiveTab(tab.key)}
                 className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
                   activeTab === tab.key
-                    ? "text-accent bg-accent/10"
+                    ? "text-primary bg-primary/10 font-semibold"
                     : "text-muted-foreground hover:text-foreground hover:bg-muted"
                 }`}
               >
@@ -309,17 +309,17 @@ const Settings = () => {
               <div className="h-8 w-8 rounded-lg bg-red-500/10 border border-red-500/20 flex items-center justify-center mb-2">
                 <AlertTriangle className="h-4 w-4 text-red-500" />
               </div>
-              <h3 className="text-sm font-bold text-white">Report Issue</h3>
+              <h3 className="text-sm font-bold text-red-600 dark:text-red-300">Report Issue</h3>
               <p className="text-[11px] text-muted-foreground mt-0.5">Bugs or UI problems</p>
             </div>
           </button>
 
           {/* Plan badge */}
-          <div className="bg-accent text-accent-foreground rounded-xl p-4 space-y-2">
-            <div className="text-xs font-bold uppercase tracking-wider">Current Plan</div>
+          <div className="bg-gradient-to-br from-primary to-primary/80 text-white rounded-xl p-4 space-y-2 shadow-sm">
+            <div className="text-xs font-bold uppercase tracking-wider opacity-90">Current Plan</div>
             <div className="text-lg font-bold">EduOnx Pro</div>
             <p className="text-xs opacity-80">Unlimited AI tutors & detailed progress analytics.</p>
-            <Button size="sm" className="w-full bg-white/20 hover:bg-white/30 text-white text-xs mt-2">
+            <Button size="sm" className="w-full bg-white text-primary hover:bg-white/95 font-semibold text-xs mt-2">
               Manage Billing
             </Button>
           </div>
@@ -343,7 +343,7 @@ const Settings = () => {
                     title="Change profile picture"
                   >
                     {profile?.avatar_url ? (
-                      <img src={profile.avatar_url} alt="Avatar" className="h-16 w-16 rounded-full object-cover border-2 border-border group-hover:border-accent transition-colors" />
+                      <img src={profile.avatar_url} alt="Avatar" className="h-16 w-16 rounded-full object-cover border-2 border-border group-hover:border-primary transition-colors" />
                     ) : (
                       <div className="h-16 w-16 rounded-full bg-primary flex items-center justify-center group-hover:bg-primary/80 transition-colors">
                         <User className="h-8 w-8 text-primary-foreground" />
@@ -430,7 +430,7 @@ const Settings = () => {
                 <h3 className="font-bold text-foreground pb-4 border-b border-border">AI Tutor Preferences</h3>
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3">
-                    <Bot className="h-5 w-5 text-accent" />
+                    <Bot className="h-5 w-5 text-primary" />
                     <div>
                       <div className="text-sm font-medium text-foreground">Socratic Method</div>
                       <div className="text-xs text-muted-foreground">AI will guide you with questions instead of giving answers directly.</div>
@@ -439,7 +439,7 @@ const Settings = () => {
                   <button
                     onClick={() => setSocraticMethod(!socraticMethod)}
                     className={`h-6 w-11 rounded-full transition-colors flex-shrink-0 ${
-                      socraticMethod ? "bg-accent" : "bg-muted"
+                      socraticMethod ? "bg-primary" : "bg-muted"
                     }`}
                   >
                     <div className={`h-5 w-5 rounded-full bg-card shadow transition-transform ${
@@ -456,8 +456,8 @@ const Settings = () => {
                         onClick={() => setTutorTone(tone)}
                         className={`px-4 py-2.5 rounded-lg text-sm font-medium border transition-colors capitalize ${
                           tutorTone === tone
-                            ? "border-accent bg-accent/10 text-accent"
-                            : "border-border text-muted-foreground hover:border-accent/30"
+                            ? "border-primary bg-primary/10 text-primary font-semibold"
+                            : "border-border text-muted-foreground hover:border-primary/30"
                         }`}
                       >
                         {tone === "academic" ? "✦ Academic" : tone === "friendly" ? "☺ Friendly" : "✦ Direct"}
@@ -472,7 +472,7 @@ const Settings = () => {
                 <button className="text-sm text-destructive hover:underline">Deactivate Account</button>
                 <div className="flex gap-3">
                   <Button variant="outline" size="sm">Cancel</Button>
-                  <Button size="sm" className="bg-accent text-accent-foreground hover:bg-accent/90" onClick={handleSaveProfile} disabled={isSaving}>
+                  <Button size="sm" className="bg-cta text-cta-foreground hover:bg-cta/90" onClick={handleSaveProfile} disabled={isSaving}>
                     {isSaving ? "Saving..." : "Save All Changes"}
                   </Button>
                 </div>
@@ -496,7 +496,7 @@ const Settings = () => {
                   <button
                     onClick={() => setNotifications((p) => ({ ...p, [n.key]: !p[n.key as keyof typeof p] }))}
                     className={`h-6 w-11 rounded-full transition-colors ${
-                      notifications[n.key as keyof typeof notifications] ? "bg-accent" : "bg-muted"
+                      notifications[n.key as keyof typeof notifications] ? "bg-primary" : "bg-muted"
                     }`}
                   >
                     <div className={`h-5 w-5 rounded-full bg-card shadow transition-transform ${

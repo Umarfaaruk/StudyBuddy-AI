@@ -25,10 +25,10 @@
     --primary-foreground: 0 0% 100%;
     --primary-light: 198 90% 92%;   /* #DBEAFE – highlight surfaces */
 
-    /* ── CTA (Amber – use ONLY for primary action buttons, max 1-2 per screen) ── */
-    --cta: 25 95% 53%;               /* #F97316 Vibrant Amber */
+    /* ── CTA (Blue – use ONLY for primary action buttons, max 1-2 per screen) ── */
+    --cta: 221 83% 53%;               /* #1D4ED8 Vibrant Royal/Electric Blue */
     --cta-foreground: 0 0% 100%;
-    --cta-light: 34 100% 96%;        /* #FFF7ED */
+    --cta-light: 221 83% 96%;        /* Light royal blue backdrop */
 
     /* ── Success & Progress ── */
     --success: 160 84% 39%;          /* #10B981 Focus Green */
