@@ -35,7 +35,7 @@ const HeroSection = () => (
 
           <div className="flex flex-wrap gap-4">
             <Button className="bg-cta text-white hover:bg-cta/90 font-semibold text-sm h-12 px-7 rounded-xl gap-2 shadow-sm animate-float" asChild>
-              <Link to="/signup">
+              <Link to="/login">
                 Sign Up Free
                 <ArrowRight className="h-4 w-4" />
               </Link>
