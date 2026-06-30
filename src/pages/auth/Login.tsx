@@ -39,7 +39,8 @@ const Login = () => {
       toast.error(getReadableAuthError(error));
       return;
     }
-    navigate(from, { replace: true });
+    // Redirect is handled by the `user` effect above (fires once auth state
+    // updates) — avoids a double navigate.
   };
 
   const handleForgotPassword = async () => {

@@ -46,21 +46,35 @@ function toAppUser(u: SupabaseUser | null | undefined): AppUser | null {
   };
 }
 
+/**
+ * True when two AppUsers represent the same signed-in user. Used to KEEP the
+ * previous object reference across Supabase auth events (token refresh, tab
+ * focus, etc.) so `user` identity is stable — otherwise every event produces a
+ * new object that re-fires effects and causes redirect loops / refetch storms.
+ */
+function sameUser(a: AppUser | null, b: AppUser | null): boolean {
+  if (a === b) return true;
+  if (!a || !b) return false;
+  return a.uid === b.uid && a.email === b.email
+    && a.displayName === b.displayName && a.photoURL === b.photoURL;
+}
+
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<AppUser | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     // Seed from any persisted session, then subscribe to changes.
-    supabase.auth.getSession().then(({ data }) => {
-      setUser(toAppUser(data.session?.user));
+    // Keep the previous reference when the user is unchanged, so `user` identity
+    // stays stable across token refreshes / focus events (prevents redirect loops).
+    const apply = (sbUser: SupabaseUser | null | undefined) => {
+      const next = toAppUser(sbUser);
+      setUser((prev) => (sameUser(prev, next) ? prev : next));
       setLoading(false);
-    });
+    };
 
-    const { data: sub } = supabase.auth.onAuthStateChange((_event, session) => {
-      setUser(toAppUser(session?.user));
-      setLoading(false);
-    });
+    supabase.auth.getSession().then(({ data }) => apply(data.session?.user));
+    const { data: sub } = supabase.auth.onAuthStateChange((_event, session) => apply(session?.user));
 
     return () => sub.subscription.unsubscribe();
   }, []);

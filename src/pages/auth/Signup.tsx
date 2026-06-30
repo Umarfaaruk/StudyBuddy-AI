@@ -22,7 +22,8 @@ const Signup = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [isGoogleLoading, setIsGoogleLoading] = useState(false);
 
-  // Returning from the Google OAuth redirect lands here authenticated; move on to onboarding.
+  // Once authenticated (email signup with confirmation off, or Google return),
+  // go to onboarding. ProtectedRoute sends already-onboarded users to dashboard.
   useEffect(() => {
     if (user) navigate("/onboarding", { replace: true });
   }, [user, navigate]);
@@ -46,8 +47,10 @@ const Signup = () => {
       console.error("Signup error:", error);
       return;
     }
-    toast.success("Account created successfully!");
-    navigate("/onboarding");
+    // If email confirmation is OFF, the session is created and the effect above
+    // redirects to onboarding. If it's ON, there's no session yet — tell the
+    // user to confirm via email (the confirm link returns them to /login).
+    toast.success("Account created! If asked, confirm via the email we sent, then log in.");
   };
 
   const handleGoogleSignup = async () => {
