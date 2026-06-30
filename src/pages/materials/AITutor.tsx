@@ -621,7 +621,7 @@ const AITutor = ({ hideHeader = false }: { hideHeader?: boolean } = {}) => {
           <div className="flex-1 overflow-y-auto px-6 py-4 space-y-4 bg-gray-50/20">
             {messages.length === 0 ? (
               /* Empty state / Onboarding guidance */
-              <div className="flex flex-col items-center justify-center h-full space-y-6 py-12">
+              <div className="flex flex-col items-center justify-center min-h-full space-y-6 py-8">
                 {selectedMaterial ? (
                   <div className="text-center space-y-4 max-w-md mx-auto">
                     <div className="h-16 w-16 rounded-2xl bg-[#29ABE2]/10 flex items-center justify-center mx-auto shadow-sm">
@@ -648,7 +648,7 @@ const AITutor = ({ hideHeader = false }: { hideHeader?: boolean } = {}) => {
                     )}
                   </div>
                 ) : (
-                  <div className="text-center space-y-6 max-w-2xl mx-auto w-full px-4">
+                  <div className="text-center space-y-6 w-full max-w-lg mx-auto px-4">
                     <div className="space-y-2">
                       <div className="h-16 w-16 rounded-2xl bg-gradient-to-br from-[#29ABE2] to-[#29ABE2] flex items-center justify-center mx-auto shadow-md">
                         <Bot className="h-8 w-8 text-white animate-pulse" />
@@ -662,7 +662,7 @@ const AITutor = ({ hideHeader = false }: { hideHeader?: boolean } = {}) => {
                     </div>
 
                     {/* Suggestions Grid */}
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 w-full max-w-lg mx-auto">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 w-full">
                       {[
                         "Explain photosynthesis step by step",
                         "How do I solve quadratic equations?",
@@ -684,7 +684,7 @@ const AITutor = ({ hideHeader = false }: { hideHeader?: boolean } = {}) => {
 
                     {/* Compact Drag and Drop Upload Zone */}
                     <div
-                      className={`w-full max-w-lg mx-auto rounded-2xl border-2 border-dashed p-5 text-center transition-all duration-200 cursor-pointer bg-white/50 ${
+                      className={`w-full rounded-2xl border-2 border-dashed p-5 text-center transition-all duration-200 cursor-pointer bg-white/50 ${
                         isDragOver
                           ? "border-[#29ABE2] bg-[#29ABE2]/50 scale-[1.01]"
                           : "border-gray-200 hover:border-[#29ABE2]/60 hover:bg-white"
@@ -698,8 +698,8 @@ const AITutor = ({ hideHeader = false }: { hideHeader?: boolean } = {}) => {
                       onDrop={handleDrop}
                     >
                       <div className="flex items-center justify-center gap-3">
-                        <div className="h-9 w-9 rounded-xl bg-[#29ABE2] flex items-center justify-center text-[#29ABE2] shrink-0">
-                          <Upload className="h-4.5 w-4.5" />
+                        <div className="h-9 w-9 rounded-xl bg-[#29ABE2] flex items-center justify-center text-white shrink-0">
+                          <Upload className="h-5 w-5" />
                         </div>
                         <div className="text-left">
                           <p className="text-xs font-bold text-gray-800">Specialize on your own documents</p>
