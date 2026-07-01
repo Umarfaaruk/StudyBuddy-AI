@@ -20,8 +20,11 @@ const Login = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
 
-  // Redirect to the page the user was trying to visit, or onboarding
-  const from = (location.state as { from?: { pathname: string } })?.from?.pathname ?? "/onboarding";
+  // Redirect to the page the user was trying to visit, or the dashboard.
+  // ProtectedRoute still sends users who haven't finished onboarding to
+  // /onboarding, so returning users land on /dashboard and new-but-confirmed
+  // users are routed to onboarding automatically.
+  const from = (location.state as { from?: { pathname: string } })?.from?.pathname ?? "/dashboard";
 
   // Only true once the user has *just* logged in on this page. We deliberately
   // do NOT redirect simply because a session already exists — otherwise a user

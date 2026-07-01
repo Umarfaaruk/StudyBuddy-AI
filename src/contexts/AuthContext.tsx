@@ -82,14 +82,15 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const signUp = async (email: string, password: string, fullName: string): Promise<AuthResult> => {
     // The DB trigger handle_new_user() creates the profile + streak rows from
     // this metadata, so no client-side profile write is needed.
-    // emailRedirectTo sends the "Confirm email" link back to the login page so
-    // the user can sign in after confirming (instead of a dead default URL).
+    // emailRedirectTo sends the "Confirm email" link to /onboarding: confirming
+    // establishes the session (detectSessionInUrl) and drops the new user
+    // straight into onboarding, which then routes them to the dashboard.
     const { error } = await supabase.auth.signUp({
       email,
       password,
       options: {
         data: { full_name: fullName },
-        emailRedirectTo: `${window.location.origin}/login`,
+        emailRedirectTo: `${window.location.origin}/onboarding`,
       },
     });
     return { error: error ?? null };
