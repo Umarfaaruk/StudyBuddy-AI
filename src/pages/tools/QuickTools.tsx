@@ -5,16 +5,10 @@ import YoutubeSummarizer from "./YoutubeSummarizer";
 import ConceptExplorerWorkspace from "./ConceptExplorerWorkspace";
 import AITutor from "../materials/AITutor";
 
-// FIX Bug 9: The first tab rendered <AITutor> (the real document tutor) but was
-// labelled "AI Tutor" — same label as the standalone tutor page at /materials/tutor.
-// This confused users navigating between them. Renamed to "Quick Tutor" to distinguish
-// it as the lightweight inline version, and renamed "explorer" tab to "Concept Explorer"
-// for clarity. The page title/header is also updated to "AI Tools" (was "AI Tutor",
-// which clashed with the dedicated tutor page).
 type ToolTab = "quicktutor" | "youtube" | "explorer";
 
 const tabs: { id: ToolTab; label: string; icon: any }[] = [
-  { id: "quicktutor", label: "Quick Tutor", icon: Bot },
+  { id: "quicktutor", label: "AI Tutor", icon: Bot },
   { id: "youtube", label: "YouTube Summarizer", icon: Youtube },
   { id: "explorer", label: "Concept Explorer", icon: Brain },
 ];
@@ -63,7 +57,7 @@ const QuickTools = () => {
         })}
       </div>
 
-      <div className="rounded-2xl border border-border bg-card/50 shadow-sm overflow-hidden min-h-[560px]">
+      <div className="rounded-2xl border border-border bg-card/50 shadow-sm overflow-hidden">
         {activeTab === "quicktutor" && (
           <div className="p-4 md:p-6">
             <AITutor hideHeader={true} />

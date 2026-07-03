@@ -470,7 +470,7 @@ const AITutor = ({ hideHeader = false }: { hideHeader?: boolean } = {}) => {
   };
 
   return (
-    <div className={`flex flex-col w-full overflow-hidden bg-white ${hideHeader ? "h-[600px] rounded-xl" : "h-[calc(100vh-80px)]"}`}>
+    <div className={`flex flex-col w-full overflow-hidden bg-white ${hideHeader ? "h-[480px] rounded-xl" : "h-[calc(100vh-80px)]"}`}>
       {/* Premium Revamped Header */}
       {!hideHeader && (
         <div className="relative overflow-hidden bg-gradient-to-r from-[#29ABE2] via-[#29ABE2] to-[#29ABE2] text-white px-6 py-6 shadow-sm shrink-0">
