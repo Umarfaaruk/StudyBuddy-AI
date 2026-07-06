@@ -21,6 +21,11 @@
 import { Resend } from "resend";
 import { createClient } from "@supabase/supabase-js";
 
+// Canonical public site URL used for links in emails. Override via PUBLIC_APP_URL
+// (e.g. when the custom domain changes); falls back to the production domain.
+// Must be an absolute URL — there's no window.origin in a serverless function.
+const APP_URL = process.env.PUBLIC_APP_URL || "https://eduonx.in";
+
 function getDb() {
   const url = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL;
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -55,7 +60,7 @@ function emailHtml(name: string, weeklyXp: number, totalXp: number, streak: numb
           <div>⚡ Study sessions / activities this week: <b style="color:#0f172a;">${awards}</b></div>
         </div>
         <div style="text-align:center;margin-top:26px;">
-          <a href="https://eduonx-eta.vercel.app/dashboard" style="display:inline-block;background:#29ABE2;color:#fff;text-decoration:none;font-weight:700;font-size:14px;padding:12px 26px;border-radius:12px;">Keep your streak going →</a>
+          <a href="${APP_URL}/dashboard" style="display:inline-block;background:#29ABE2;color:#fff;text-decoration:none;font-weight:700;font-size:14px;padding:12px 26px;border-radius:12px;">Keep your streak going →</a>
         </div>
       </div>
       <div style="padding:16px 28px;background:#f8fafc;color:#94a3b8;font-size:11px;text-align:center;">
