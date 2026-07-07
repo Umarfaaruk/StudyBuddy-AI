@@ -268,6 +268,18 @@ const Settings = () => {
     }
   };
 
+  // Discard unsaved edits by resetting the fields to the last-loaded profile.
+  const handleCancelEdit = () => {
+    setName(profile?.full_name || user?.displayName || "");
+    setEmail(user?.email || "");
+    setUniversity(profile?.university || "");
+    setStream(profile?.stream || "");
+    setAge(profile?.age || "");
+    setBio(profile?.bio || "");
+    setPlace(profile?.place || "");
+    toast.info("Changes discarded");
+  };
+
   return (
     <div className="p-6 md:p-8 max-w-5xl mx-auto">
       <div className="flex items-center gap-2 text-xs text-muted-foreground mb-6">
@@ -319,7 +331,11 @@ const Settings = () => {
             <div className="text-xs font-bold uppercase tracking-wider opacity-90">Current Plan</div>
             <div className="text-lg font-bold">EduOnx Pro</div>
             <p className="text-xs opacity-80">Unlimited AI tutors & detailed progress analytics.</p>
-            <Button size="sm" className="w-full bg-white text-primary hover:bg-white/95 font-semibold text-xs mt-2">
+            <Button
+              size="sm"
+              className="w-full bg-white text-primary hover:bg-white/95 font-semibold text-xs mt-2"
+              onClick={() => toast.info("You're on EduOnx Pro — all features are currently free. Billing management is coming soon.")}
+            >
               Manage Billing
             </Button>
           </div>
@@ -469,9 +485,14 @@ const Settings = () => {
 
               {/* Save */}
               <div className="flex items-center justify-between">
-                <button className="text-sm text-destructive hover:underline">Deactivate Account</button>
+                <button
+                  onClick={() => toast.info("Account deactivation isn't self-service yet — please contact the EduOnx team (or use Report Issue) to deactivate your account.")}
+                  className="text-sm text-destructive hover:underline"
+                >
+                  Deactivate Account
+                </button>
                 <div className="flex gap-3">
-                  <Button variant="outline" size="sm">Cancel</Button>
+                  <Button variant="outline" size="sm" onClick={handleCancelEdit}>Cancel</Button>
                   <Button size="sm" className="bg-cta text-cta-foreground hover:bg-cta/90" onClick={handleSaveProfile} disabled={isSaving}>
                     {isSaving ? "Saving..." : "Save All Changes"}
                   </Button>
