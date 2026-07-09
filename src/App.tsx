@@ -10,7 +10,35 @@ import AdminRoute from "@/components/AdminRoute";
 import ErrorBoundary from "@/components/ErrorBoundary";
 import AppLayout from "./components/layout/AppLayout";
 
-import { lazy, Suspense } from "react";
+import { lazy, Suspense, type ComponentType } from "react";
+
+/**
+ * Wrap a lazy import so a STALE CHUNK auto-recovers. After a new deploy, the
+ * hashed chunk files the currently-open tab references (e.g. QuizPage-abc123.js)
+ * are replaced on the server, so navigating to a not-yet-loaded route throws
+ * "Failed to fetch dynamically imported module". Instead of crashing, reload
+ * once to fetch the fresh index.html + new chunk URLs. A sessionStorage guard
+ * prevents an infinite reload loop if the failure is something else.
+ */
+function lazyWithReload<T extends ComponentType<any>>(
+  factory: () => Promise<{ default: T }>
+) {
+  return lazy(() =>
+    factory()
+      .then((mod) => {
+        sessionStorage.removeItem("chunk-reloaded");
+        return mod;
+      })
+      .catch((err) => {
+        if (!sessionStorage.getItem("chunk-reloaded")) {
+          sessionStorage.setItem("chunk-reloaded", "1");
+          window.location.reload();
+          return new Promise<{ default: T }>(() => {}); // hang until reload
+        }
+        throw err;
+      })
+  );
+}
 
 /* ──────────────────────────────────────────────────────────────────────────
  * ROUTE-LEVEL CODE SPLITTING
@@ -26,35 +54,35 @@ import Signup from "./pages/auth/Signup";
 import NotFound from "./pages/NotFound";
 
 // Lazy: everything behind auth or rarely hit on first visit
-const About = lazy(() => import("./pages/About"));
-const OnboardingFlow = lazy(() => import("./pages/onboarding/OnboardingFlow"));
-const Dashboard = lazy(() => import("./pages/Dashboard"));
-const DoubtInput = lazy(() => import("./pages/doubts/DoubtInput"));
-const AISolution = lazy(() => import("./pages/doubts/AISolution"));
-const DoubtHistory = lazy(() => import("./pages/doubts/DoubtHistory"));
-const DoubtSession = lazy(() => import("./pages/doubts/DoubtSession"));
-const CameraQnA = lazy(() => import("./pages/doubts/CameraQnA"));
-const TopicSelection = lazy(() => import("./pages/quiz/TopicSelection"));
-const QuizPage = lazy(() => import("./pages/quiz/QuizPage"));
-const QuizResults = lazy(() => import("./pages/quiz/QuizResults"));
-const MaterialUpload = lazy(() => import("./pages/materials/MaterialUpload"));
-const AILearning = lazy(() => import("./pages/materials/AILearning"));
-const AITutor = lazy(() => import("./pages/materials/AITutor"));
-const Flashcards = lazy(() => import("./pages/materials/Flashcards"));
-const StudyPlanner = lazy(() => import("./pages/materials/StudyPlanner"));
-const QuickTools = lazy(() => import("./pages/tools/QuickTools"));
-const ProgressDashboard = lazy(() => import("./pages/progress/ProgressDashboard"));
-const TimerPage = lazy(() => import("./pages/timer/TimerPage"));
-const Leaderboard = lazy(() => import("./pages/social/Leaderboard"));
-const Friends = lazy(() => import("./pages/social/Friends"));
-const Achievements = lazy(() => import("./pages/social/Achievements"));
-const Profile = lazy(() => import("./pages/Profile"));
-const Settings = lazy(() => import("./pages/Settings"));
-const LessonList = lazy(() => import("./pages/lessons/LessonList"));
-const LessonViewer = lazy(() => import("./pages/lessons/LessonViewer"));
-const AdminPanel = lazy(() => import("./pages/admin/AdminPanel"));
-const AdminLogin = lazy(() => import("./pages/admin/AdminLogin"));
-const Feedback = lazy(() => import("./pages/Feedback"));
+const About = lazyWithReload(() => import("./pages/About"));
+const OnboardingFlow = lazyWithReload(() => import("./pages/onboarding/OnboardingFlow"));
+const Dashboard = lazyWithReload(() => import("./pages/Dashboard"));
+const DoubtInput = lazyWithReload(() => import("./pages/doubts/DoubtInput"));
+const AISolution = lazyWithReload(() => import("./pages/doubts/AISolution"));
+const DoubtHistory = lazyWithReload(() => import("./pages/doubts/DoubtHistory"));
+const DoubtSession = lazyWithReload(() => import("./pages/doubts/DoubtSession"));
+const CameraQnA = lazyWithReload(() => import("./pages/doubts/CameraQnA"));
+const TopicSelection = lazyWithReload(() => import("./pages/quiz/TopicSelection"));
+const QuizPage = lazyWithReload(() => import("./pages/quiz/QuizPage"));
+const QuizResults = lazyWithReload(() => import("./pages/quiz/QuizResults"));
+const MaterialUpload = lazyWithReload(() => import("./pages/materials/MaterialUpload"));
+const AILearning = lazyWithReload(() => import("./pages/materials/AILearning"));
+const AITutor = lazyWithReload(() => import("./pages/materials/AITutor"));
+const Flashcards = lazyWithReload(() => import("./pages/materials/Flashcards"));
+const StudyPlanner = lazyWithReload(() => import("./pages/materials/StudyPlanner"));
+const QuickTools = lazyWithReload(() => import("./pages/tools/QuickTools"));
+const ProgressDashboard = lazyWithReload(() => import("./pages/progress/ProgressDashboard"));
+const TimerPage = lazyWithReload(() => import("./pages/timer/TimerPage"));
+const Leaderboard = lazyWithReload(() => import("./pages/social/Leaderboard"));
+const Friends = lazyWithReload(() => import("./pages/social/Friends"));
+const Achievements = lazyWithReload(() => import("./pages/social/Achievements"));
+const Profile = lazyWithReload(() => import("./pages/Profile"));
+const Settings = lazyWithReload(() => import("./pages/Settings"));
+const LessonList = lazyWithReload(() => import("./pages/lessons/LessonList"));
+const LessonViewer = lazyWithReload(() => import("./pages/lessons/LessonViewer"));
+const AdminPanel = lazyWithReload(() => import("./pages/admin/AdminPanel"));
+const AdminLogin = lazyWithReload(() => import("./pages/admin/AdminLogin"));
+const Feedback = lazyWithReload(() => import("./pages/Feedback"));
 
 /** Shared loading fallback shown while a route chunk downloads */
 const PageLoader = () => (
