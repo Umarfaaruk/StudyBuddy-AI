@@ -507,16 +507,19 @@ export const YoutubeSummarizer = () => {
       }
       const data = await resp.json();
 
-      // Check for API errors in the response body
-      if (data.error) {
+      // "No captions" is NOT fatal: the API still returns valid metadata, so we
+      // fall back to a metadata-based summary. Only stop for real failures
+      // (video not found / private / server misconfigured / etc.).
+      const noCaptions = data.hasTranscript !== true && /no captions/i.test(data.error || "");
+      if (data.error && !noCaptions) {
         toast.error(`Error: ${data.error}`);
         setIsLoading(false);
         return;
       }
 
       const hasCaptions = data.hasTranscript === true && (data.segments?.length ?? 0) > 0;
-      if (!hasCaptions && !data.error) {
-        toast.warning("No captions found — summary will be limited to video metadata.");
+      if (!hasCaptions) {
+        toast.warning("No captions on this video — the summary will be based on its title & details only.");
       }
 
       const video: VideoData = {
