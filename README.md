@@ -83,10 +83,10 @@ See [`.env.example`](./.env.example) for the full list. Copy it to `.env.local` 
 ## License
 
 This project was built as part of a freelancing engagement for a company called
-**Edunox**. Edunox holds all rights to this product and its associated
+**EduOnx**. EduOnx holds all rights to this product and its associated
 deliverables. My role was specifically that of the **developer and UI designer**.
 
-This repository and its contents are proprietary to Edunox and are not licensed
+This repository and its contents are proprietary to EduOnx and are not licensed
 for reuse, redistribution, or modification without their explicit permission.
 
-© 2026 Edunox. All rights reserved.
+© 2026 EduOnx. All rights reserved.

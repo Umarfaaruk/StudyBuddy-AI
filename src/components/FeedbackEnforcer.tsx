@@ -96,6 +96,21 @@ const FeedbackEnforcer = () => {
     checkFeedbackStatus();
   }, [user]);
 
+  // Closing without submitting snoozes the prompt for a week (records the
+  // timestamp the same way a submission would) so it doesn't nag every session.
+  const handleClose = async () => {
+    setShowModal(false);
+    if (!user) return;
+    try {
+      await supabase.from("user_preferences").upsert(
+        { user_id: user.uid, last_feedback_at: new Date().toISOString() },
+        { onConflict: "user_id" }
+      );
+    } catch (error) {
+      console.error("[FeedbackEnforcer] Snooze failed:", error);
+    }
+  };
+
   const handleSubmit = async () => {
     if (rating === 0) {
       toast.error("Please select a rating");
@@ -153,7 +168,7 @@ const FeedbackEnforcer = () => {
             </div>
             <button
               type="button"
-              onClick={() => setShowModal(false)}
+              onClick={handleClose}
               aria-label="Close"
               className="ml-auto -mr-1 shrink-0 text-white/70 hover:text-white hover:bg-white/10 rounded-lg p-1.5 transition-colors"
             >
