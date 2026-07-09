@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/lib/supabase";
-import { MessageSquare, Star, Send, Loader2 } from "lucide-react";
+import { MessageSquare, Star, Send, Loader2, X } from "lucide-react";
 import { toast } from "sonner";
 
 const FEEDBACK_INTERVAL_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
@@ -151,6 +151,14 @@ const FeedbackEnforcer = () => {
               <h2 className="text-lg font-bold">Weekly Feedback</h2>
               <p className="text-xs text-white/70">Help us improve EduOnx for you</p>
             </div>
+            <button
+              type="button"
+              onClick={() => setShowModal(false)}
+              aria-label="Close"
+              className="ml-auto -mr-1 shrink-0 text-white/70 hover:text-white hover:bg-white/10 rounded-lg p-1.5 transition-colors"
+            >
+              <X className="h-5 w-5" />
+            </button>
           </div>
         </div>
 

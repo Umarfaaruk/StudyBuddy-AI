@@ -17,6 +17,7 @@ import {
   MessageSquare,
   ChevronDown,
   Download,
+  Gamepad2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -455,6 +456,7 @@ export const YoutubeSummarizer = () => {
   const [streamingContent, setStreamingContent] = useState("");
 
   const [activeAction, setActiveAction] = useState<ActionId>("summarise");
+  const [quizDifficulty, setQuizDifficulty] = useState<"Easy" | "Medium" | "Hard">("Medium");
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
   const [chatInput, setChatInput] = useState("");
   const [isChatSending, setIsChatSending] = useState(false);
@@ -635,30 +637,30 @@ export const YoutubeSummarizer = () => {
     }
   };
 
-  // "Quiz Me" doesn't generate a static Q&A inline anymore — it sends the user to
-  // the Practice Arena, which builds a real interactive quiz from this video's
-  // transcript (same flow as Practice Arena's "Quiz from YouTube").
-  const goToPracticeArenaQuiz = () => {
+  // "Quiz Me" doesn't generate a static Q&A inline — it opens an interactive quiz
+  // built from this video's transcript, at the difficulty the user picks below.
+  const startQuiz = () => {
     if (!videoData) return;
     const transcript = (videoData.transcript || "").trim();
     if (!videoData.hasCaptions || transcript.length < 50) {
       toast.error("This video has no transcript — a quiz can't be generated from it.");
       return;
     }
-    toast.success("Opening Practice Arena to build your quiz…");
+    toast.success(`Building your ${quizDifficulty} quiz…`);
     navigate(`/quiz/youtube-${videoData.id}`, {
       state: {
         topicTitle: videoData.title,
         subjectName: "YouTube Video",
         materialContext: transcript.substring(0, 5000),
-        difficulty: "Medium",
+        difficulty: quizDifficulty,
       },
     });
   };
 
   const handleTabClick = (actionId: ActionId) => {
+    // The quiz tab shows a difficulty picker (no inline generation).
     if (actionId === "quiz") {
-      goToPracticeArenaQuiz();
+      setActiveAction("quiz");
       return;
     }
     setActiveAction(actionId);
@@ -1028,8 +1030,45 @@ export const YoutubeSummarizer = () => {
                 </div>
               )}
 
-              {/* Empty state for non-chat tabs */}
-              {!isGenerating && activeAction !== "chat" && !currentContent && (
+              {/* Quiz tab — difficulty picker (no inline generation) */}
+              {!isGenerating && activeAction === "quiz" && (
+                <div className="rounded-xl border border-border bg-background p-6 shadow-sm space-y-5 max-w-lg">
+                  <div className="flex items-start gap-3">
+                    <div className="h-9 w-9 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+                      <Gamepad2 className="h-4 w-4 text-primary" />
+                    </div>
+                    <div>
+                      <h3 className="text-sm font-bold text-foreground">Quiz yourself on this video</h3>
+                      <p className="text-xs text-muted-foreground mt-0.5">
+                        Choose a difficulty, then start an interactive quiz built from the transcript.
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <label htmlFor="yt-quiz-difficulty" className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                      Difficulty
+                    </label>
+                    <select
+                      id="yt-quiz-difficulty"
+                      value={quizDifficulty}
+                      onChange={(e) => setQuizDifficulty(e.target.value as "Easy" | "Medium" | "Hard")}
+                      className="w-full h-11 px-3 rounded-xl border border-border bg-background text-sm text-foreground outline-none focus:border-primary/40 focus:ring-2 focus:ring-primary/10 transition-all"
+                    >
+                      <option value="Easy">Easy</option>
+                      <option value="Medium">Medium</option>
+                      <option value="Hard">Hard</option>
+                    </select>
+                  </div>
+
+                  <Button onClick={startQuiz} className="w-full gap-2 h-11 font-semibold">
+                    <Gamepad2 className="h-4 w-4" /> Start {quizDifficulty} Quiz
+                  </Button>
+                </div>
+              )}
+
+              {/* Empty state for non-chat, non-quiz tabs */}
+              {!isGenerating && activeAction !== "chat" && activeAction !== "quiz" && !currentContent && (
                 <div className="flex flex-col items-center justify-center py-12 text-center">
                   <div className="h-10 w-10 rounded-2xl bg-muted flex items-center justify-center mb-3">
                     {(() => {

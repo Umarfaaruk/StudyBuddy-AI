@@ -1,59 +1,15 @@
 import { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { Gamepad2, FileText, BrainCircuit, Youtube, Loader2, PlayCircle } from "lucide-react";
+import { Gamepad2, FileText, BrainCircuit, Trophy } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Input } from "@/components/ui/input";
-import { toast } from "sonner";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/contexts/AuthContext";
-import { getAuthHeaders } from "@/lib/authHeaders";
 
 const PracticeArena = () => {
   const { user } = useAuth();
-  const navigate = useNavigate();
   const [difficulty, setDifficulty] = useState("Medium");
-  const [youtubeUrl, setYoutubeUrl] = useState("");
-  const [isProcessingYoutube, setIsProcessingYoutube] = useState(false);
-
-  const handleYoutubeQuiz = async () => {
-    if (!youtubeUrl.trim()) {
-      toast.error("Please enter a YouTube URL");
-      return;
-    }
-
-    try {
-      setIsProcessingYoutube(true);
-      const res = await fetch(`/api/youtube-transcript?url=${encodeURIComponent(youtubeUrl.trim())}`, {
-        headers: await getAuthHeaders(),
-      });
-      if (!res.ok) {
-        throw new Error("Failed to process YouTube video");
-      }
-      
-      const data = await res.json();
-      if (!data.hasTranscript || !data.transcript) {
-        toast.error("No transcript found for this video");
-        return;
-      }
-
-      // Navigate to quiz viewer with the transcript as materialContext
-      navigate(`/quiz/youtube-${data.videoId}`, {
-        state: {
-          topicTitle: data.title,
-          subjectName: "YouTube Video",
-          materialContext: data.transcript.substring(0, 5000), // passing limited transcript for quiz generation context
-          difficulty
-        }
-      });
-    } catch (error) {
-      console.error(error);
-      toast.error("Error processing YouTube video");
-    } finally {
-      setIsProcessingYoutube(false);
-    }
-  };
 
   // Fetch user materials
   const { data: materials, isLoading: materialsLoading } = useQuery({
@@ -66,6 +22,28 @@ const PracticeArena = () => {
         return (data ?? []) as any[];
       } catch (e) {
         console.error("Error fetching materials:", e);
+        return [];
+      }
+    },
+    enabled: !!user,
+  });
+
+  // Fetch the user's previous quiz attempts (most recent first)
+  const { data: attempts, isLoading: attemptsLoading } = useQuery({
+    queryKey: ["quiz-attempts", user?.uid],
+    queryFn: async () => {
+      if (!user) return [];
+      try {
+        const { data, error } = await supabase
+          .from("quiz_attempts")
+          .select("*")
+          .eq("user_id", user.uid)
+          .order("created_at", { ascending: false })
+          .limit(50);
+        if (error) throw error;
+        return (data ?? []) as any[];
+      } catch (e) {
+        console.error("Error fetching quiz attempts:", e);
         return [];
       }
     },
@@ -105,40 +83,10 @@ const PracticeArena = () => {
         </div>
       </div>
 
-      {/* YouTube Quiz Generator */}
-      <div className="bg-gradient-to-br from-red-50 to-white border border-red-100 rounded-2xl p-5 md:p-6 shadow-sm">
-        <div className="flex items-start gap-4 flex-col md:flex-row md:items-center justify-between">
-          <div>
-            <div className="flex items-center gap-2 mb-1">
-              <Youtube className="h-5 w-5 text-red-600" />
-              <h3 className="text-sm font-bold text-gray-900">Quiz from YouTube</h3>
-            </div>
-            <p className="text-xs text-gray-500">Paste a YouTube link to instantly generate a quiz based on the video.</p>
-          </div>
-          <div className="flex w-full md:w-auto gap-2 items-center">
-            <Input
-              placeholder="https://youtube.com/watch?v=..."
-              value={youtubeUrl}
-              onChange={(e) => setYoutubeUrl(e.target.value)}
-              className="bg-white text-xs max-w-[250px] md:w-[250px]"
-              disabled={isProcessingYoutube}
-            />
-            <Button
-              onClick={handleYoutubeQuiz}
-              disabled={isProcessingYoutube || !youtubeUrl.trim()}
-              className="bg-red-600 hover:bg-red-700 text-white text-xs font-bold gap-1.5 shadow-sm shadow-red-600/20"
-            >
-              {isProcessingYoutube ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <PlayCircle className="h-3.5 w-3.5" />}
-              Generate
-            </Button>
-          </div>
-        </div>
-      </div>
-
       {/* User Materials grid */}
       <div>
         <h2 className="text-xl font-bold text-gray-900 tracking-tight mb-5">Your Study Materials</h2>
-        
+
         <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-5">
           {materialsLoading ? (
             Array.from({ length: 3 }).map((_, i) => (
@@ -179,8 +127,8 @@ const PracticeArena = () => {
                   <div className="flex gap-2 mt-auto pt-4">
                     <Link
                       to={`/quiz/${m.id}`}
-                      state={{ 
-                        topicTitle: m.file_name, 
+                      state={{
+                        topicTitle: m.file_name,
                         subjectName: "Your Material",
                         materialContext: m.summary || m.extracted_text?.substring(0, 5000) || "",
                         difficulty
@@ -227,9 +175,63 @@ const PracticeArena = () => {
           )}
         </div>
       </div>
+
+      {/* Previous Quizzes */}
+      <div>
+        <h2 className="text-xl font-bold text-gray-900 tracking-tight mb-5">Previous Quizzes</h2>
+
+        {attemptsLoading ? (
+          <div className="space-y-3">
+            {Array.from({ length: 3 }).map((_, i) => (
+              <Skeleton key={i} className="h-16 w-full rounded-xl" />
+            ))}
+          </div>
+        ) : attempts?.length ? (
+          <div className="space-y-3">
+            {attempts.map((a) => {
+              const pct = a.total_questions > 0 ? Math.round((a.score / a.total_questions) * 100) : 0;
+              const scoreColor = pct >= 80 ? "text-green-600" : pct >= 50 ? "text-amber-500" : "text-red-500";
+              return (
+                <div
+                  key={a.id}
+                  className="bg-white border border-gray-100 rounded-xl p-4 flex items-center justify-between gap-4 shadow-sm hover:shadow-md transition-shadow"
+                >
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div className="h-10 w-10 rounded-xl bg-[#29ABE2]/10 flex items-center justify-center shrink-0">
+                      <Trophy className="h-5 w-5 text-[#29ABE2]" />
+                    </div>
+                    <div className="min-w-0">
+                      <h3 className="text-sm font-semibold text-gray-900 truncate">{a.topic_title || "Quiz"}</h3>
+                      <p className="text-[11px] text-gray-400 mt-0.5">
+                        {new Date(a.created_at).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })}
+                        {" • "}{a.score}/{a.total_questions} correct
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-3 shrink-0">
+                    {a.xp_awarded > 0 && (
+                      <span className="text-[10px] font-bold text-[#29ABE2] bg-[#29ABE2]/10 px-2 py-0.5 rounded-full">
+                        +{a.xp_awarded} XP
+                      </span>
+                    )}
+                    <span className={`text-sm font-extrabold ${scoreColor}`}>{pct}%</span>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        ) : (
+          <div className="text-center py-12 bg-gray-50/60 rounded-2xl border-2 border-dashed border-gray-200">
+            <div className="h-14 w-14 rounded-2xl bg-[#29ABE2]/10 flex items-center justify-center mx-auto mb-4">
+              <Trophy className="h-7 w-7 text-[#29ABE2]/50" />
+            </div>
+            <p className="text-sm text-gray-500 mb-1 font-medium">No quizzes yet</p>
+            <p className="text-xs text-gray-400">Take a quiz from your materials above to build your history.</p>
+          </div>
+        )}
+      </div>
     </div>
   );
 };
 
 export default PracticeArena;
-
