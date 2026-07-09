@@ -22,7 +22,8 @@ import {
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
-import { aiComplete, aiStream } from "@/lib/aiService";
+import { aiComplete, aiStream, MODEL_SMALL } from "@/lib/aiService";
+import { toUserFacingAIError } from "@/lib/userFacingErrors";
 import { getAuthHeaders } from "@/lib/authHeaders";
 import { extractYouTubeVideoId } from "@/lib/youtube";
 import ReactMarkdown from "react-markdown";
@@ -264,17 +265,18 @@ async function runAI(
     onToken?: (t: string) => void;
     maxTokens?: number;
     temperature?: number;
+    model?: string;
   } = {}
 ): Promise<string> {
-  const { onToken, maxTokens = 4096, temperature = 0.2 } = options;
+  const { onToken, maxTokens = 4096, temperature = 0.2, model } = options;
   const messages = [
     { role: "system" as const, content: systemPrompt },
     { role: "user" as const, content: userContent },
   ];
   if (onToken) {
-    return aiStream({ messages, temperature, maxTokens }, onToken);
+    return aiStream({ messages, temperature, maxTokens, model }, onToken);
   }
-  return aiComplete({ messages, temperature, maxTokens });
+  return aiComplete({ messages, temperature, maxTokens, model });
 }
 
 async function generateVideoSummary(
@@ -330,6 +332,9 @@ async function generateVideoSummary(
       {
         maxTokens: 900,
         temperature: 0.1,
+        // Use the fast 8B model for per-chunk extraction: far lighter on the
+        // free-tier rate limit (TPM) and quick — the final pass still uses 70B.
+        model: MODEL_SMALL,
       }
     );
     parts.push(part);
@@ -530,35 +535,49 @@ export const YoutubeSummarizer = () => {
 
       setVideoData(video);
       setIsLoading(false);
-      setIsGenerating(true);
-      setActiveAction("summarise");
-      setStreamingContent("");
 
-      // Stream the summary with live token updates
+      // Generate the summary. If THIS step fails (e.g. AI rate limit), the video
+      // stays loaded — the user can retry the summary or use the other tabs —
+      // instead of being thrown back to the input screen.
+      await runSummary(video);
+    } catch (err: unknown) {
+      // Only reached if the transcript/metadata fetch itself failed.
+      console.error(err);
+      toast.error(err instanceof Error ? err.message : "Failed to load this video. Please try again.");
+      setVideoData(null);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Generate (or re-generate) the summary for a loaded video. Self-contained
+  // error handling so a failure never discards the video.
+  const runSummary = async (video: VideoData) => {
+    setIsGenerating(true);
+    setActiveAction("summarise");
+    setStreamingContent("");
+    try {
       let accumulated = "";
       const result = await generateVideoSummary(
         video.title,
         video.segments,
         video.transcript,
-        hasCaptions,
+        video.hasCaptions,
         (token) => {
           accumulated += token;
           setStreamingContent(accumulated);
         }
       );
-
       setActionContent((prev) => ({ ...prev, summarise: result }));
       setStreamingContent("");
-
       toast.success(
-        hasCaptions ? "Summary ready!" : "Limited summary generated (no captions)"
+        video.hasCaptions ? "Summary ready!" : "Limited summary generated (no captions)"
       );
     } catch (err: unknown) {
       console.error(err);
-      toast.error(err instanceof Error ? err.message : "Failed to summarize video");
-      setVideoData(null);
+      setStreamingContent("");
+      toast.error(toUserFacingAIError(err));
     } finally {
-      setIsLoading(false);
       setIsGenerating(false);
     }
   };
@@ -1080,7 +1099,11 @@ export const YoutubeSummarizer = () => {
                     Click to generate {QUICK_ACTIONS.find(a => a.id === activeAction)?.label}
                   </p>
                   <Button
-                    onClick={() => runAction(activeAction)}
+                    onClick={() =>
+                      activeAction === "summarise"
+                        ? videoData && runSummary(videoData)
+                        : runAction(activeAction)
+                    }
                     size="sm"
                     className="mt-3"
                     disabled={isGenerating}
