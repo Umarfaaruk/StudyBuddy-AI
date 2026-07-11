@@ -7,6 +7,14 @@ import { supabase } from "@/lib/supabase";
 import { RETRY_QUEUE_KEY } from "@/lib/studySession";
 
 /**
+ * Canonical site origin used for all auth redirect URLs.
+ * In production this is the custom domain (e.g. https://edunox.in).
+ * Falls back to window.location.origin for local development.
+ */
+const SITE_ORIGIN =
+  import.meta.env.VITE_SITE_URL?.replace(/\/+$/, "") || window.location.origin;
+
+/**
  * AppUser — a thin, provider-agnostic shape.
  * We keep the field name `uid` (not Supabase's `id`) so the ~134 existing
  * `user.uid` call sites across the app keep working unchanged after the
@@ -90,7 +98,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       password,
       options: {
         data: { full_name: fullName },
-        emailRedirectTo: `${window.location.origin}/onboarding`,
+        emailRedirectTo: `${SITE_ORIGIN}/onboarding`,
       },
     });
     return { error: error ?? null };
@@ -107,7 +115,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     const { error } = await supabase.auth.signInWithOAuth({
       provider: "google",
       options: {
-        redirectTo: `${window.location.origin}/onboarding`,
+        redirectTo: `${SITE_ORIGIN}/onboarding`,
         queryParams: { prompt: "select_account" },
       },
     });
@@ -116,7 +124,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   const sendPasswordReset = async (email: string): Promise<AuthResult> => {
     const { error } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: `${window.location.origin}/login`,
+      redirectTo: `${SITE_ORIGIN}/login`,
     });
     return { error: error ?? null };
   };
