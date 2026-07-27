@@ -1,5 +1,5 @@
 -- ============================================================================
--- EduOnx — Supabase / Postgres schema  (Firebase Firestore → Postgres)
+-- StudyBuddy AI — Supabase / Postgres schema
 -- ============================================================================
 -- Run this in the Supabase SQL Editor on a NEW project to stand up the database
 -- that replaces the 23 Firestore collections. Safe to run on an empty project.

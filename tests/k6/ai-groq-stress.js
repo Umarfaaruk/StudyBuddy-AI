@@ -1,5 +1,5 @@
 /**
- * EduOnx k6 — AI endpoint resilience (requires SUPABASE_ACCESS_TOKEN)
+ * StudyBuddy AI k6 — AI endpoint resilience (requires SUPABASE_ACCESS_TOKEN)
  *
  * Usage:
  *   k6 run -e BASE_URL=https://your-app.vercel.app \

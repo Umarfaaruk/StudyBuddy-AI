@@ -1,5 +1,5 @@
 /**
- * EduOnx k6 Load Test — Dashboard + API smoke
+ * StudyBuddy AI k6 Load Test — Dashboard + API smoke
  *
  * Usage:
  *   k6 run tests/k6/dashboard-lessons.js

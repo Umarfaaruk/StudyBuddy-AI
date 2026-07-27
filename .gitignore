@@ -36,6 +36,13 @@ scratch/
 # Codex automation artifacts
 .codex-*
 
+# Claude Code local state. Ignored wholesale because .claude/worktrees/ holds
+# full checkouts — including .env.local and dist/ — that a `git add -A` would
+# otherwise sweep into a commit. launch.json is re-included: it is a shared
+# dev-server config with nothing sensitive in it.
+.claude/*
+!.claude/launch.json
+
 # Python reference library (not part of the build)
 
 .vercel

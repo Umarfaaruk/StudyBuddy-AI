@@ -1,0 +1,118 @@
+{
+  "mode": "frontend",
+  "target": "http://localhost:4173",
+  "generatedAt": "2026-06-20T13:43:22.171Z",
+  "maxHealthyConcurrentUsers": 285,
+  "degradesAt": 350,
+  "note": "Static/app-shell capacity served by Vercel's CDN. The bottleneck is usually the load generator/network, not the app.",
+  "levels": [
+    {
+      "mode": "frontend",
+      "vus": 25,
+      "duration": "6s",
+      "failRate": 0,
+      "p95Ms": 47,
+      "requests": 1112,
+      "passed": true
+    },
+    {
+      "mode": "frontend",
+      "vus": 50,
+      "duration": "6s",
+      "failRate": 0,
+      "p95Ms": 71,
+      "requests": 2024,
+      "passed": true
+    },
+    {
+      "mode": "frontend",
+      "vus": 100,
+      "duration": "6s",
+      "failRate": 0,
+      "p95Ms": 67,
+      "requests": 3612,
+      "passed": true
+    },
+    {
+      "mode": "frontend",
+      "vus": 200,
+      "duration": "6s",
+      "failRate": 0,
+      "p95Ms": 155,
+      "requests": 4856,
+      "passed": true
+    },
+    {
+      "mode": "frontend",
+      "vus": 275,
+      "duration": "6s",
+      "failRate": 0.89,
+      "p95Ms": 155,
+      "requests": 8108,
+      "passed": true
+    },
+    {
+      "mode": "frontend",
+      "vus": 284,
+      "duration": "6s",
+      "failRate": 0.67,
+      "p95Ms": 192,
+      "requests": 7168,
+      "passed": true
+    },
+    {
+      "mode": "frontend",
+      "vus": 285,
+      "duration": "6s",
+      "failRate": 0.8,
+      "p95Ms": 213,
+      "requests": 7032,
+      "passed": true
+    },
+    {
+      "mode": "frontend",
+      "vus": 286,
+      "duration": "6s",
+      "failRate": 2.14,
+      "p95Ms": 164,
+      "requests": 7468,
+      "passed": false
+    },
+    {
+      "mode": "frontend",
+      "vus": 288,
+      "duration": "6s",
+      "failRate": 1.59,
+      "p95Ms": 189,
+      "requests": 7312,
+      "passed": false
+    },
+    {
+      "mode": "frontend",
+      "vus": 293,
+      "duration": "6s",
+      "failRate": 2.24,
+      "p95Ms": 169,
+      "requests": 7688,
+      "passed": false
+    },
+    {
+      "mode": "frontend",
+      "vus": 312,
+      "duration": "6s",
+      "failRate": 3.14,
+      "p95Ms": 201,
+      "requests": 7904,
+      "passed": false
+    },
+    {
+      "mode": "frontend",
+      "vus": 350,
+      "duration": "6s",
+      "failRate": 3.52,
+      "p95Ms": 182,
+      "requests": 9196,
+      "passed": false
+    }
+  ]
+}
