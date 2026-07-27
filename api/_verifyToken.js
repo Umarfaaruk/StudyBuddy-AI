@@ -15,9 +15,19 @@
  */
 import { createClient } from "@supabase/supabase-js";
 
-function getConfig() {
+/**
+ * Resolve server credentials, accepting both naming conventions.
+ *
+ * The Vercel↔Supabase Marketplace integration injects SUPABASE_SECRET_KEY,
+ * while a hand-configured project typically uses SUPABASE_SERVICE_ROLE_KEY.
+ * They are the same secret. Accepting either means the integration works the
+ * moment it is connected, with no manual variable to remember — and a missed
+ * one here silently disables auth (see requireAuth's fail-open path).
+ */
+export function getConfig() {
   const url = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL;
-  const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  const key =
+    process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SECRET_KEY;
   return { url, key };
 }
 
@@ -61,8 +71,9 @@ export async function requireAuth(req, res) {
   // Server misconfiguration must not break every user — fail OPEN with a warning.
   if (!url || !key) {
     console.warn(
-      "[auth] No SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY configured — " +
-      "skipping token verification (anti-abuse protection disabled). Set them in Vercel env."
+      "[auth] No SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY (or SUPABASE_SECRET_KEY) " +
+      "configured — skipping token verification. ANTI-ABUSE PROTECTION IS OFF and " +
+      "this endpoint is open to anonymous callers. Set them in Vercel env."
     );
     return { uid: "unverified", unverified: true };
   }

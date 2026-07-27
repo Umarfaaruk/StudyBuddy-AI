@@ -12,6 +12,8 @@
  * Required env (set in Vercel):
  *   RESEND_API_KEY                – your Resend API key
  *   SUPABASE_URL + SUPABASE_SERVICE_ROLE_KEY – server DB access
+ *                                   (or SUPABASE_SECRET_KEY, the name the
+ *                                    Vercel↔Supabase integration injects)
  * Optional:
  *   RESEND_FROM                   – e.g. "StudyBuddy AI <noreply@yourdomain.com>"
  *                                   (defaults to Resend's onboarding sender)
@@ -36,8 +38,12 @@ const APP_URL = (
 
 function getDb() {
   const url = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL;
-  const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
-  if (!url || !key) throw new Error("Missing SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY");
+  // SUPABASE_SECRET_KEY is what the Vercel↔Supabase integration injects.
+  const key =
+    process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SECRET_KEY;
+  if (!url || !key) {
+    throw new Error("Missing SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY (or SUPABASE_SECRET_KEY)");
+  }
   return createClient(url, key, { auth: { persistSession: false, autoRefreshToken: false } });
 }
 
