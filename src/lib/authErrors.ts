@@ -31,6 +31,12 @@ export function getReadableAuthError(error: unknown): string {
     return "We couldn't send the confirmation email right now. Please try again in a moment — if it keeps happening, contact support.";
   if (m.includes("unexpected_failure") || m.includes("unexpected failure") || m.includes("database error"))
     return "Something went wrong creating your account. Please try again in a moment.";
+  // A bad header value makes fetch() throw before the request is sent. Blaming
+  // the user's connection sends them chasing a fault that isn't there — this is
+  // always a malformed key/URL in the build (classically, an anon key copied
+  // while still masked, so it is full of • characters).
+  if (m.includes("iso-8859-1") || m.includes("requestinit") || m.includes("headers"))
+    return "This app is misconfigured — its API key is invalid, so the request was never sent. (Not your connection.) Please contact support.";
   if (m.includes("network") || m.includes("fetch")) return "Network error. Check your internet connection and try again.";
   if (m.includes("provider is not enabled")) return "Google sign-in is not enabled yet. Enable it in Supabase → Auth → Providers.";
 

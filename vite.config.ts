@@ -18,14 +18,45 @@ export default defineConfig(({ command, mode }) => {
   const env = loadEnv(mode, process.cwd(), "");
 
   if (command === "build" && mode === "production") {
-    const missing = REQUIRED_CLIENT_ENV.filter((key) => !env[key]?.trim());
-    if (missing.length > 0) {
+    const problems: string[] = [];
+
+    for (const key of REQUIRED_CLIENT_ENV) {
+      if (!env[key]?.trim()) problems.push(`${key} is not set`);
+    }
+
+    // Catch a key copied while the dashboard still had it masked. The mask is
+    // made of real bullet characters, so the value looks present but cannot be
+    // encoded into an HTTP header — every auth call then fails at fetch() with
+    // "non ISO-8859-1 code point", which surfaces to users as a network error.
+    // Far better to refuse the build than to ship that.
+    const anon = env.VITE_SUPABASE_ANON_KEY?.trim();
+    if (anon) {
+      const nonAscii = [...anon].filter((c) => c.codePointAt(0)! > 127);
+      if (nonAscii.length > 0) {
+        const codes = [...new Set(nonAscii.map((c) => `U+${c.codePointAt(0)!.toString(16).toUpperCase()}`))];
+        problems.push(
+          `VITE_SUPABASE_ANON_KEY contains ${nonAscii.length} non-ASCII character(s) [${codes.join(", ")}].\n` +
+            `      This is what you get by copying the key while it is still hidden.\n` +
+            `      Reveal it in Supabase → Settings → API first, then copy.`
+        );
+      } else if (
+        !/^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/.test(anon) &&
+        !/^sb_publishable_[A-Za-z0-9_-]+$/.test(anon)
+      ) {
+        problems.push(
+          `VITE_SUPABASE_ANON_KEY is malformed — expected a JWT (three dot-separated\n` +
+            `      segments) or an sb_publishable_… key.`
+        );
+      }
+    }
+
+    if (problems.length > 0) {
       throw new Error(
-        `\n\n  Build aborted — missing required environment variables:\n` +
-          missing.map((key) => `    • ${key}`).join("\n") +
+        `\n\n  Build aborted — environment problems:\n` +
+          problems.map((p) => `    • ${p}`).join("\n") +
           `\n\n  Set them in Vercel → Project → Settings → Environment Variables\n` +
           `  (tick Production, Preview and Development), then redeploy.\n` +
-          `  Locally, add them to .env.local — see README.md.\n`
+          `  Locally, fix them in .env.local — see README.md.\n`
       );
     }
   }
