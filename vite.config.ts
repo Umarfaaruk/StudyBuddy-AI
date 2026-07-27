@@ -4,8 +4,31 @@ import path from "path";
 import fs from "fs";
 import { pathToFileURL } from "url";
 
-export default defineConfig(({ mode }) => {
+/**
+ * Env vars the browser bundle cannot function without. They are inlined at
+ * build time, so a build that runs without them produces a permanently broken
+ * artifact — redeploying is the only fix. Failing the build here turns a silent
+ * white-screen deploy into a loud, obvious CI error.
+ */
+const REQUIRED_CLIENT_ENV = ["VITE_SUPABASE_URL", "VITE_SUPABASE_ANON_KEY"] as const;
+
+export default defineConfig(({ command, mode }) => {
+  // Prefix "" so Vercel's injected process.env vars are picked up too, not just
+  // the local .env files.
   const env = loadEnv(mode, process.cwd(), "");
+
+  if (command === "build" && mode === "production") {
+    const missing = REQUIRED_CLIENT_ENV.filter((key) => !env[key]?.trim());
+    if (missing.length > 0) {
+      throw new Error(
+        `\n\n  Build aborted — missing required environment variables:\n` +
+          missing.map((key) => `    • ${key}`).join("\n") +
+          `\n\n  Set them in Vercel → Project → Settings → Environment Variables\n` +
+          `  (tick Production, Preview and Development), then redeploy.\n` +
+          `  Locally, add them to .env.local — see README.md.\n`
+      );
+    }
+  }
 
   return {
   root: path.resolve(__dirname),

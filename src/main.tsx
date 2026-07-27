@@ -1,37 +1,69 @@
 import { createRoot } from "react-dom/client";
-import App from "./App.tsx";
 import "./index.css";
-import ErrorBoundary from "@/components/ErrorBoundary.tsx";
 import { initErrorMonitor } from "@/lib/errorMonitor";
 import { initSentry } from "@/lib/sentry";
+import { enforceCanonicalDomain } from "@/lib/canonicalDomain";
+import { renderBootFailure } from "@/lib/bootFailure";
+import { clearLegacyStorage } from "@/lib/legacyStorage";
 
-// ── Canonical domain enforcement ──────────────────────────────────────────
-// If VITE_SITE_URL is configured (production) and the user is on a different
-// origin (e.g. edunox-eta.vercel.app instead of edunox.in), redirect them
-// to the canonical domain. This prevents domain drift after OAuth callbacks,
-// email links, or direct Vercel URL access.
-const canonicalUrl = import.meta.env.VITE_SITE_URL?.replace(/\/+$/, "");
-if (
-  canonicalUrl &&
-  window.location.origin !== canonicalUrl &&
-  // Don't redirect in development (localhost / 127.0.0.1)
-  !window.location.hostname.includes("localhost") &&
-  !window.location.hostname.includes("127.0.0.1")
-) {
-  window.location.replace(
-    canonicalUrl + window.location.pathname + window.location.search + window.location.hash
-  );
-} else {
-  // Install global error monitoring before anything renders so even
-  // startup crashes are captured in Vercel logs.
+/**
+ * APP BOOTSTRAP
+ * =============
+ * Ordering here is load-bearing:
+ *
+ *  1. Canonical-domain check runs FIRST, and the App graph is pulled in with a
+ *     dynamic import below rather than a static one. Static imports are hoisted
+ *     and evaluated before any statement in this file, so a module that throws
+ *     during evaluation would pre-empt the redirect (and everything else).
+ *
+ *  2. Error monitoring is installed BEFORE the app loads, so a crash during
+ *     startup is still captured rather than lost.
+ *
+ *  3. Loading and rendering happen inside try/catch. If the app cannot start,
+ *     we paint an explanatory screen instead of leaving `#root` empty — a blank
+ *     page tells the user nothing and tells us nothing.
+ */
+
+async function bootstrap(): Promise<void> {
+  try {
+    const [{ default: App }, { default: ErrorBoundary }, supabaseModule] =
+      await Promise.all([
+        import("./App.tsx"),
+        import("@/components/ErrorBoundary.tsx"),
+        import("@/lib/supabase"),
+      ]);
+
+    // A build shipped without Supabase credentials can render pixels but no
+    // feature works: no login, no signup, no data. Say so plainly rather than
+    // letting every interaction fail silently.
+    if (!supabaseModule.isSupabaseConfigured) {
+      renderBootFailure(
+        new Error(
+          `Missing: ${supabaseModule.missingSupabaseEnvVars.join(", ")}`
+        ),
+        "This deployment is missing its backend configuration. Set the variables below in Vercel → Settings → Environment Variables, then redeploy."
+      );
+      return;
+    }
+
+    createRoot(document.getElementById("root")!).render(
+      <ErrorBoundary>
+        <App />
+      </ErrorBoundary>
+    );
+  } catch (error) {
+    renderBootFailure(error);
+  }
+}
+
+if (!enforceCanonicalDomain()) {
   initErrorMonitor();
+
+  // Drop `eduonx_*` keys left behind by the pre-rebrand build.
+  clearLegacyStorage();
 
   // Optional Sentry tracing — a no-op unless VITE_SENTRY_DSN is configured.
   void initSentry();
 
-  createRoot(document.getElementById("root")!).render(
-    <ErrorBoundary>
-      <App />
-    </ErrorBoundary>
-  );
+  void bootstrap();
 }

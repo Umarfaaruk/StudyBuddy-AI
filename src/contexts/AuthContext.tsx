@@ -6,19 +6,37 @@ import { supabase } from "@/lib/supabase";
 // unsaved sessions are never flushed under another user's id on a shared browser.
 import { RETRY_QUEUE_KEY } from "@/lib/studySession";
 
+import { SITE_ORIGIN as CONFIGURED_ORIGIN } from "@/lib/canonicalDomain";
+
 /**
- * Canonical site origin used for all auth redirect URLs.
- * In production this is the custom domain (e.g. https://edunox.in).
- * Falls back to window.location.origin for local development.
+ * Origin used to build every auth redirect URL (email confirmation, Google
+ * OAuth callback, password reset).
+ *
+ * Prefers the configured custom domain so links stay on one origin, but only
+ * if VITE_SITE_URL is a well-formed absolute URL — a typo here would send every
+ * user who signs in to a dead address, and falling back to the origin they are
+ * already browsing is always safe.
+ *
+ * Whichever origin wins must be listed under Supabase → Authentication → URL
+ * Configuration → Redirect URLs, or the provider rejects the callback.
  */
-const SITE_ORIGIN =
-  import.meta.env.VITE_SITE_URL?.replace(/\/+$/, "") || window.location.origin;
+const AUTH_ORIGIN = (() => {
+  if (!CONFIGURED_ORIGIN) return window.location.origin;
+  try {
+    return new URL(CONFIGURED_ORIGIN).origin;
+  } catch {
+    console.error(
+      `Malformed VITE_SITE_URL (${CONFIGURED_ORIGIN}); using ${window.location.origin} for auth redirects.`
+    );
+    return window.location.origin;
+  }
+})();
 
 /**
  * AppUser — a thin, provider-agnostic shape.
- * We keep the field name `uid` (not Supabase's `id`) so the ~134 existing
- * `user.uid` call sites across the app keep working unchanged after the
- * Firebase → Supabase migration.
+ * We keep the field name `uid` rather than Supabase's `id` because ~134 call
+ * sites across the app already read `user.uid`; renaming buys nothing and
+ * touches every page.
  */
 export interface AppUser {
   uid: string;
@@ -98,7 +116,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       password,
       options: {
         data: { full_name: fullName },
-        emailRedirectTo: `${SITE_ORIGIN}/onboarding`,
+        emailRedirectTo: `${AUTH_ORIGIN}/onboarding`,
       },
     });
     return { error: error ?? null };
@@ -115,7 +133,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     const { error } = await supabase.auth.signInWithOAuth({
       provider: "google",
       options: {
-        redirectTo: `${SITE_ORIGIN}/onboarding`,
+        redirectTo: `${AUTH_ORIGIN}/onboarding`,
         queryParams: { prompt: "select_account" },
       },
     });
@@ -124,7 +142,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   const sendPasswordReset = async (email: string): Promise<AuthResult> => {
     const { error } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: `${SITE_ORIGIN}/login`,
+      redirectTo: `${AUTH_ORIGIN}/login`,
     });
     return { error: error ?? null };
   };
