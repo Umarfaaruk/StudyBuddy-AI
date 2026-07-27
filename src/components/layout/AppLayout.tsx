@@ -8,13 +8,13 @@ import {
 import { useDeepFocus } from "@/hooks/useDeepFocus";
 import GlobalTimer from "@/components/GlobalTimer";
 import PageTransition from "@/components/motion/PageTransition";
-import EduOnxAIChat from "@/components/EduOnxAIChat";
+import StudyBuddyAIChat from "@/components/StudyBuddyAIChat";
 import SnapEnhance from "@/components/SnapEnhance";
 import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
-import eduonxLogoOnDark from "@/assets/eduonx-logo-on-dark.png";
+import BrandMark from "@/components/BrandMark";
 
 const sidebarLinks = [
   { to: "/dashboard", icon: LayoutDashboard, label: "Home" },
@@ -169,11 +169,11 @@ const AppLayout = () => {
             <div className={`pt-7 pb-5 flex-shrink-0 flex items-center justify-between ${sidebarCollapsed ? "px-2 flex-col gap-4" : "px-6"}`}>
               {sidebarCollapsed ? (
                 <Link to="/dashboard" className="h-8 w-8 rounded-lg bg-gradient-to-br from-primary to-primary/80 flex items-center justify-center font-bold text-white text-sm shadow-md">
-                  EO
+                  SB
                 </Link>
               ) : (
                 <Link to="/dashboard" className="block">
-                  <img src={eduonxLogoOnDark} alt="EduOnx" className="h-8 w-auto object-contain" />
+                  <BrandMark size="sm" onDark />
                 </Link>
               )}
               <button
@@ -261,7 +261,7 @@ const AppLayout = () => {
           />
           <aside className="relative w-[min(82vw,300px)] bg-[#0F172A] flex flex-col h-full border-r border-white/10 shadow-2xl shadow-black/50">
             <div className="px-4 py-4 flex items-center justify-between border-b border-white/10">
-              <img src={eduonxLogoOnDark} alt="EduOnx" className="h-7 w-auto" />
+              <BrandMark size="sm" onDark />
               <button
                 type="button"
                 onClick={() => setMobileMenuOpen(false)}
@@ -318,7 +318,7 @@ const AppLayout = () => {
           <button type="button" onClick={() => setMobileMenuOpen(true)} className="p-2 -ml-1 text-white/60 hover:text-white">
             <Menu className="h-5 w-5" />
           </button>
-          <img src={eduonxLogoOnDark} alt="EduOnx" className="h-7 w-auto object-contain" />
+          <BrandMark size="sm" onDark />
           <Link to="/profile" className="p-2 -mr-1">
             <User className="h-5 w-5 text-white/60" />
           </Link>
@@ -371,7 +371,7 @@ const AppLayout = () => {
             <PageTransition />
           </div>
         </div>
-        <EduOnxAIChat />
+        <StudyBuddyAIChat />
         <SnapEnhance />
       </main>
     </div>

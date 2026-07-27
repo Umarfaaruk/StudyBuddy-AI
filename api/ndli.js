@@ -43,7 +43,7 @@ export default async function handler(req, res) {
     const response = await fetch(searchUrl.toString(), {
       headers: {
         "Accept": "application/json",
-        "User-Agent": "EduOnx-LearningPlatform/1.0 (educational; contact: support@eduonx.com)",
+        "User-Agent": "StudyBuddyAI-LearningPlatform/1.0 (educational)",
       },
       signal: AbortSignal.timeout(12000), // 12s timeout
     });

@@ -11,7 +11,7 @@ interface Message {
   content: string;
 }
 
-const SYSTEM_PROMPT = `You are EduOnx AI — the intelligent assistant for the EduOnx learning platform.
+const SYSTEM_PROMPT = `You are StudyBuddy AI — the intelligent assistant built into the StudyBuddy AI learning platform.
 
 Your capabilities:
 1. **Platform Navigation** — Guide users to features: AI Tutor (/materials/tutor), Practice Arena (/quiz), Lessons (/lessons), Study Timer (/timer), Dashboard (/progress), Leaderboard (/leaderboard), Resources (/materials), Profile (/profile), Settings (/settings), Feedback (/feedback).
@@ -28,15 +28,15 @@ Guidelines:
 - If the user seems confused, offer quick action suggestions`;
 
 /**
- * EduOnx AI — Floating side chatbot widget
+ * StudyBuddy AI — Floating side chatbot widget
  * 
  * Fixed to the right side of the screen, expands into a chat panel.
  * Handles: general conversation, platform navigation, Q&A, feedback.
  */
-const EduOnxAIChat = () => {
+const StudyBuddyAIChat = () => {
   const { user } = useAuth();
   const [isOpen, setIsOpen] = useState(false);
-  const fab = useDraggable("eduonx_fab_pos", { width: 56, height: 56 });
+  const fab = useDraggable("studybuddy_fab_pos", { width: 56, height: 56 });
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
@@ -52,7 +52,7 @@ const EduOnxAIChat = () => {
   // Restore the saved panel position on mount
   useEffect(() => {
     try {
-      const saved = localStorage.getItem("eduonx_chat_pos");
+      const saved = localStorage.getItem("studybuddy_chat_pos");
       if (saved) {
         const p = JSON.parse(saved);
         if (typeof p.x === "number" && typeof p.y === "number") {
@@ -107,7 +107,7 @@ const EduOnxAIChat = () => {
   // Persist the panel position whenever it settles (after a drag ends).
   useEffect(() => {
     if (position && !isDragging) {
-      try { localStorage.setItem("eduonx_chat_pos", JSON.stringify(position)); } catch {}
+      try { localStorage.setItem("studybuddy_chat_pos", JSON.stringify(position)); } catch {}
     }
   }, [position, isDragging]);
 
@@ -153,7 +153,7 @@ const EduOnxAIChat = () => {
           await supabase.from("feedback").insert({
             user_id: user.uid,
             rating: 0,
-            comment: `[EduOnx AI Chat] ${userMsg}`,
+            comment: `[StudyBuddy AI Chat] ${userMsg}`,
             name: user.displayName || "User",
             email: user.email || "",
             platform: "web",
@@ -178,7 +178,7 @@ const EduOnxAIChat = () => {
     { label: "📖 Study tips", prompt: "Give me some effective study tips" },
     { label: "🧭 Navigate", prompt: "How do I use the AI Tutor?" },
     { label: "💬 Feedback", prompt: "I want to give feedback about the platform" },
-    { label: "❓ Help", prompt: "What features does EduOnx have?" },
+    { label: "❓ Help", prompt: "What features does StudyBuddy AI have?" },
   ];
 
   return (
@@ -198,7 +198,7 @@ const EduOnxAIChat = () => {
           className={`fixed z-50 h-14 w-14 rounded-full bg-[#29ABE2] text-white shadow-xl shadow-[#29ABE2]/25 flex items-center justify-center hover:scale-110 hover:shadow-2xl transition-all duration-300 group cursor-grab active:cursor-grabbing ${
             fab.position ? "" : "bottom-6 right-6 md:bottom-8 md:right-8"
           }`}
-          aria-label="Open EduOnx AI chat (drag to move)"
+          aria-label="Open StudyBuddy AI chat (drag to move)"
           title="Drag to move · click to open"
         >
           <Bot className="h-6 w-6 group-hover:rotate-12 transition-transform duration-300" />
@@ -233,7 +233,7 @@ const EduOnxAIChat = () => {
                 <Bot className="h-4 w-4" />
               </div>
               <div className="min-w-0">
-                <h3 className="text-sm font-bold leading-tight">EduOnx AI</h3>
+                <h3 className="text-sm font-bold leading-tight">StudyBuddy AI</h3>
                 <p className="text-[10px] text-white/70 truncate">Drag to move • Ask anything</p>
               </div>
             </div>
@@ -321,7 +321,7 @@ const EduOnxAIChat = () => {
               <input
                 ref={inputRef}
                 type="text"
-                placeholder="Ask EduOnx AI..."
+                placeholder="Ask StudyBuddy AI..."
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
                 onKeyDown={(e) => {
@@ -376,4 +376,4 @@ const EduOnxAIChat = () => {
   }
 };
 
-export default EduOnxAIChat;
+export default StudyBuddyAIChat;

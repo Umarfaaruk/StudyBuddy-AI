@@ -16,7 +16,19 @@ const FinalCTA = () => (
         Free access, instant AI tutoring, and daily improvement. Join thousands of students already learning smarter.
       </p>
 
-
+      <div className="flex flex-wrap justify-center gap-4">
+        <Button className="bg-cta text-white hover:bg-cta/90 font-semibold text-sm h-12 px-8 rounded-xl gap-2 shadow-sm" asChild>
+          <Link to="/login">
+            Get Started For Free
+            <ArrowRight className="h-4 w-4" />
+          </Link>
+        </Button>
+        <Button variant="outline" className="border-white/10 text-white hover:bg-white/10 hover:text-white font-medium h-12 px-8 rounded-xl bg-transparent" asChild>
+          <Link to="/login">
+            Log In
+          </Link>
+        </Button>
+      </div>
     </div>
   </section>
 );

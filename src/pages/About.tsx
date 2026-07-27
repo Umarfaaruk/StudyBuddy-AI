@@ -16,7 +16,7 @@ const About = () => {
         <div className="container max-w-5xl mx-auto px-6">
           <div className="text-center mb-16">
             <h1 className="text-4xl md:text-6xl font-bold mb-6 tracking-tight">
-              About <span className="text-primary">EduOnx</span>
+              About <span className="text-primary">StudyBuddy AI</span>
             </h1>
             <p className="text-lg md:text-xl text-muted-foreground leading-relaxed max-w-3xl mx-auto">
               We're revolutionizing the way students learn, practice, and succeed through completely personalized AI-driven education.
@@ -48,7 +48,7 @@ const About = () => {
           <div className="mt-24 text-center bg-card border border-border rounded-3xl p-12 hover:shadow-lg transition-all duration-300">
             <h2 className="text-3xl font-bold mb-8">Why We Built This</h2>
             <p className="text-lg text-muted-foreground leading-relaxed max-w-4xl mx-auto">
-              Traditional education often moves at a fixed pace, leaving some behind and boring others. With the rise of advanced logic models, we realized we could create a platform that essentially acts as a hyper-patient, infinitely knowledgeable tutor available 24/7. EduOnx bridges the gap between structured curriculum and autonomous, personalized study.
+              Traditional education often moves at a fixed pace, leaving some behind and boring others. With the rise of advanced logic models, we realized we could create a platform that essentially acts as a hyper-patient, infinitely knowledgeable tutor available 24/7. StudyBuddy AI bridges the gap between structured curriculum and autonomous, personalized study.
             </p>
           </div>
         </div>

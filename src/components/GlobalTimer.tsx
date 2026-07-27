@@ -7,7 +7,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 
 /**
- * EDUONX GLOBAL TIMER — Production-Grade Implementation
+ * STUDYBUDDY AI GLOBAL TIMER — Production-Grade Implementation
  * =====================================================
  *
  * DESIGN PRINCIPLES:
@@ -85,7 +85,7 @@ const GlobalTimer = () => {
   }, [running]);
 
   // ── localStorage key ──────────────────────────────────────
-  const sessionKey = user ? `eduonx_timer_${user.uid}` : null;
+  const sessionKey = user ? `studybuddy_timer_${user.uid}` : null;
 
   // ── Invalidate caches (defined FIRST to avoid hoisting issues) ──
   const invalidateProgress = useCallback(() => {
@@ -201,7 +201,7 @@ const GlobalTimer = () => {
         if (e instanceof Error && e.name === "QuotaExceededError") {
           for (let i = 0; i < localStorage.length; i++) {
             const key = localStorage.key(i);
-            if (key?.startsWith("eduonx_timer_") && key !== sessionKey) {
+            if (key?.startsWith("studybuddy_timer_") && key !== sessionKey) {
               localStorage.removeItem(key);
               break;
             }
@@ -549,7 +549,7 @@ const GlobalTimer = () => {
   // Restore saved position from localStorage on mount
   useEffect(() => {
     try {
-      const savedPos = localStorage.getItem('eduonx_timer_pos');
+      const savedPos = localStorage.getItem('studybuddy_timer_pos');
       if (savedPos) {
         const parsed = JSON.parse(savedPos);
         if (typeof parsed.x === 'number' && typeof parsed.y === 'number') {
@@ -598,7 +598,7 @@ const GlobalTimer = () => {
       dragStartRef.current = null;
       // Save position
       if (position) {
-        try { localStorage.setItem('eduonx_timer_pos', JSON.stringify(position)); } catch {}
+        try { localStorage.setItem('studybuddy_timer_pos', JSON.stringify(position)); } catch {}
       }
     };
 

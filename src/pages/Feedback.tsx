@@ -106,7 +106,7 @@ const Feedback = () => {
           We Value Your Feedback
         </h1>
         <p className="text-muted-foreground">
-          Help us improve EduOnx by sharing your experience, suggestions, or reporting any issues.
+          Help us improve StudyBuddy AI by sharing your experience, suggestions, or reporting any issues.
         </p>
       </div>
 

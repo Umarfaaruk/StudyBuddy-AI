@@ -329,12 +329,12 @@ const Settings = () => {
           {/* Plan badge */}
           <div className="bg-gradient-to-br from-primary to-primary/80 text-white rounded-xl p-4 space-y-2 shadow-sm">
             <div className="text-xs font-bold uppercase tracking-wider opacity-90">Current Plan</div>
-            <div className="text-lg font-bold">EduOnx Pro</div>
+            <div className="text-lg font-bold">StudyBuddy Pro</div>
             <p className="text-xs opacity-80">Unlimited AI tutors & detailed progress analytics.</p>
             <Button
               size="sm"
               className="w-full bg-white text-primary hover:bg-white/95 font-semibold text-xs mt-2"
-              onClick={() => toast.info("You're on EduOnx Pro — all features are currently free. Billing management is coming soon.")}
+              onClick={() => toast.info("You're on StudyBuddy Pro — all features are currently free. Billing management is coming soon.")}
             >
               Manage Billing
             </Button>
@@ -486,7 +486,7 @@ const Settings = () => {
               {/* Save */}
               <div className="flex items-center justify-between">
                 <button
-                  onClick={() => toast.info("Account deactivation isn't self-service yet — please contact the EduOnx team (or use Report Issue) to deactivate your account.")}
+                  onClick={() => toast.info("Account deactivation isn't self-service yet — please contact the StudyBuddy AI team (or use Report Issue) to deactivate your account.")}
                   className="text-sm text-destructive hover:underline"
                 >
                   Deactivate Account

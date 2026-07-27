@@ -16,7 +16,7 @@ interface Message {
 }
 
 /**
- * EDUONX AI LEARNING SYSTEM
+ * STUDYBUDDY AI AI LEARNING SYSTEM
  * =========================
  * Streaming Q&A with context-aware responses using OpenRouter (Gemma 3 27B)
  *

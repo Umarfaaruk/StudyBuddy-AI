@@ -164,7 +164,7 @@ const FeedbackEnforcer = () => {
             </div>
             <div>
               <h2 className="text-lg font-bold">Weekly Feedback</h2>
-              <p className="text-xs text-white/70">Help us improve EduOnx for you</p>
+              <p className="text-xs text-white/70">Help us improve StudyBuddy AI for you</p>
             </div>
             <button
               type="button"
@@ -180,7 +180,7 @@ const FeedbackEnforcer = () => {
         {/* Body */}
         <div className="px-6 py-5 space-y-5">
           <p className="text-sm text-gray-500">
-            It's been a week! Please share your experience so we can make EduOnx better. This only takes a minute.
+            It's been a week! Please share your experience so we can make StudyBuddy AI better. This only takes a minute.
           </p>
 
           {/* Star Rating */}

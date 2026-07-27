@@ -11,7 +11,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
 import { supabase } from "@/lib/supabase";
 
-import eduonxLogo from "@/assets/eduonx-logo.png";
+import BrandMark from "@/components/BrandMark";
 
 // ── Stage definitions ────────────────────────────────────────────
 const TOTAL_STAGES = 8;
@@ -226,7 +226,7 @@ const OnboardingFlow = () => {
       }, { onConflict: "user_id" });
       if (prefsError) throw prefsError;
 
-      toast.success("Welcome to EduOnx! 🚀");
+      toast.success("Welcome to StudyBuddy AI! 🚀");
       // Update cache synchronously to prevent race conditions during navigation
       const newProfileData = {
         user_id: user.uid,
@@ -259,7 +259,7 @@ const OnboardingFlow = () => {
       {/* Header */}
       <div className="border-b border-border px-6 py-4">
         <div className="flex items-center shrink-0 w-full justify-center lg:justify-start">
-          <img src={eduonxLogo} alt="EduOnx Logo" className="block h-[50px] w-auto max-w-full lg:max-w-[250px] object-contain" />
+          <BrandMark size="lg" />
         </div>
       </div>
 
@@ -450,7 +450,7 @@ const OnboardingFlow = () => {
               </div>
 
               <div className="space-y-3">
-                <label className="text-sm font-medium text-foreground">11. Do you want EduOnx to organize all your learning resources in one place?</label>
+                <label className="text-sm font-medium text-foreground">11. Do you want StudyBuddy AI to organize all your learning resources in one place?</label>
                 <div className="grid grid-cols-1 gap-2">
                   {autoOrganizeList.map((o) => (
                     <button key={o} onClick={() => setAutoOrganizePref(o)}

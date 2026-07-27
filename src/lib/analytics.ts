@@ -1,5 +1,5 @@
 /**
- * EDUONX ANALYTICS SYSTEM
+ * STUDYBUDDY AI ANALYTICS SYSTEM
  * =======================
  * Performance tracking and insights, backed by Supabase (Postgres).
  * Reads study_sessions, quiz_attempts, user_streaks and analytics_snapshots.

@@ -187,11 +187,11 @@ const ProgressDashboard = () => {
   const weekBarData = (chartData ?? Array.from({ length: 7 }, (_, i) => ({ day: ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"][i], hours: 0 })));
 
   const handleShare = async () => {
-    const summary = `📊 My EduOnx Progress\n\n🔥 Streak: ${currentStreak} days\n📚 Study Time: ${totalHours}h this month\n🎯 Avg Score: ${retentionPct}%\n⚡ Total XP: ${totalXP.toLocaleString()}\n📈 Week Growth: ${weekChange >= 0 ? "+" : ""}${weekChange}%\n\n${strongTopics.length > 0 ? `💪 Strong Areas: ${strongTopics.map(s => s.subject).join(", ")}\n` : ""}${strugglingTopics.length > 0 ? `📝 Working on: ${strugglingTopics.map(s => s.subject).join(", ")}\n` : ""}\n#EduOnx #Learning`;
+    const summary = `📊 My StudyBuddy AI Progress\n\n🔥 Streak: ${currentStreak} days\n📚 Study Time: ${totalHours}h this month\n🎯 Avg Score: ${retentionPct}%\n⚡ Total XP: ${totalXP.toLocaleString()}\n📈 Week Growth: ${weekChange >= 0 ? "+" : ""}${weekChange}%\n\n${strongTopics.length > 0 ? `💪 Strong Areas: ${strongTopics.map(s => s.subject).join(", ")}\n` : ""}${strugglingTopics.length > 0 ? `📝 Working on: ${strugglingTopics.map(s => s.subject).join(", ")}\n` : ""}\n#StudyBuddy AI #Learning`;
 
     if (navigator.share) {
       try {
-        await navigator.share({ title: "My EduOnx Progress", text: summary });
+        await navigator.share({ title: "My StudyBuddy AI Progress", text: summary });
         toast.success("Shared successfully!");
         return;
       } catch { /* fallback to copy */ }

@@ -1,4 +1,4 @@
-# EduOnx — AI-Powered Learning Platform
+# StudyBuddy AI — AI-Powered Learning Platform
 
 An intelligent learning platform with AI tutoring, study tracking, gamification, and personalized learning paths.
 
@@ -83,10 +83,10 @@ See [`.env.example`](./.env.example) for the full list. Copy it to `.env.local` 
 ## License
 
 This project was built as part of a freelancing engagement for a company called
-**EduOnx**. EduOnx holds all rights to this product and its associated
+**StudyBuddy AI**. StudyBuddy AI holds all rights to this product and its associated
 deliverables. My role was specifically that of the **developer and UI designer**.
 
-This repository and its contents are proprietary to EduOnx and are not licensed
+This repository and its contents are proprietary to StudyBuddy AI and are not licensed
 for reuse, redistribution, or modification without their explicit permission.
 
-© 2026 EduOnx. All rights reserved.
+© 2026 StudyBuddy AI. All rights reserved.

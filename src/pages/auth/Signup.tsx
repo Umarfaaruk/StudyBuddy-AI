@@ -7,8 +7,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
 import { getReadableAuthError } from "@/lib/authErrors";
 
-import eduonxLogo from "@/assets/eduonx-logo.png";
-import eduonxLogoOnDark from "@/assets/eduonx-logo-on-dark.png";
+import BrandMark from "@/components/BrandMark";
 
 const Signup = () => {
   const navigate = useNavigate();
@@ -81,7 +80,7 @@ const Signup = () => {
 
         <div className="relative z-10">
           <Link to="/" className="flex items-center shrink-0 w-full justify-center lg:justify-start">
-            <img src={eduonxLogoOnDark} alt="EduOnx Logo" className="block h-[80px] w-auto max-w-[300px] object-contain" />
+            <BrandMark size="xl" onDark />
           </Link>
         </div>
 
@@ -108,7 +107,7 @@ const Signup = () => {
         </div>
 
         <div className="relative z-10 text-xs text-soft">
-          © 2026 EduOnx. All rights reserved.
+          © 2026 StudyBuddy AI. All rights reserved.
         </div>
       </div>
 
@@ -117,7 +116,7 @@ const Signup = () => {
         <div className="w-full max-w-md space-y-8">
 
           <div className="lg:hidden flex items-center justify-center mb-8 shrink-0 w-full">
-            <img src={eduonxLogo} alt="EduOnx Logo" className="block h-[60px] w-auto max-w-[200px] object-contain" />
+            <BrandMark size="lg" />
           </div>
 
           <div>

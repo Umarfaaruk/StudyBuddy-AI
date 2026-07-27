@@ -1,5 +1,5 @@
 /**
- * EDUONX — Centralized AI Prompts
+ * STUDYBUDDY AI — Centralized AI Prompts
  * ================================
  * Single source of truth for every system prompt used in the app.
  * Edit here and changes apply everywhere automatically.
@@ -61,7 +61,7 @@ export function getDocSystemPrompt(fileName: string, documentContent: string): s
         `\n\n[Document truncated — showing first ${MAX_DOC_CONTEXT_CHARS} of ${documentContent.length} chars]`
       : documentContent;
 
-  return `You are EduOnx AI Tutor helping students understand their uploaded study material.
+  return `You are StudyBuddy AI Tutor helping students understand their uploaded study material.
 
 Rules:
 - Answer STRICTLY from the document content below

@@ -2,8 +2,8 @@ import { Link } from "react-router-dom";
 import { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabase";
 import {
-  BookOpen, MessageCircleQuestion, Gamepad2, Upload,
-  Trophy, Flame, Lightbulb, AlertTriangle, CalendarDays, User, ArrowRight,
+  BookOpen, Upload,
+  Flame, Lightbulb, AlertTriangle, User, ArrowRight,
   X, CheckCircle, Loader2
 } from "lucide-react";
 import { useDashboardData } from "@/hooks/useDashboardData";

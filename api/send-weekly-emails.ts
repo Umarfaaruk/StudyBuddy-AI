@@ -13,7 +13,7 @@
  *   RESEND_API_KEY                – your Resend API key
  *   SUPABASE_URL + SUPABASE_SERVICE_ROLE_KEY – server DB access
  * Optional:
- *   RESEND_FROM                   – e.g. "EduOnx <noreply@yourdomain.com>"
+ *   RESEND_FROM                   – e.g. "StudyBuddy AI <noreply@yourdomain.com>"
  *                                   (defaults to Resend's onboarding sender)
  *   CRON_SECRET                   – if set, the request must send
  *                                   Authorization: Bearer <CRON_SECRET>
@@ -21,10 +21,18 @@
 import { Resend } from "resend";
 import { createClient } from "@supabase/supabase-js";
 
-// Canonical public site URL used for links in emails. Override via PUBLIC_APP_URL
-// (e.g. when the custom domain changes); falls back to the production domain.
-// Must be an absolute URL — there's no window.origin in a serverless function.
-const APP_URL = process.env.PUBLIC_APP_URL || "https://eduonx.in";
+// Absolute base URL for links in emails — a serverless function has no
+// window.location to fall back on.
+//
+// Resolution order: an explicit PUBLIC_APP_URL wins; otherwise Vercel's own
+// production-domain variable is used, so this keeps working through domain
+// changes without a hardcoded host going stale.
+const APP_URL = (
+  process.env.PUBLIC_APP_URL?.trim() ||
+  (process.env.VERCEL_PROJECT_PRODUCTION_URL
+    ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`
+    : "")
+).replace(/\/+$/, "");
 
 function getDb() {
   const url = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL;
@@ -38,7 +46,7 @@ function emailHtml(name: string, weeklyXp: number, totalXp: number, streak: numb
   <div style="max-width:560px;margin:0 auto;padding:24px;">
     <div style="background:#fff;border-radius:18px;overflow:hidden;box-shadow:0 8px 30px -12px rgba(0,0,0,.15);">
       <div style="background:linear-gradient(135deg,#29ABE2,#1E96CC);padding:28px 28px 22px;color:#fff;">
-        <div style="font-size:13px;letter-spacing:.08em;text-transform:uppercase;opacity:.85;">EduOnx · Weekly Recap</div>
+        <div style="font-size:13px;letter-spacing:.08em;text-transform:uppercase;opacity:.85;">StudyBuddy AI · Weekly Recap</div>
         <h1 style="margin:6px 0 0;font-size:24px;">Nice work this week, ${name}! 🎉</h1>
       </div>
       <div style="padding:24px 28px;">
@@ -64,7 +72,7 @@ function emailHtml(name: string, weeklyXp: number, totalXp: number, streak: numb
         </div>
       </div>
       <div style="padding:16px 28px;background:#f8fafc;color:#94a3b8;font-size:11px;text-align:center;">
-        You're receiving this because you have an EduOnx account. Keep learning! 💙
+        You're receiving this because you have an StudyBuddy AI account. Keep learning! 💙
       </div>
     </div>
   </div></body></html>`;
@@ -84,8 +92,17 @@ export default async function handler(req: any, res: any) {
   if (!apiKey) {
     return res.status(500).json({ error: "RESEND_API_KEY is not configured." });
   }
+  // Without an absolute base the dashboard link renders as a relative href,
+  // which is dead in an email client. Refuse to send rather than mail everyone
+  // a broken button.
+  if (!APP_URL) {
+    return res.status(500).json({
+      error:
+        "No base URL available. Set PUBLIC_APP_URL (absolute, e.g. https://example.com).",
+    });
+  }
   const resend = new Resend(apiKey);
-  const from = process.env.RESEND_FROM || "EduOnx <onboarding@resend.dev>";
+  const from = process.env.RESEND_FROM || "StudyBuddy AI <onboarding@resend.dev>";
 
   try {
     const db = getDb();
@@ -134,7 +151,7 @@ export default async function handler(req: any, res: any) {
         const { error } = await resend.emails.send({
           from,
           to: profile.email,
-          subject: `Your EduOnx week: +${xpWeek.toLocaleString()} XP 🚀`,
+          subject: `Your StudyBuddy AI week: +${xpWeek.toLocaleString()} XP 🚀`,
           html: emailHtml(name, xpWeek, totalXp, streak, counts.get(uid) || 0),
         });
         if (error) {

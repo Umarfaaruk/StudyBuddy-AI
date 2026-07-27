@@ -58,7 +58,7 @@ async function sbQuiet<T = unknown>(
  * Local storage queue for failed saves.
  * Sessions that fail to save to the backend are queued for retry.
  */
-export const RETRY_QUEUE_KEY = "eduonx_save_retry_queue";
+export const RETRY_QUEUE_KEY = "studybuddy_save_retry_queue";
 
 interface QueuedSession {
   userId: string;

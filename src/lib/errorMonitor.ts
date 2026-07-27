@@ -1,5 +1,5 @@
 /**
- * EDUONX ERROR MONITOR
+ * STUDYBUDDY AI ERROR MONITOR
  * =====================
  * Zero-dependency, zero-cost production error monitoring.
  *

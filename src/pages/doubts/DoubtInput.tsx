@@ -334,7 +334,7 @@ const DoubtInput = () => {
           </div>
           <div>
             <h1 className="text-base font-bold text-foreground tracking-tight">Ask Doubt</h1>
-            <p className="text-xs text-muted-foreground">Get step-by-step help from EduOnx AI</p>
+            <p className="text-xs text-muted-foreground">Get step-by-step help from StudyBuddy AI</p>
           </div>
         </div>
         <div className="flex items-center gap-2">

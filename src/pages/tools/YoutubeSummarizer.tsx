@@ -1222,7 +1222,7 @@ export const YoutubeSummarizer = () => {
                 Powered by{" "}
                 <span className="inline-flex items-center gap-0.5 font-medium text-foreground/70">
                   <Sparkles className="h-3 w-3 text-primary" />
-                  EduOnx AI
+                  StudyBuddy AI
                 </span>
               </p>
             </div>

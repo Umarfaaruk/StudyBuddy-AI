@@ -1,5 +1,5 @@
 /**
- * EDUONX AI SERVICE — Groq Integration
+ * STUDYBUDDY AI AI SERVICE — Groq Integration
  * ======================================
  *
  * Centralized AI service using the Groq API (OpenAI-compatible).

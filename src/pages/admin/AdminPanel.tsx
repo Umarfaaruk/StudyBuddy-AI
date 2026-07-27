@@ -41,7 +41,6 @@ const AdminPanel = () => {
 
   // Real-time collections state
   const [profiles, setProfiles] = useState<any[]>([]);
-  const [usersData, setUsersData] = useState<any[]>([]);
   const [xpLogs, setXpLogs] = useState<any[]>([]);
   const [userStreaks, setUserStreaks] = useState<any[]>([]);
   const [studySessions, setStudySessions] = useState<any[]>([]);
@@ -118,15 +117,6 @@ const AdminPanel = () => {
 
     for (const p of profiles) {
       profileByUid[p.id] = { ...p, uid: p.id };
-    }
-    for (const u of usersData) {
-      if (!profileByUid[u.id]) {
-        // No profiles doc at all — use users doc as base
-        profileByUid[u.id] = { ...u, uid: u.id };
-      } else {
-        // profiles doc exists but may have empty fields — fill gaps from users doc
-        profileByUid[u.id] = { ...u, ...profileByUid[u.id], uid: u.id };
-      }
     }
 
     // ACCURACY: de-duplicate identical xp_logs (same user+amount+source+timestamp
@@ -262,7 +252,7 @@ const AdminPanel = () => {
 
     const totalXp = users.reduce((sum, u) => sum + (u.xp || 0), 0);
     return { users, totalUsers: users.length, activeToday, totalStudyHours, avgStreak, totalXp };
-  }, [profiles, usersData, xpLogs, userStreaks, studySessions, quizAttempts, materials, doubtSessions, flashcards, studyPlans]);
+  }, [profiles, xpLogs, userStreaks, studySessions, quizAttempts, materials, doubtSessions, flashcards, studyPlans]);
 
   const feedbackList = useMemo(() => {
     const items: FeedbackItem[] = feedback.map((d) => {
@@ -286,7 +276,7 @@ const AdminPanel = () => {
 
   const complaintsList = useMemo(() => {
     const items = complaints.map((c) => {
-      const userProfile = profiles.find((p) => p.id === c.user_id) || usersData.find((u) => u.id === c.user_id);
+      const userProfile = profiles.find((p) => p.id === c.user_id);
       return {
         ...c,
         userName: userProfile?.full_name || userProfile?.displayName || "Unknown User",
@@ -296,7 +286,7 @@ const AdminPanel = () => {
     });
     items.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
     return items;
-  }, [complaints, profiles, usersData]);
+  }, [complaints, profiles]);
 
   const filteredComplaints = useMemo(() => {
     return complaintsList.filter((c) => {

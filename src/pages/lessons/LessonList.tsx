@@ -810,7 +810,7 @@ ${condensedContent.substring(0, 15000)}`;
               </div>
               <p className="text-sm italic text-gray-500">This is proudly presented to</p>
               <h2 className="text-2xl md:text-3xl font-bold font-serif text-gray-900 border-b border-gray-200 pb-2 max-w-md mx-auto">
-                {user?.displayName || "EduOnx Scholar"}
+                {user?.displayName || "StudyBuddy Scholar"}
               </h2>
               <p className="text-sm text-gray-600 max-w-md mx-auto leading-relaxed">
                 for successfully completing the custom curriculum and mastering all course materials for the topic:
@@ -825,7 +825,7 @@ ${condensedContent.substring(0, 15000)}`;
                 </div>
                 <div className="text-center space-y-0.5">
                   <span className="text-xs text-gray-500 font-mono block">Authorized By</span>
-                  <span className="text-sm font-serif italic font-bold text-gray-800 block">EduOnx Academy</span>
+                  <span className="text-sm font-serif italic font-bold text-gray-800 block">StudyBuddy Academy</span>
                 </div>
               </div>
             </div>

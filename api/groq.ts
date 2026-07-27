@@ -72,7 +72,7 @@ export default async function handler(req: any, res: any) {
     return res.status(405).json({ error: "Method not allowed" });
   }
 
-  // ── Authentication: only signed-in EduOnx users may spend our AI quota ──
+  // ── Authentication: only signed-in StudyBuddy AI users may spend our AI quota ──
   const caller = await requireAuth(req, res);
   if (!caller) return; // requireAuth already wrote the 401 response
 
