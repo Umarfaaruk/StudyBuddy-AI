@@ -6,6 +6,12 @@
       "runtimeExecutable": "npx",
       "runtimeArgs": ["vite", "preview", "--config", "vite.config.ts", "--port", "4173"],
       "port": 4173
+    },
+    {
+      "name": "dev",
+      "runtimeExecutable": "npx",
+      "runtimeArgs": ["vite", "--config", "vite.config.ts", "--port", "5000"],
+      "port": 5000
     }
   ]
 }

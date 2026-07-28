@@ -23,12 +23,15 @@
  */
 import { createClient } from "@supabase/supabase-js";
 import { requireAuth } from "./_verifyToken.js";
+// Explicit .js extension and a sibling module: package.json is "type": "module",
+// so Node's ESM loader needs a real runtime file. An extensionless import of a
+// .ts file outside api/ fails with ERR_MODULE_NOT_FOUND.
 import {
   scheduleNextReview,
   updateMastery,
   INITIAL_REVIEW_STATE,
   type Difficulty,
-} from "../src/lib/spacedRepetition";
+} from "./_spacedRepetition.js";
 
 interface SubmittedAnswer {
   questionId: string;
