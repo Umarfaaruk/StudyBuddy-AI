@@ -18,5 +18,9 @@
     "noUnusedParameters": false,
     "noFallthroughCasesInSwitch": true
   },
-  "include": ["vite.config.ts", "api/**/*"]
+  // src/lib/spacedRepetition.ts is included so api/grade.ts can share the
+  // scheduler rather than keeping a second copy of the algorithm. Two
+  // implementations of SM-2 would drift, and a scheduling bug is invisible
+  // until weeks of a student's review queue are already wrong.
+  "include": ["vite.config.ts", "api/**/*", "src/lib/spacedRepetition.ts"]
 }
