@@ -17,6 +17,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import NotificationPanel from "@/components/NotificationPanel";
 import FeedbackEnforcer from "@/components/FeedbackEnforcer";
 import RetentionTrajectory from "@/components/RetentionTrajectory";
+import ExamCountdown from "@/components/ExamCountdown";
 import { StaggerContainer, StaggerItem } from "@/components/motion/FadeIn";
 
 const Dashboard = () => {
@@ -152,9 +153,12 @@ const Dashboard = () => {
                 <h1 className="font-display text-2xl md:text-3xl font-bold text-foreground tracking-tight">
                   Home
                 </h1>
-                <p className="text-muted-foreground text-sm mt-1">
-                  Welcome back, <span className="font-medium text-foreground">{displayName}</span>
-                </p>
+                <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-2">
+                  <p className="text-muted-foreground text-sm">
+                    Welcome back, <span className="font-medium text-foreground">{displayName}</span>
+                  </p>
+                  <ExamCountdown />
+                </div>
               </>
             )}
           </div>

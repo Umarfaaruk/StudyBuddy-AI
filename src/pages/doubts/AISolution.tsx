@@ -8,7 +8,8 @@ import { supabase } from "@/lib/supabase";
 import ReactMarkdown from "react-markdown";
 import { aiStream } from "@/lib/aiService";
 import { getAuthHeaders } from "@/lib/authHeaders";
-import { DOUBT_SYSTEM_PROMPT } from "@/lib/prompts";
+import { getDoubtSystemPrompt } from "@/lib/prompts";
+import { useStudentExamContext } from "@/lib/examTracks";
 import { extractYouTubeVideoId } from "@/lib/youtube";
 
 /**
@@ -38,6 +39,18 @@ const AISolution = () => {
     }
   }
 
+  // Ground the answer in the student's exam. `isLoading` gates the stream below
+  // so the very first (and only) run already has the right system prompt —
+  // starting generic and "fixing" it later would be too late, the answer is
+  // already streaming.
+  const { data: examCtx, isLoading: examLoading } = useStudentExamContext();
+  const systemPrompt = examCtx?.track
+    ? getDoubtSystemPrompt({
+        examName: examCtx.track.name,
+        daysRemaining: examCtx.daysRemaining,
+      })
+    : getDoubtSystemPrompt(null);
+
   const [answer, setAnswer] = useState("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -60,6 +73,8 @@ const AISolution = () => {
       navigate("/doubts", { replace: true });
       return;
     }
+    // Wait for the exam context before the one-shot stream fires.
+    if (examLoading) return;
     if (streamed.current) return;
     streamed.current = true;
 
@@ -98,7 +113,7 @@ const AISolution = () => {
         await aiStream(
           {
             messages: [
-              { role: "system", content: DOUBT_SYSTEM_PROMPT },
+              { role: "system", content: systemPrompt },
               { role: "user", content: (question || "") + youtubeContext },
             ],
             temperature: 0.6,
@@ -161,7 +176,11 @@ const AISolution = () => {
     };
 
     run();
-  }, [question, youtubeUrl, navigate, user]);
+    // `systemPrompt` is intentionally omitted: the `streamed` ref makes this a
+    // one-shot effect, and re-running it on a prompt change would restart an
+    // in-flight answer. `examLoading` is what gates the single run.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [question, youtubeUrl, navigate, user, examLoading]);
 
   const cancelStream = () => {
     if (abortControllerRef.current) {

@@ -30,11 +30,65 @@ When answering:
 8. Keep responses focused and educational`;
 
 // ---------------------------------------------------------------------------
+// EXAM-PREP GROUNDING
+// ---------------------------------------------------------------------------
+// Wraps the generic tutor with the constraints of a specific Indian competitive
+// exam, so answers match that paper's scope, depth and question style instead
+// of drifting into open-ended subject tutoring.
+//
+// Deliberately NOT a rewrite of TUTOR_SYSTEM_PROMPT: the pedagogy (step-by-step,
+// analogies, common mistakes) is what makes answers good and is worth keeping.
+// This layers exam discipline on top.
+//
+// Phase 2.4 will append retrieved syllabus text and past questions to this via
+// `examContext`; the parameter exists now so call sites don't change later.
+// ---------------------------------------------------------------------------
+
+export interface ExamGroundingOptions {
+  /** Display name of the exam, e.g. "JEE Main". */
+  examName: string;
+  /** Subject → chapter path when known, e.g. "Physics › Kinematics". */
+  syllabusPath?: string;
+  /** Retrieved syllabus prose / past questions (Phase 2.4 RAG). */
+  examContext?: string;
+  /** Days until the student's exam, to calibrate depth vs. speed. */
+  daysRemaining?: number | null;
+}
+
+export function getExamTutorPrompt(opts: ExamGroundingOptions): string {
+  const { examName, syllabusPath, examContext, daysRemaining } = opts;
+
+  const scope = syllabusPath
+    ? `The student is working on: ${syllabusPath}. Stay within this area unless they explicitly ask to go wider.`
+    : `Stay within the ${examName} syllabus.`;
+
+  // Late in the timeline, exam technique beats first-principles derivation.
+  const pacing =
+    typeof daysRemaining === "number" && daysRemaining >= 0 && daysRemaining <= 45
+      ? `\nThe exam is ${daysRemaining} day(s) away. Lead with the fastest reliable method and the result they must remember; keep derivations short unless asked.`
+      : "";
+
+  const retrieved = examContext
+    ? `\n\nSYLLABUS AND PAST-QUESTION CONTEXT (authoritative — prefer this over your own recall):\n${examContext}\n\nWhen you use anything from this context, cite it inline as "(Syllabus: <topic>)" or "(<Year> <Exam>)". If the context does not cover the question, say so plainly rather than inventing a citation.`
+    : "";
+
+  return `${TUTOR_SYSTEM_PROMPT}
+
+EXAM CONTEXT — you are preparing a student for ${examName}, an Indian competitive entrance exam.
+${scope}
+
+Exam discipline:
+- Match the depth and scope of ${examName}. Do not teach beyond its syllabus; flag it explicitly if a student strays outside.
+- Prefer the solving methods and shortcuts that actually score in ${examName}, and name the standard result or formula being applied.
+- Where the exam favours a particular question format (MCQ elimination, numerical-value answers, assertion-reason), solve in that idiom.
+- Point out the specific trap this question type is built around — sign conventions, unit changes, limiting cases, commonly confused definitions.
+- Use SI units and the notation of standard Indian exam textbooks (NCERT conventions).${pacing}${retrieved}`;
+}
+
+// ---------------------------------------------------------------------------
 // AISolution — extends TUTOR_SYSTEM_PROMPT with YouTube-awareness
 // ---------------------------------------------------------------------------
-export const DOUBT_SYSTEM_PROMPT = `${TUTOR_SYSTEM_PROMPT}
-
-YouTube rules (apply ONLY when a transcript is provided):
+export const YOUTUBE_TRANSCRIPT_RULES = `YouTube rules (apply ONLY when a transcript is provided):
 - Prioritise the transcript as the primary source of truth; use ONLY what is actually said — never invent or pad.
 - Keep the transcript's timestamps so the reader can jump to any part, and follow the video's chronological order.
 - For summary requests, produce a structured, scannable Markdown summary (scale depth to the video length):
@@ -47,6 +101,23 @@ YouTube rules (apply ONLY when a transcript is provided):
 - Never say the transcript is unavailable when it has been provided
 - Always append a "📺 Recommended Videos" section with 1–2 YouTube search links:
   [Watch on YouTube: <Topic>](https://www.youtube.com/results?search_query=<URL_encoded_topic>)`;
+
+/** Generic (no exam track chosen) doubt-solving prompt. */
+export const DOUBT_SYSTEM_PROMPT = `${TUTOR_SYSTEM_PROMPT}
+
+${YOUTUBE_TRANSCRIPT_RULES}`;
+
+/**
+ * Doubt-solving prompt for a student with an exam track selected.
+ * Falls back to the generic prompt when `opts` is null, so call sites can pass
+ * whatever they have without branching.
+ */
+export function getDoubtSystemPrompt(opts: ExamGroundingOptions | null): string {
+  if (!opts) return DOUBT_SYSTEM_PROMPT;
+  return `${getExamTutorPrompt(opts)}
+
+${YOUTUBE_TRANSCRIPT_RULES}`;
+}
 
 // ---------------------------------------------------------------------------
 // AITutor — document-grounded mode

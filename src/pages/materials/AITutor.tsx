@@ -5,7 +5,8 @@ import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
 import ReactMarkdown from "react-markdown";
 import { aiStream, aiComplete } from "@/lib/aiService";
-import { TUTOR_SYSTEM_PROMPT, getDocSystemPrompt, DOC_ANALYSIS_SYSTEM_PROMPT } from "@/lib/prompts";
+import { TUTOR_SYSTEM_PROMPT, getDocSystemPrompt, DOC_ANALYSIS_SYSTEM_PROMPT, getExamTutorPrompt } from "@/lib/prompts";
+import { useStudentExamContext } from "@/lib/examTracks";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import {
@@ -187,6 +188,8 @@ async function extractTextFromFile(file: File): Promise<string> {
  */
 const AITutor = ({ hideHeader = false }: { hideHeader?: boolean } = {}) => {
   const { user } = useAuth();
+  // Grounds open-ended tutoring in the student's exam syllabus.
+  const { data: examCtx } = useStudentExamContext();
   const queryClient = useQueryClient();
   const [question, setQuestion] = useState("");
   const [messages, setMessages] = useState<Message[]>([]);
@@ -367,9 +370,17 @@ const AITutor = ({ hideHeader = false }: { hideHeader?: boolean } = {}) => {
     // messages add cost without helping quality.
     const trimmedHistory = history.slice(-MAX_HISTORY_MESSAGES);
 
+    // A selected document stays the source of truth — the student uploaded it
+    // deliberately, so exam grounding must not override their own material.
+    // Only the open-ended mode gets grounded in the exam syllabus.
     const systemPrompt = selectedMaterial
       ? getDocSystemPrompt(selectedMaterial.file_name, selectedMaterial.extracted_text)
-      : TUTOR_SYSTEM_PROMPT;
+      : examCtx?.track
+        ? getExamTutorPrompt({
+            examName: examCtx.track.name,
+            daysRemaining: examCtx.daysRemaining,
+          })
+        : TUTOR_SYSTEM_PROMPT;
 
     const apiMessages: { role: "system" | "user" | "assistant"; content: string }[] = [
       { role: "system", content: systemPrompt },

@@ -5,18 +5,24 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import {
   ArrowRight, ArrowLeft, Target, Brain, Lightbulb,
-  BookOpen, Sparkles, Rocket, User2, Palette, Database
+  BookOpen, Sparkles, Rocket, User2, Palette, Database, GraduationCap
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
 import { supabase } from "@/lib/supabase";
+import { useExamTracks } from "@/lib/examTracks";
+import { onboardingCopy } from "@/content/examPrepCopy";
 
 import BrandMark from "@/components/BrandMark";
 
 // ── Stage definitions ────────────────────────────────────────────
-const TOTAL_STAGES = 8;
+const TOTAL_STAGES = 9;
 
 const stageInfo = [
+  // Exam first: it decides the syllabus, the question bank and the voice of
+  // every AI answer, so asking it before anything else keeps the rest of
+  // onboarding coherent.
+  { title: onboardingCopy.examStageTitle, subtitle: onboardingCopy.examStageSubtitle, icon: GraduationCap },
   { title: "User Segmentation", subtitle: "Help us understand who you are", icon: User2 },
   { title: "Goal Clarity", subtitle: "What are you trying to achieve?", icon: Target },
   { title: "Current Learning Behavior", subtitle: "How do you learn today?", icon: BookOpen },
@@ -130,7 +136,16 @@ const OnboardingFlow = () => {
   const [stage, setStage] = useState(0);
   const [isLoading, setIsLoading] = useState(false);
 
-  // Stage 0 — User Segmentation
+  // Stage 0 — Exam track
+  const { data: examTracks, isLoading: tracksLoading } = useExamTracks();
+  const [examTrackId, setExamTrackId] = useState("");
+  const [targetExamDate, setTargetExamDate] = useState("");
+  // A student who genuinely doesn't know their date must still be able to
+  // continue. Blocking onboarding on a date they can't know loses the signup;
+  // Phase 2's planner falls back to a default horizon when the date is null.
+  const [examDateUnknown, setExamDateUnknown] = useState(false);
+
+  // Stage 1 — User Segmentation
   const [learnerType, setLearnerType] = useState("");
   const [mainPurpose, setMainPurpose] = useState("");
 
@@ -178,14 +193,15 @@ const OnboardingFlow = () => {
 
   const canProceed = (): boolean => {
     switch (stage) {
-      case 0: return !!learnerType && !!mainPurpose;
-      case 1: return !!currentGoal && !!goalUrgency;
-      case 2: return learningMethods.length > 0 && !!appCount;
-      case 3: return selectedPainPoints.length > 0;
-      case 4: return !!learningPreference && !!studyTime;
-      case 5: return !!storageLocation && !!autoOrganizePref;
-      case 6: return aiExpectations.length > 0;
-      case 7: return !!startTime && !!biggestReason.trim();
+      case 0: return !!examTrackId && (examDateUnknown || !!targetExamDate);
+      case 1: return !!learnerType && !!mainPurpose;
+      case 2: return !!currentGoal && !!goalUrgency;
+      case 3: return learningMethods.length > 0 && !!appCount;
+      case 4: return selectedPainPoints.length > 0;
+      case 5: return !!learningPreference && !!studyTime;
+      case 6: return !!storageLocation && !!autoOrganizePref;
+      case 7: return aiExpectations.length > 0;
+      case 8: return !!startTime && !!biggestReason.trim();
       default: return false;
     }
   };
@@ -200,6 +216,10 @@ const OnboardingFlow = () => {
         full_name: user.displayName || "Unknown",
         email: user.email || "—",
         onboarding_completed: true,
+        // Exam identity lives on the profile, not user_preferences: it is read
+        // on nearly every screen and by every AI call, not just the planner.
+        exam_track_id: examTrackId || null,
+        target_exam_date: targetExamDate || null,
         updated_at: new Date().toISOString(),
       }, { onConflict: "id" });
       if (profileError) throw profileError;
@@ -242,6 +262,9 @@ const OnboardingFlow = () => {
       // Invalidate the profile cache so ProtectedRoute sees onboarding_completed: true
       queryClient.invalidateQueries({ queryKey: ["profile-onboarding-check", user.uid] });
       queryClient.invalidateQueries({ queryKey: ["profile", user.uid] });
+      // The dashboard countdown reads this; without an invalidate it would show
+      // "no exam set" until the 5-minute staleTime expired.
+      queryClient.invalidateQueries({ queryKey: ["student-exam-context", user.uid] });
       navigate("/dashboard", { replace: true });
     } catch (err: any) {
       console.error("Onboarding Error:", err);
@@ -291,8 +314,89 @@ const OnboardingFlow = () => {
             <p className="text-muted-foreground text-sm">{info.subtitle}</p>
           </div>
 
-          {/* ── Stage 0: User Segmentation ─────────────────────── */}
+          {/* ── Stage 0: Exam track ────────────────────────────── */}
           {stage === 0 && (
+            <div className="space-y-6">
+              <div className="space-y-3">
+                <label className="text-sm font-medium text-foreground">
+                  {onboardingCopy.examPickerLabel}
+                </label>
+                <p className="text-xs text-muted-foreground">{onboardingCopy.examPickerHelp}</p>
+
+                {tracksLoading ? (
+                  <div className="grid gap-2">
+                    {[0, 1].map((i) => (
+                      <div key={i} className="h-[72px] rounded-xl border border-border bg-muted/40 animate-pulse" />
+                    ))}
+                  </div>
+                ) : !examTracks?.length ? (
+                  // Never dead-end onboarding on missing reference data.
+                  <p className="text-sm text-muted-foreground rounded-lg border border-border p-4">
+                    No exam tracks are configured yet. Ask an administrator to add
+                    one, then reload this page.
+                  </p>
+                ) : (
+                  <div className="grid gap-2">
+                    {examTracks.map((t) => (
+                      <button
+                        key={t.id}
+                        type="button"
+                        onClick={() => setExamTrackId(t.id)}
+                        aria-pressed={examTrackId === t.id}
+                        className={`text-left px-4 py-3.5 rounded-xl border transition-colors ${
+                          examTrackId === t.id
+                            ? "bg-primary text-primary-foreground border-primary"
+                            : "bg-card border-border text-foreground hover:border-primary/40"
+                        }`}
+                      >
+                        <div className="text-sm font-semibold">{t.name}</div>
+                        {t.description && (
+                          <div
+                            className={`text-xs mt-0.5 ${
+                              examTrackId === t.id ? "text-primary-foreground/80" : "text-muted-foreground"
+                            }`}
+                          >
+                            {t.description}
+                          </div>
+                        )}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              <div className="space-y-3">
+                <label htmlFor="target-exam-date" className="text-sm font-medium text-foreground">
+                  {onboardingCopy.examDateLabel}
+                </label>
+                <p className="text-xs text-muted-foreground">{onboardingCopy.examDateHelp}</p>
+                <input
+                  id="target-exam-date"
+                  type="date"
+                  value={targetExamDate}
+                  disabled={examDateUnknown}
+                  min={new Date().toISOString().slice(0, 10)}
+                  onChange={(e) => setTargetExamDate(e.target.value)}
+                  className="w-full h-11 rounded-lg border border-border bg-card px-3 text-sm text-foreground disabled:opacity-50"
+                />
+                <label className="flex items-center gap-2 text-sm text-muted-foreground cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={examDateUnknown}
+                    onChange={(e) => {
+                      setExamDateUnknown(e.target.checked);
+                      if (e.target.checked) setTargetExamDate("");
+                    }}
+                    className="h-4 w-4 rounded border-border"
+                  />
+                  {onboardingCopy.examDateMissing}
+                </label>
+              </div>
+            </div>
+          )}
+
+          {/* ── Stage 1: User Segmentation ─────────────────────── */}
+          {stage === 1 && (
             <div className="space-y-6">
               <div className="space-y-3">
                 <label className="text-sm font-medium text-foreground">1. Who are you?</label>
@@ -323,7 +427,7 @@ const OnboardingFlow = () => {
           )}
 
           {/* ── Stage 1: Goal Clarity ─────────────────────── */}
-          {stage === 1 && (
+          {stage === 2 && (
             <div className="space-y-6">
               <div className="space-y-3">
                 <label className="text-sm font-medium text-foreground">3. What are you currently trying to achieve?</label>
@@ -354,7 +458,7 @@ const OnboardingFlow = () => {
           )}
 
           {/* ── Stage 2: Current Learning Behavior ─────────────────── */}
-          {stage === 2 && (
+          {stage === 3 && (
             <div className="space-y-6">
               <div className="space-y-3">
                 <label className="text-sm font-medium text-foreground">5. How do you currently learn? <span className="text-xs text-muted-foreground font-normal">(Select all)</span></label>
@@ -385,7 +489,7 @@ const OnboardingFlow = () => {
           )}
 
           {/* ── Stage 3: Pain Points ──────────────────────── */}
-          {stage === 3 && (
+          {stage === 4 && (
             <div className="space-y-4">
               <div className="space-y-3">
                 <label className="text-sm font-medium text-foreground">7. What frustrates you the most while learning? <span className="text-xs text-muted-foreground font-normal">(Select max 3)</span></label>
@@ -403,7 +507,7 @@ const OnboardingFlow = () => {
           )}
 
           {/* ── Stage 4: Learning Style ───────────────────── */}
-          {stage === 4 && (
+          {stage === 5 && (
             <div className="space-y-6">
               <div className="space-y-3">
                 <label className="text-sm font-medium text-foreground">8. How do you prefer to learn?</label>
@@ -434,7 +538,7 @@ const OnboardingFlow = () => {
           )}
 
           {/* ── Stage 5: Resource Management ─────────────────── */}
-          {stage === 5 && (
+          {stage === 6 && (
             <div className="space-y-6">
               <div className="space-y-3">
                 <label className="text-sm font-medium text-foreground">10. Where do you currently store your learning materials?</label>
@@ -465,7 +569,7 @@ const OnboardingFlow = () => {
           )}
 
           {/* ── Stage 6: AI Expectations ──────────────────── */}
-          {stage === 6 && (
+          {stage === 7 && (
             <div className="space-y-4">
               <div className="space-y-3">
                 <label className="text-sm font-medium text-foreground">12. What do you want your AI assistant to do? <span className="text-xs text-muted-foreground font-normal">(Select max 3)</span></label>
@@ -483,7 +587,7 @@ const OnboardingFlow = () => {
           )}
 
           {/* ── Stage 7: Commitment Activation ────────────── */}
-          {stage === 7 && (
+          {stage === 8 && (
             <div className="space-y-6">
               <div className="space-y-3">
                 <label className="text-sm font-medium text-foreground">13. When do you want to start?</label>
