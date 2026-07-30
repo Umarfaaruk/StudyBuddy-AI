@@ -18,6 +18,7 @@ import NotificationPanel from "@/components/NotificationPanel";
 import FeedbackEnforcer from "@/components/FeedbackEnforcer";
 import RetentionTrajectory from "@/components/RetentionTrajectory";
 import ExamCountdown from "@/components/ExamCountdown";
+import DiagnosticPrompt from "@/components/DiagnosticPrompt";
 import { StaggerContainer, StaggerItem } from "@/components/motion/FadeIn";
 
 const Dashboard = () => {
@@ -182,6 +183,11 @@ const Dashboard = () => {
             </Link>
           </div>
         </div>
+      </StaggerItem>
+
+      {/* Diagnostic entry point — self-hiding once taken (Phase 2.1) */}
+      <StaggerItem>
+        <DiagnosticPrompt />
       </StaggerItem>
 
       <StaggerItem>

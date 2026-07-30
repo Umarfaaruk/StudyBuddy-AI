@@ -83,6 +83,8 @@ const LessonViewer = lazyWithReload(() => import("./pages/lessons/LessonViewer")
 const AdminPanel = lazyWithReload(() => import("./pages/admin/AdminPanel"));
 const AdminLogin = lazyWithReload(() => import("./pages/admin/AdminLogin"));
 const Feedback = lazyWithReload(() => import("./pages/Feedback"));
+const DiagnosticFlow = lazyWithReload(() => import("./pages/diagnostic/DiagnosticFlow"));
+const DiagnosticResults = lazyWithReload(() => import("./pages/diagnostic/DiagnosticResults"));
 
 /** Shared loading fallback shown while a route chunk downloads */
 const PageLoader = () => (
@@ -155,6 +157,11 @@ const App = () => (
 
                 {/* Quick Tools */}
                 <Route path="/tools" element={<ErrorBoundary><QuickTools /></ErrorBoundary>} />
+
+                {/* Diagnostic (Phase 2.1) — inside AppLayout so the student
+                    keeps their normal navigation while taking it. */}
+                <Route path="/diagnostic" element={<ErrorBoundary><DiagnosticFlow /></ErrorBoundary>} />
+                <Route path="/diagnostic/results" element={<ErrorBoundary><DiagnosticResults /></ErrorBoundary>} />
 
                 <Route path="/progress" element={<ErrorBoundary><ProgressDashboard /></ErrorBoundary>} />
                 <Route path="/timer" element={<ErrorBoundary><TimerPage /></ErrorBoundary>} />
