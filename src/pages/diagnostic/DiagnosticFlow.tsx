@@ -158,9 +158,36 @@ const DiagnosticFlow = () => {
         );
       }
 
+      // Carry the wrong answers forward so the results page can show the
+      // explanation and collect a "what went wrong?" self-tag (Phase 2.3).
+      // Safe to expose now: the test is over and already graded.
+      const resultById = new Map<string, any>(
+        (graded.results ?? []).map((r: any) => [r.questionId, r])
+      );
+      const mistakes = finalAnswers
+        .filter((a) => !correctById.get(a.questionId))
+        .map((a) => {
+          const r = resultById.get(a.questionId);
+          return {
+            questionId: a.questionId,
+            questionText: a.question.question_text,
+            options: a.question.options,
+            topic: a.question.syllabusName,
+            selectedAnswer: a.selectedAnswer,
+            correctAnswer: r?.correctAnswer ?? null,
+            explanation: r?.explanation ?? null,
+          };
+        });
+
       navigate("/diagnostic/results", {
         replace: true,
-        state: { sessionId: sessionIdRef.current, perTopic, correct: graded.correct, total: finalAnswers.length },
+        state: {
+          sessionId: sessionIdRef.current,
+          perTopic,
+          correct: graded.correct,
+          total: finalAnswers.length,
+          mistakes,
+        },
       });
     } catch (err) {
       console.error("[diagnostic] submit failed:", err);

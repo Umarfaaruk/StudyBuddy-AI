@@ -19,6 +19,8 @@ import FeedbackEnforcer from "@/components/FeedbackEnforcer";
 import RetentionTrajectory from "@/components/RetentionTrajectory";
 import ExamCountdown from "@/components/ExamCountdown";
 import DiagnosticPrompt from "@/components/DiagnosticPrompt";
+import ReviewQueue from "@/components/ReviewQueue";
+import ErrorPatternInsight from "@/components/ErrorPatternInsight";
 import { StaggerContainer, StaggerItem } from "@/components/motion/FadeIn";
 
 const Dashboard = () => {
@@ -188,6 +190,16 @@ const Dashboard = () => {
       {/* Diagnostic entry point — self-hiding once taken (Phase 2.1) */}
       <StaggerItem>
         <DiagnosticPrompt />
+      </StaggerItem>
+
+      {/* Review queue + mistake patterns (Phase 2.2 / 2.3). Both render null
+          until they have something worth saying, so the dashboard stays quiet
+          for a student who has not practised yet. */}
+      <StaggerItem>
+        <div className="grid md:grid-cols-2 gap-5 items-start">
+          <ReviewQueue />
+          <ErrorPatternInsight />
+        </div>
       </StaggerItem>
 
       <StaggerItem>

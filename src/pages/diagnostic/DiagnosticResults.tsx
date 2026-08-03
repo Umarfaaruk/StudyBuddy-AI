@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/AuthContext";
 import { useStudentExamContext } from "@/lib/examTracks";
 import { rankWeakestTopics, type PerTopicResult } from "@/lib/diagnostic";
+import MistakeReview, { type Mistake } from "@/components/MistakeReview";
 import { generateStudyPlan, saveStudyPlan, DEFAULT_HORIZON_DAYS, type GeneratedPlan } from "@/lib/studyPlan";
 
 /**
@@ -28,6 +29,7 @@ interface ResultState {
   perTopic: PerTopicResult[];
   correct: number;
   total: number;
+  mistakes?: Mistake[];
 }
 
 const scoreColour = (score: number) =>
@@ -160,6 +162,9 @@ const DiagnosticResults = () => {
           </p>
         </section>
       )}
+
+      {/* Mistake review + self-tagging (Phase 2.3 capture) */}
+      <MistakeReview mistakes={state.mistakes ?? []} sessionId={state.sessionId} />
 
       {/* Generated plan */}
       <section className="space-y-3">
