@@ -79,16 +79,12 @@ const ReviewQueue = () => {
                 )}
               </div>
             </div>
-            {/* Intentionally not a link yet. Acting on a review needs a
-                practice route that serves questions from the exam question
-                bank for this syllabus node, which does not exist — the legacy
-                /quiz engine keys off the old `topics` table and generates
-                questions with the LLM, so it cannot practise this concept. A
-                button that quietly went somewhere unrelated would be worse
-                than none. */}
-            <span className="text-xs text-muted-foreground flex-shrink-0 tabular-nums">
-              {item.intervalDays}d
-            </span>
+            <Link
+              to={`/practice/${item.syllabusNodeId}`}
+              className="text-xs font-medium text-primary hover:underline flex-shrink-0"
+            >
+              Review
+            </Link>
           </li>
         ))}
       </ul>

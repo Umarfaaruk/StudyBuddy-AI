@@ -85,6 +85,7 @@ const AdminLogin = lazyWithReload(() => import("./pages/admin/AdminLogin"));
 const Feedback = lazyWithReload(() => import("./pages/Feedback"));
 const DiagnosticFlow = lazyWithReload(() => import("./pages/diagnostic/DiagnosticFlow"));
 const DiagnosticResults = lazyWithReload(() => import("./pages/diagnostic/DiagnosticResults"));
+const PracticeSession = lazyWithReload(() => import("./pages/practice/PracticeSession"));
 
 /** Shared loading fallback shown while a route chunk downloads */
 const PageLoader = () => (
@@ -162,6 +163,9 @@ const App = () => (
                     keeps their normal navigation while taking it. */}
                 <Route path="/diagnostic" element={<ErrorBoundary><DiagnosticFlow /></ErrorBoundary>} />
                 <Route path="/diagnostic/results" element={<ErrorBoundary><DiagnosticResults /></ErrorBoundary>} />
+                {/* Bank-backed drill for one syllabus concept — the action the
+                    review queue points at (Phase 2.2). */}
+                <Route path="/practice/:nodeId" element={<ErrorBoundary><PracticeSession /></ErrorBoundary>} />
 
                 <Route path="/progress" element={<ErrorBoundary><ProgressDashboard /></ErrorBoundary>} />
                 <Route path="/timer" element={<ErrorBoundary><TimerPage /></ErrorBoundary>} />

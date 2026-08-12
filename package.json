@@ -12,6 +12,7 @@
     "build": "vite build --config vite.config.ts",
     "lint": "eslint --config eslint.config.js src",
     "preview": "vite preview --config vite.config.ts",
+    "test:unit": "node tests/unit/diagnostic.test.mjs",
     "qa": "node tests/run-qa.mjs",
     "load:frontend": "node tests/run-load.mjs --mode frontend",
     "load:api": "node tests/run-load.mjs --mode api"

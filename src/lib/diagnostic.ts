@@ -106,81 +106,96 @@ export async function fetchDiagnosticPool(
  * (adaptivity). Falls back to the nearest available difficulty rather than
  * skipping a chapter — a thin bank should still produce a usable diagnostic.
  */
-export function buildAdaptiveSequence(
-  pool: DiagnosticQuestion[],
-  length = DIAGNOSTIC_LENGTH
-): DiagnosticQuestion[] {
-  if (pool.length === 0) return [];
+export type GroupedPool = Map<string, Map<Difficulty, DiagnosticQuestion[]>>;
 
-  // Group by chapter, then by difficulty, so selection is O(1) per pick.
-  const byChapter = new Map<string, Map<Difficulty, DiagnosticQuestion[]>>();
+/** Group by chapter then difficulty, so each pick is O(1). */
+export function groupPool(pool: DiagnosticQuestion[]): GroupedPool {
+  const byChapter: GroupedPool = new Map();
   for (const q of pool) {
     const chapter = q.syllabus_node_id ?? "unassigned";
     if (!byChapter.has(chapter)) byChapter.set(chapter, new Map());
     const diffMap = byChapter.get(chapter)!;
-    const d = q.difficulty;
-    if (!diffMap.has(d)) diffMap.set(d, []);
-    diffMap.get(d)!.push(q);
+    if (!diffMap.has(q.difficulty)) diffMap.set(q.difficulty, []);
+    diffMap.get(q.difficulty)!.push(q);
   }
+  return byChapter;
+}
 
-  // Interleave chapters by subject so consecutive questions rarely share a
-  // subject — a run of ten Physics questions makes the test feel narrow and
-  // tells us nothing about Chemistry until the student has already tired.
-  const chapters = [...byChapter.keys()];
+/**
+ * Chapter visiting order — the COVERAGE half.
+ *
+ * Interleaved across subjects so consecutive questions rarely share one: a run
+ * of ten Physics questions makes the test feel narrow and tells us nothing
+ * about Chemistry until the student has already tired.
+ *
+ * Fixed up front because coverage must not depend on how well the student is
+ * doing; only difficulty adapts.
+ */
+export function buildChapterOrder(grouped: GroupedPool): string[] {
   const bySubject = new Map<string, string[]>();
-  for (const ch of chapters) {
-    const sample = byChapter.get(ch)!.values().next().value?.[0];
+  for (const [chapter, diffMap] of grouped) {
+    const sample = diffMap.values().next().value?.[0];
     const subject = sample?.subjectName ?? "other";
     if (!bySubject.has(subject)) bySubject.set(subject, []);
-    bySubject.get(subject)!.push(ch);
+    bySubject.get(subject)!.push(chapter);
   }
+
   const interleaved: string[] = [];
-  const subjectQueues = [...bySubject.values()];
+  const queues = [...bySubject.values()];
   let added = true;
   while (added) {
     added = false;
-    for (const queue of subjectQueues) {
+    for (const queue of queues) {
       const next = queue.shift();
       if (next) { interleaved.push(next); added = true; }
     }
   }
+  return interleaved;
+}
 
-  const sequence: DiagnosticQuestion[] = [];
-  const used = new Set<string>();
-  let difficultyIdx = 1; // start at medium — most informative first probe
+/**
+ * Pick the question for position `index` — the ADAPTIVITY half.
+ *
+ * Called once per answer with the CURRENT difficulty, so the choice genuinely
+ * responds to how the student is doing. Selecting the whole sequence up front
+ * cannot be adaptive by construction: every question would be chosen before a
+ * single answer existed.
+ *
+ * Falls back to the nearest available difficulty, then to anything unused in
+ * the chapter, so a thin bank still yields a usable test rather than gaps.
+ */
+export function pickQuestion(
+  grouped: GroupedPool,
+  chapterOrder: string[],
+  index: number,
+  difficultyIdx: number,
+  used: Set<string>
+): DiagnosticQuestion | undefined {
+  if (chapterOrder.length === 0) return undefined;
 
-  for (let i = 0; i < length && interleaved.length > 0; i++) {
-    const chapter = interleaved[i % interleaved.length];
-    const diffMap = byChapter.get(chapter);
+  // Walk chapters from the scheduled one so an exhausted chapter doesn't end
+  // the test early while other chapters still have questions.
+  for (let step = 0; step < chapterOrder.length; step++) {
+    const chapter = chapterOrder[(index + step) % chapterOrder.length];
+    const diffMap = grouped.get(chapter);
     if (!diffMap) continue;
 
-    // Preferred difficulty, then nearest available.
     const preference = [
       DIFFICULTY_ORDER[difficultyIdx],
       DIFFICULTY_ORDER[Math.max(0, difficultyIdx - 1)],
       DIFFICULTY_ORDER[Math.min(2, difficultyIdx + 1)],
     ];
 
-    let picked: DiagnosticQuestion | undefined;
     for (const d of preference) {
-      const bucket = diffMap.get(d);
-      picked = bucket?.find((q) => !used.has(q.id));
-      if (picked) break;
+      const found = diffMap.get(d)?.find((q) => !used.has(q.id));
+      if (found) return found;
     }
-    // Nothing left at any preferred difficulty in this chapter — take anything.
-    if (!picked) {
-      for (const bucket of diffMap.values()) {
-        picked = bucket.find((q) => !used.has(q.id));
-        if (picked) break;
-      }
+    for (const bucket of diffMap.values()) {
+      const found = bucket.find((q) => !used.has(q.id));
+      if (found) return found;
     }
-    if (!picked) continue;
-
-    used.add(picked.id);
-    sequence.push(picked);
   }
-
-  return sequence;
+  return undefined;
 }
 
 /**

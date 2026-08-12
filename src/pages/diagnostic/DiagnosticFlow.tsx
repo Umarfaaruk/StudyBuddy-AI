@@ -1,38 +1,40 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { ArrowRight, Loader2, Database, AlertTriangle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/AuthContext";
 import { useStudentExamContext } from "@/lib/examTracks";
-import { getAuthHeaders } from "@/lib/authHeaders";
+import QuestionPlayer, { type CollectedAnswer } from "@/components/QuestionPlayer";
+import { gradeAnswers, rollUpByTopic, buildMistakes } from "@/lib/grading";
 import {
-  fetchDiagnosticPool, buildAdaptiveSequence, nextDifficultyIndex,
-  startDiagnosticSession, completeDiagnosticSession,
+  fetchDiagnosticPool, groupPool, buildChapterOrder, pickQuestion,
+  nextDifficultyIndex, startDiagnosticSession, completeDiagnosticSession,
   DIAGNOSTIC_LENGTH, DIAGNOSTIC_MIN_QUESTIONS,
-  type DiagnosticQuestion, type PerTopicResult,
+  type DiagnosticQuestion, type GroupedPool,
 } from "@/lib/diagnostic";
 
 /**
  * ADAPTIVE DIAGNOSTIC
  * ===================
- * One question at a time, difficulty tracking performance, submitted for
- * SERVER-SIDE grading because the client has no access to the answer key.
+ * One question at a time, difficulty responding to performance, graded
+ * SERVER-SIDE because the client has no access to the answer key.
  *
- * Answers are collected locally and graded in ONE batch at the end rather than
- * per question. Two reasons: grading per question would reveal correctness
- * mid-test and change how the student answers the rest (defeating the point of
- * a diagnostic), and it would also let them infer answers by watching results.
+ * Questions are chosen ONE AT A TIME rather than as a fixed list. A pre-built
+ * sequence cannot be adaptive by construction — every question would be picked
+ * before a single answer existed. Chapter order is still fixed up front, since
+ * coverage must not depend on how well the student is doing.
+ *
+ * Answers are graded in ONE batch at the end. Grading per question would reveal
+ * correctness mid-test and change how the student answers the rest, defeating
+ * the measurement, and would let them infer answers from the pattern.
+ *
+ * Adaptivity steps on whether the student ANSWERED, not whether they were
+ * right: correctness is unknowable client-side by design. Committing to an
+ * option is a usable confidence proxy; a skip reads as struggling.
  */
 
 type Phase = "loading" | "ready" | "running" | "submitting" | "insufficient" | "error";
-
-interface RecordedAnswer {
-  questionId: string;
-  selectedAnswer: string | null;
-  timeTakenMs: number;
-  question: DiagnosticQuestion;
-}
 
 const DiagnosticFlow = () => {
   const navigate = useNavigate();
@@ -40,28 +42,23 @@ const DiagnosticFlow = () => {
   const { data: examCtx, isLoading: examLoading } = useStudentExamContext();
 
   const [phase, setPhase] = useState<Phase>("loading");
-  const [sequence, setSequence] = useState<DiagnosticQuestion[]>([]);
-  const [index, setIndex] = useState(0);
-  const [selected, setSelected] = useState<string | null>(null);
-  const [answers, setAnswers] = useState<RecordedAnswer[]>([]);
+  const [visible, setVisible] = useState<DiagnosticQuestion[]>([]);
   const [availableCount, setAvailableCount] = useState(0);
   const [errorMsg, setErrorMsg] = useState("");
 
+  const groupedRef = useRef<GroupedPool>(new Map());
+  const chapterOrderRef = useRef<string[]>([]);
+  const usedRef = useRef<Set<string>>(new Set());
+  const difficultyIdxRef = useRef(1); // start at medium — most informative probe
+  const plannedLengthRef = useRef(DIAGNOSTIC_LENGTH);
   const sessionIdRef = useRef<string | null>(null);
-  const questionStartRef = useRef<number>(Date.now());
-  const difficultyIdxRef = useRef(1);
-  // Guards against a double-submit producing two graded sessions.
   const submittingRef = useRef(false);
 
   const examTrackId = examCtx?.examTrackId ?? null;
 
   useEffect(() => {
     if (examLoading) return;
-    if (!examTrackId) {
-      // Cannot diagnose against a syllabus the student hasn't chosen.
-      navigate("/onboarding", { replace: true });
-      return;
-    }
+    if (!examTrackId) { navigate("/onboarding", { replace: true }); return; }
 
     let cancelled = false;
     (async () => {
@@ -69,12 +66,11 @@ const DiagnosticFlow = () => {
         const pool = await fetchDiagnosticPool(examTrackId);
         if (cancelled) return;
         setAvailableCount(pool.availableCount);
-        if (pool.insufficient) {
-          setPhase("insufficient");
-          return;
-        }
-        const seq = buildAdaptiveSequence(pool.questions, DIAGNOSTIC_LENGTH);
-        setSequence(seq);
+        if (pool.insufficient) { setPhase("insufficient"); return; }
+
+        groupedRef.current = groupPool(pool.questions);
+        chapterOrderRef.current = buildChapterOrder(groupedRef.current);
+        plannedLengthRef.current = Math.min(DIAGNOSTIC_LENGTH, pool.availableCount);
         setPhase("ready");
       } catch (err) {
         if (cancelled) return;
@@ -90,94 +86,58 @@ const DiagnosticFlow = () => {
     if (!user || !examTrackId) return;
     try {
       sessionIdRef.current = await startDiagnosticSession(
-        user.uid, examTrackId, sequence.length
+        user.uid, examTrackId, plannedLengthRef.current
       );
-      questionStartRef.current = Date.now();
+      const first = pickQuestion(
+        groupedRef.current, chapterOrderRef.current, 0,
+        difficultyIdxRef.current, usedRef.current
+      );
+      if (!first) { setPhase("insufficient"); return; }
+      usedRef.current.add(first.id);
+      setVisible([first]);
       setPhase("running");
     } catch (err) {
       console.error("[diagnostic] could not start session:", err);
       toast.error("Could not start the diagnostic. Please try again.");
     }
-  }, [user, examTrackId, sequence.length]);
+  }, [user, examTrackId]);
 
-  const current = sequence[index];
+  /**
+   * After each answer, step the difficulty and append the next question. The
+   * player renders `visible`, so growing it drives the test forward.
+   */
+  const handleAnswered = useCallback((answer: CollectedAnswer, index: number) => {
+    difficultyIdxRef.current = nextDifficultyIndex(
+      difficultyIdxRef.current, answer.selectedAnswer !== null
+    );
+    if (index + 1 >= plannedLengthRef.current) return;
 
-  const submitAll = useCallback(async (finalAnswers: RecordedAnswer[]) => {
+    const next = pickQuestion(
+      groupedRef.current, chapterOrderRef.current, index + 1,
+      difficultyIdxRef.current, usedRef.current
+    );
+    if (!next) {
+      // Bank exhausted — end cleanly at what we have rather than stalling.
+      plannedLengthRef.current = index + 1;
+      return;
+    }
+    usedRef.current.add(next.id);
+    setVisible((prev) => [...prev, next]);
+  }, []);
+
+  const handleComplete = useCallback(async (answers: CollectedAnswer[]) => {
     if (submittingRef.current) return;
     submittingRef.current = true;
     setPhase("submitting");
 
     try {
-      const headers = await getAuthHeaders();
-      const res = await fetch("/api/grade", {
-        method: "POST",
-        headers: { "Content-Type": "application/json", ...headers },
-        body: JSON.stringify({
-          sessionType: "diagnostic",
-          sessionId: sessionIdRef.current,
-          answers: finalAnswers.map((a) => ({
-            questionId: a.questionId,
-            selectedAnswer: a.selectedAnswer,
-            timeTakenMs: a.timeTakenMs,
-          })),
-        }),
-      });
-
-      if (!res.ok) {
-        const body = await res.json().catch(() => ({}));
-        throw new Error(body.error || `Grading failed (${res.status})`);
-      }
-      const graded = await res.json();
-
-      // Roll the graded results up per chapter for the snapshot + plan.
-      const correctById = new Map<string, boolean>(
-        (graded.results ?? []).map((r: any) => [r.questionId, !!r.isCorrect])
-      );
-      const rollup = new Map<string, PerTopicResult>();
-      for (const a of finalAnswers) {
-        const nodeId = a.question.syllabus_node_id;
-        if (!nodeId) continue;
-        const entry = rollup.get(nodeId) ?? {
-          syllabusNodeId: nodeId,
-          name: a.question.syllabusName ?? "Unknown topic",
-          subject: a.question.subjectName,
-          correct: 0, total: 0, score: 0,
-        };
-        entry.total += 1;
-        if (correctById.get(a.questionId)) entry.correct += 1;
-        rollup.set(nodeId, entry);
-      }
-      const perTopic = [...rollup.values()].map((t) => ({
-        ...t,
-        score: t.total > 0 ? Math.round((t.correct / t.total) * 100) : 0,
-      }));
+      const graded = await gradeAnswers(answers, "diagnostic", sessionIdRef.current);
+      const perTopic = rollUpByTopic(answers, graded.results);
+      const mistakes = buildMistakes(answers, graded.results);
 
       if (sessionIdRef.current) {
-        await completeDiagnosticSession(
-          sessionIdRef.current, perTopic, graded.correct ?? 0
-        );
+        await completeDiagnosticSession(sessionIdRef.current, perTopic, graded.correct);
       }
-
-      // Carry the wrong answers forward so the results page can show the
-      // explanation and collect a "what went wrong?" self-tag (Phase 2.3).
-      // Safe to expose now: the test is over and already graded.
-      const resultById = new Map<string, any>(
-        (graded.results ?? []).map((r: any) => [r.questionId, r])
-      );
-      const mistakes = finalAnswers
-        .filter((a) => !correctById.get(a.questionId))
-        .map((a) => {
-          const r = resultById.get(a.questionId);
-          return {
-            questionId: a.questionId,
-            questionText: a.question.question_text,
-            options: a.question.options,
-            topic: a.question.syllabusName,
-            selectedAnswer: a.selectedAnswer,
-            correctAnswer: r?.correctAnswer ?? null,
-            explanation: r?.explanation ?? null,
-          };
-        });
 
       navigate("/diagnostic/results", {
         replace: true,
@@ -185,7 +145,7 @@ const DiagnosticFlow = () => {
           sessionId: sessionIdRef.current,
           perTopic,
           correct: graded.correct,
-          total: finalAnswers.length,
+          total: answers.length,
           mistakes,
         },
       });
@@ -196,40 +156,6 @@ const DiagnosticFlow = () => {
       setPhase("error");
     }
   }, [navigate]);
-
-  const answerCurrent = useCallback(() => {
-    if (!current) return;
-    const recorded: RecordedAnswer = {
-      questionId: current.id,
-      selectedAnswer: selected,
-      timeTakenMs: Date.now() - questionStartRef.current,
-      question: current,
-    };
-    const nextAnswers = [...answers, recorded];
-    setAnswers(nextAnswers);
-    setSelected(null);
-
-    // Difficulty steps on the student's own sense of the answer being right is
-    // not available (no client-side key), so step on whether they committed to
-    // an option at all — a skip is treated as a miss.
-    difficultyIdxRef.current = nextDifficultyIndex(
-      difficultyIdxRef.current, selected !== null
-    );
-
-    if (index + 1 >= sequence.length) {
-      void submitAll(nextAnswers);
-    } else {
-      setIndex(index + 1);
-      questionStartRef.current = Date.now();
-    }
-  }, [current, selected, answers, index, sequence.length, submitAll]);
-
-  const progressPct = useMemo(
-    () => (sequence.length === 0 ? 0 : Math.round((index / sequence.length) * 100)),
-    [index, sequence.length]
-  );
-
-  /* ── States ────────────────────────────────────────────────────────────── */
 
   if (phase === "loading" || examLoading) {
     return (
@@ -280,7 +206,7 @@ const DiagnosticFlow = () => {
     return (
       <div className="max-w-lg mx-auto py-16 space-y-6 text-center">
         <h1 className="text-2xl font-bold text-foreground">
-          {sequence.length}-question diagnostic
+          {plannedLengthRef.current}-question diagnostic
         </h1>
         <p className="text-sm text-muted-foreground">
           This spans your whole {examCtx?.track?.name} syllabus and adapts as you go.
@@ -306,62 +232,15 @@ const DiagnosticFlow = () => {
     );
   }
 
-  if (!current) return null;
-
   return (
-    <div className="max-w-2xl mx-auto py-8 space-y-6">
-      <div className="space-y-2">
-        <div className="flex items-center justify-between text-xs text-muted-foreground">
-          <span>Question {index + 1} of {sequence.length}</span>
-          {current.subjectName && (
-            <span>{current.subjectName}{current.syllabusName ? ` › ${current.syllabusName}` : ""}</span>
-          )}
-        </div>
-        <div className="h-1.5 w-full bg-muted rounded-full overflow-hidden">
-          <div className="h-full bg-primary transition-all duration-300" style={{ width: `${progressPct}%` }} />
-        </div>
-      </div>
-
-      <div className="rounded-2xl border border-border bg-card p-6 space-y-5">
-        <p className="text-base text-foreground leading-relaxed whitespace-pre-wrap">
-          {current.question_text}
-        </p>
-
-        <div className="space-y-2">
-          {current.options.map((opt) => (
-            <button
-              key={opt.id}
-              type="button"
-              onClick={() => setSelected(opt.id)}
-              aria-pressed={selected === opt.id}
-              className={`w-full text-left px-4 py-3 rounded-xl border text-sm transition-colors ${
-                selected === opt.id
-                  ? "bg-primary text-primary-foreground border-primary"
-                  : "bg-background border-border text-foreground hover:border-primary/40"
-              }`}
-            >
-              <span className="font-semibold mr-2 uppercase">{opt.id}.</span>
-              {opt.text}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      <div className="flex items-center justify-between">
-        {/* Skipping is allowed and recorded as unanswered — forcing a guess
-            would pollute the mastery signal we are trying to measure. */}
-        <button
-          type="button"
-          onClick={answerCurrent}
-          className="text-sm text-muted-foreground hover:text-foreground"
-        >
-          Skip
-        </button>
-        <Button onClick={answerCurrent} disabled={selected === null} className="gap-2 h-11">
-          {index + 1 >= sequence.length ? "Finish" : "Next"}
-          <ArrowRight className="h-4 w-4" />
-        </Button>
-      </div>
+    <div className="max-w-2xl mx-auto py-8">
+      <QuestionPlayer
+        questions={visible}
+        totalExpected={plannedLengthRef.current}
+        onAnswered={handleAnswered}
+        onComplete={handleComplete}
+        finishLabel="Finish"
+      />
     </div>
   );
 };
