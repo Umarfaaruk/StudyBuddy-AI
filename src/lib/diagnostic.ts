@@ -16,9 +16,10 @@
  * gets asked harder questions about the same spread of chapters.
  *
  * Adaptivity is resolved CLIENT-SIDE from a pre-fetched pool rather than one
- * server round-trip per question. Questions carry no answers (they come from
- * `questions_public`), so there is nothing to leak, and a diagnostic that
- * stalls on network latency between every question gets abandoned.
+ * server round-trip per question. Questions carry no answers — the key lives in
+ * the admin-only `question_answers` table — so there is nothing to leak, and a
+ * diagnostic that stalls on network latency between every question gets
+ * abandoned.
  */
 
 import { supabase } from "@/lib/supabase";
@@ -56,9 +57,10 @@ export async function fetchDiagnosticPool(
   length = DIAGNOSTIC_LENGTH
 ): Promise<DiagnosticPool> {
   const { data: rows, error } = await supabase
-    .from("questions_public")
+    .from("questions")
     .select("*")
     .eq("exam_track_id", examTrackId)
+    .eq("status", "published")
     .limit(length * 12);
   if (error) throw error;
 

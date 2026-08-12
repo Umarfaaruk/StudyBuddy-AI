@@ -169,8 +169,6 @@ const QuestionBankImport = () => {
         question_text: r.question_text.trim(),
         question_type: r.question_type ?? "mcq",
         options: r.options ?? [],
-        correct_answer: String(r.correct_answer),
-        explanation: r.explanation ?? null,
         difficulty: r.difficulty ?? "medium",
         is_pyq: r.is_pyq ?? false,
         pyq_year: r.pyq_year ?? null,
@@ -182,11 +180,38 @@ const QuestionBankImport = () => {
         created_by: user?.uid ?? null,
       }));
 
+      // Two-table write: answers live in the admin-only `question_answers`
+      // table so `questions` has no column students must not read. Insert
+      // questions first with RETURNING so each answer can be keyed to its id.
+      //
       // Chunked so a large file doesn't exceed the request size limit.
       const CHUNK = 200;
+      let inserted = 0;
       for (let i = 0; i < rows.length; i += CHUNK) {
-        const { error } = await supabase.from("questions").insert(rows.slice(i, i + CHUNK));
+        const slice = rows.slice(i, i + CHUNK);
+        const { data: created, error } = await supabase
+          .from("questions")
+          .insert(slice)
+          .select("id");
         if (error) throw error;
+
+        const answerRows = (created ?? []).map((q: { id: string }, j: number) => ({
+          question_id: q.id,
+          correct_answer: String(validation.valid[i + j].correct_answer),
+          explanation: validation.valid[i + j].explanation ?? null,
+        }));
+        if (answerRows.length > 0) {
+          const { error: aErr } = await supabase
+            .from("question_answers")
+            .insert(answerRows);
+          // A question with no answer can never be graded, so surface this
+          // loudly rather than leaving unusable rows behind silently.
+          if (aErr) throw new Error(`Questions imported but answers failed: ${aErr.message}`);
+        }
+        inserted += slice.length;
+      }
+      if (inserted !== rows.length) {
+        throw new Error(`Only ${inserted} of ${rows.length} rows were written.`);
       }
 
       toast.success(`Imported ${rows.length} question(s) as drafts. Batch: ${batch}`);

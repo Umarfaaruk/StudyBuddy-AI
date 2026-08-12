@@ -38,10 +38,11 @@ export async function fetchPracticeSet(
 ): Promise<PracticeSet> {
   const [{ data: rows, error }, { data: node }] = await Promise.all([
     supabase
-      .from("questions_public")
+      .from("questions")
       .select("*")
       .eq("exam_track_id", examTrackId)
       .eq("syllabus_node_id", syllabusNodeId)
+      .eq("status", "published")
       .limit(limit * 5),
     supabase
       .from("syllabus_nodes")

@@ -9,10 +9,11 @@
  * is far cheaper than a recursive CTE per page for a tree of this size (a few
  * hundred nodes) and lets React Query cache the whole thing as one entry.
  *
- * Questions are read through `questions_public`, a view that omits
- * `correct_answer` and `explanation`. Never query `questions` from the browser:
- * anything RLS lets the client select can be read out of the network tab, and
- * that would hand students the answer key.
+ * Questions are read straight from `questions`, which is safe because it holds
+ * no answer: the key lives in the separate admin-only `question_answers` table,
+ * readable only server-side with the service role during grading. That keeps
+ * the security boundary at the TABLE level rather than resting on a view's
+ * column list, where one careless `select *` would leak the answer key.
  */
 
 import { useQuery } from "@tanstack/react-query";

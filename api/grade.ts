@@ -134,13 +134,37 @@ export default async function handler(req: any, res: any) {
     const db = getDb();
     const questionIds = [...new Set(answers.map((a) => a.questionId).filter(Boolean))];
 
-    const { data: questions, error: qErr } = await db
-      .from("questions")
-      .select("id, correct_answer, explanation, question_type, difficulty, syllabus_node_id, exam_track_id")
-      .in("id", questionIds);
+    // The answer key lives in its own admin-only table, so it takes a second
+    // read. Fetched with the service role, which bypasses RLS — no browser role
+    // can reach question_answers at all.
+    // Named answerKeyRows, not `answers` — that identifier is already the
+    // student's submitted answers, and shadowing it here silently changed what
+    // the grading loop below iterated over.
+    const [{ data: questions, error: qErr }, { data: answerKeyRows, error: aErr }] =
+      await Promise.all([
+        db.from("questions")
+          .select("id, question_type, difficulty, syllabus_node_id, exam_track_id")
+          .in("id", questionIds),
+        db.from("question_answers")
+          .select("question_id, correct_answer, explanation")
+          .in("question_id", questionIds),
+      ]);
     if (qErr) throw qErr;
+    if (aErr) throw aErr;
 
-    const byId = new Map((questions ?? []).map((q: any) => [q.id, q]));
+    const answerById = new Map(
+      (answerKeyRows ?? []).map((a: any) => [a.question_id, a])
+    );
+    const byId = new Map(
+      (questions ?? []).map((q: any) => [
+        q.id,
+        {
+          ...q,
+          correct_answer: answerById.get(q.id)?.correct_answer ?? null,
+          explanation: answerById.get(q.id)?.explanation ?? null,
+        },
+      ])
+    );
 
     // Existing SM-2 state for every node this submission touches, fetched once.
     const nodeIds = [
