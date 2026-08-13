@@ -214,5 +214,38 @@ check("two perfect answers -> 44", (() => {
 check("wrong answer drops 44 -> 33", sr.updateMastery(44, false, 0) === 33);
 check("clamped 0..100", sr.updateMastery(100, true, 5) <= 100 && sr.updateMastery(0, false, 0) >= 0);
 
+console.log("\n=== exam retrieval: buildTsQuery ===");
+const retrUrl = compile("examRetrieval.ts", "examRetrieval.mjs", [
+  /import \{ supabase \}[^\n]*\n/,
+  /export async function retrieveExamContext[\s\S]*?\n\}\n/,
+]);
+const retr = await import(retrUrl);
+
+const q1 = retr.buildTsQuery("How do I solve projectile motion problems?");
+check("drops stopwords and question words", !/\b(how|do|solve|problems)\b/.test(q1), q1);
+check("keeps subject terms", q1.includes("projectile") && q1.includes("motion"), q1);
+check("joins with OR", q1.includes(" | "), q1);
+
+// AND semantics cannot match a chapter literally named "Kinematics"; verified
+// against the live database, where the AND form returned zero rows.
+check("never emits AND operators", !q1.includes("&"), q1);
+
+// tsquery operators must not survive: to_tsquery would either error or be
+// steered by them.
+const injected = retr.buildTsQuery("motion & !kinematics | (drop):* 'x'");
+check("strips tsquery operators", !/[&!:*'()|]/.test(injected.replace(/ \| /g, " ")), injected);
+check("still yields usable terms", injected.includes("motion"), injected);
+
+check("empty input yields empty query", retr.buildTsQuery("") === "");
+check("stopwords-only yields empty query", retr.buildTsQuery("how do I the a of") === "");
+check("short tokens dropped", !retr.buildTsQuery("a be at momentum").includes("be"),
+  retr.buildTsQuery("a be at momentum"));
+check("deduplicates repeated terms",
+  retr.buildTsQuery("motion motion motion").split(" | ").length === 1);
+
+const manyTerms = retr.buildTsQuery(Array.from({ length: 40 }, (_, i) => `term${i}`).join(" "));
+check("caps term count at 12", manyTerms.split(" | ").length === 12,
+  `${manyTerms.split(" | ").length}`);
+
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail === 0 ? 0 : 1);

@@ -10,6 +10,8 @@ import { aiStream } from "@/lib/aiService";
 import { getAuthHeaders } from "@/lib/authHeaders";
 import { getDoubtSystemPrompt } from "@/lib/prompts";
 import { useStudentExamContext } from "@/lib/examTracks";
+import { retrieveExamContext, citationLabels } from "@/lib/examRetrieval";
+import GroundingCitations from "@/components/GroundingCitations";
 import { extractYouTubeVideoId } from "@/lib/youtube";
 
 /**
@@ -44,12 +46,10 @@ const AISolution = () => {
   // starting generic and "fixing" it later would be too late, the answer is
   // already streaming.
   const { data: examCtx, isLoading: examLoading } = useStudentExamContext();
-  const systemPrompt = examCtx?.track
-    ? getDoubtSystemPrompt({
-        examName: examCtx.track.name,
-        daysRemaining: examCtx.daysRemaining,
-      })
-    : getDoubtSystemPrompt(null);
+
+  // Sources the answer was grounded in (Phase 2.4). Shown beneath the answer so
+  // the grounding is verifiable rather than merely claimed in the prompt.
+  const [citations, setCitations] = useState<string[]>([]);
 
   const [answer, setAnswer] = useState("");
   const [loading, setLoading] = useState(true);
@@ -108,6 +108,29 @@ const AISolution = () => {
             }
           }
         }
+
+        // Retrieve syllabus text and past questions BEFORE streaming: the
+        // grounding has to be in the system prompt from the first token, since
+        // an answer cannot be re-grounded once it has started.
+        //
+        // A YouTube-derived question is left ungrounded — the transcript is
+        // already the authoritative source the student chose, and injecting
+        // syllabus text alongside it would put two sources in tension.
+        const retrieved = youtubeContext
+          ? null
+          : await retrieveExamContext(examCtx?.examTrackId, question || "");
+
+        if (retrieved?.grounded && componentMountedRef.current) {
+          setCitations(citationLabels(retrieved));
+        }
+
+        const systemPrompt = examCtx?.track
+          ? getDoubtSystemPrompt({
+              examName: examCtx.track.name,
+              daysRemaining: examCtx.daysRemaining,
+              examContext: retrieved?.contextText || undefined,
+            })
+          : getDoubtSystemPrompt(null);
 
         let full = "";
         await aiStream(
@@ -220,9 +243,12 @@ const AISolution = () => {
         {error ? (
           <p className="text-sm text-destructive">{error}</p>
         ) : answer ? (
-          <div className="prose prose-sm max-w-none dark:prose-invert">
-            <ReactMarkdown>{answer}</ReactMarkdown>
-          </div>
+          <>
+            <div className="prose prose-sm max-w-none dark:prose-invert">
+              <ReactMarkdown>{answer}</ReactMarkdown>
+            </div>
+            <GroundingCitations labels={citations} />
+          </>
         ) : loading ? (
           <div className="flex items-center gap-2 text-sm text-muted-foreground py-8 justify-center">
             <Loader2 className="h-5 w-5 animate-spin" /> Thinking...

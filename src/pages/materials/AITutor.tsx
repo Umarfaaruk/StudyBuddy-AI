@@ -7,6 +7,8 @@ import ReactMarkdown from "react-markdown";
 import { aiStream, aiComplete } from "@/lib/aiService";
 import { TUTOR_SYSTEM_PROMPT, getDocSystemPrompt, DOC_ANALYSIS_SYSTEM_PROMPT, getExamTutorPrompt } from "@/lib/prompts";
 import { useStudentExamContext } from "@/lib/examTracks";
+import { retrieveExamContext, citationLabels } from "@/lib/examRetrieval";
+import GroundingCitations from "@/components/GroundingCitations";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import {
@@ -190,6 +192,8 @@ const AITutor = ({ hideHeader = false }: { hideHeader?: boolean } = {}) => {
   const { user } = useAuth();
   // Grounds open-ended tutoring in the student's exam syllabus.
   const { data: examCtx } = useStudentExamContext();
+  // Sources behind the most recent answer (Phase 2.4).
+  const [citations, setCitations] = useState<string[]>([]);
   const queryClient = useQueryClient();
   const [question, setQuestion] = useState("");
   const [messages, setMessages] = useState<Message[]>([]);
@@ -372,13 +376,22 @@ const AITutor = ({ hideHeader = false }: { hideHeader?: boolean } = {}) => {
 
     // A selected document stays the source of truth — the student uploaded it
     // deliberately, so exam grounding must not override their own material.
-    // Only the open-ended mode gets grounded in the exam syllabus.
+    // Only the open-ended mode is grounded in the exam syllabus (Phase 2.4);
+    // retrieval is keyed on THIS message, not the whole thread, so grounding
+    // follows the topic as the conversation moves.
+    const retrieved = selectedMaterial
+      ? null
+      : await retrieveExamContext(examCtx?.examTrackId, userMessage);
+
+    setCitations(retrieved?.grounded ? citationLabels(retrieved) : []);
+
     const systemPrompt = selectedMaterial
       ? getDocSystemPrompt(selectedMaterial.file_name, selectedMaterial.extracted_text)
       : examCtx?.track
         ? getExamTutorPrompt({
             examName: examCtx.track.name,
             daysRemaining: examCtx.daysRemaining,
+            examContext: retrieved?.contextText || undefined,
           })
         : TUTOR_SYSTEM_PROMPT;
 
@@ -753,6 +766,12 @@ const AITutor = ({ hideHeader = false }: { hideHeader?: boolean } = {}) => {
                         >
                           {copiedIdx === idx ? <Check className="h-3.5 w-3.5 text-green-500" /> : <Copy className="h-3.5 w-3.5 text-gray-400" />}
                         </button>
+                        {/* Only on the latest answer: `citations` tracks the most
+                            recent retrieval, so attaching it to older messages
+                            would mislabel what those were grounded in. */}
+                        {idx === messages.length - 1 && !streaming && (
+                          <GroundingCitations labels={citations} />
+                        )}
                       </div>
                     ) : streaming && idx === messages.length - 1 ? (
                       <div className="flex items-center gap-2 text-gray-400">
