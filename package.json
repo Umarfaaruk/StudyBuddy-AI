@@ -15,7 +15,9 @@
     "test:unit": "node tests/unit/diagnostic.test.mjs",
     "qa": "node tests/run-qa.mjs",
     "load:frontend": "node tests/run-load.mjs --mode frontend",
-    "load:api": "node tests/run-load.mjs --mode api"
+    "load:api": "node tests/run-load.mjs --mode api",
+    "test:onboarding": "node tests/unit/onboarding.test.mjs",
+    "test": "npm run test:unit && npm run test:onboarding"
   },
   "dependencies": {
     "@gsap/react": "^2.1.2",

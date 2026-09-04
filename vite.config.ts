@@ -97,6 +97,11 @@ export default defineConfig(({ command, mode }) => {
               // Resolve to .ts or .js file in ./api/ directory
               let apiPath = path.resolve(__dirname, `./api/${apiName}.ts`);
               let exists = true;
+              // Route params captured from [bracket] segments, merged into
+              // req.query below so handlers read them exactly as they do on
+              // Vercel.
+              const routeParams: Record<string, string> = {};
+
               try {
                 await fs.promises.access(apiPath);
               } catch {
@@ -108,6 +113,27 @@ export default defineConfig(({ command, mode }) => {
                 }
               }
 
+              // Vercel resolves ./api/foo/[type].ts for /api/foo/NEET, but this
+              // middleware only ever tried the literal path — so a dynamic
+              // route worked in production and 404'd locally. Fall back to a
+              // bracket match so dev and prod agree.
+              if (!exists) {
+                const segments = apiName.split("/");
+                const dir = path.resolve(__dirname, "./api", ...segments.slice(0, -1));
+                const leaf = segments[segments.length - 1];
+                try {
+                  const candidates = await fs.promises.readdir(dir);
+                  const dynamic = candidates.find((f) => /^\[[^\]]+\]\.(ts|js)$/.test(f));
+                  if (dynamic) {
+                    routeParams[dynamic.replace(/^\[|\]\.(ts|js)$/g, "")] = decodeURIComponent(leaf);
+                    apiPath = path.resolve(dir, dynamic);
+                    exists = true;
+                  }
+                } catch {
+                  // Directory does not exist — fall through to next().
+                }
+              }
+
               if (!exists) {
                 next();
                 return;
@@ -116,8 +142,10 @@ export default defineConfig(({ command, mode }) => {
               // Import API handler dynamically (file:// URL required on Windows ESM, use query parameter to bypass ESM cache)
               const { default: handler } = await import(`${pathToFileURL(apiPath).href}?t=${Date.now()}`);
 
-              // Parse search query params
-              const query: Record<string, string> = {};
+              // Parse search query params. Route params from [bracket]
+              // segments are merged in first, matching Vercel, where both
+              // arrive together on req.query.
+              const query: Record<string, string> = { ...routeParams };
               urlObj.searchParams.forEach((val, key) => {
                 query[key] = val;
               });
