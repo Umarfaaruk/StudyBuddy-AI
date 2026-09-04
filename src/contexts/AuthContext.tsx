@@ -104,7 +104,21 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       if (next) void redeemPendingAttribution(next.uid);
     };
 
-    supabase.auth.getSession().then(({ data }) => apply(data.session?.user));
+    // MUST have a rejection handler. getSession() can reject on a network
+    // failure, a corrupted stored session, or clock skew — and without a catch
+    // `apply()` never runs, so `loading` stays true forever and ProtectedRoute
+    // shows its spinner indefinitely. The user is then permanently stuck on a
+    // loading screen with no error and no way forward.
+    //
+    // Treat a failure as "no session": the user lands on /login, which is
+    // recoverable, instead of hanging.
+    supabase.auth
+      .getSession()
+      .then(({ data }) => apply(data.session?.user))
+      .catch((err) => {
+        console.error("[AuthContext] getSession failed:", err);
+        apply(null);
+      });
     const { data: sub } = supabase.auth.onAuthStateChange((_event, session) => apply(session?.user));
 
     return () => sub.subscription.unsubscribe();

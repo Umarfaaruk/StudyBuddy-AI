@@ -86,6 +86,7 @@ const Feedback = lazyWithReload(() => import("./pages/Feedback"));
 const DiagnosticFlow = lazyWithReload(() => import("./pages/diagnostic/DiagnosticFlow"));
 const DiagnosticResults = lazyWithReload(() => import("./pages/diagnostic/DiagnosticResults"));
 const PracticeSession = lazyWithReload(() => import("./pages/practice/PracticeSession"));
+const DynamicOnboarding = lazyWithReload(() => import("./pages/onboarding/DynamicOnboarding"));
 const MockTestList = lazyWithReload(() => import("./pages/mock/MockTestList"));
 const MockTestSession = lazyWithReload(() => import("./pages/mock/MockTestSession"));
 const MockTestResults = lazyWithReload(() => import("./pages/mock/MockTestResults"));
@@ -123,12 +124,12 @@ const App = () => (
             <Suspense fallback={<PageLoader />}>
             <Routes>
               {/* Public */}
-              <Route path="/" element={<Index />} />
-              <Route path="/about" element={<About />} />
+              <Route path="/" element={<ErrorBoundary><Index /></ErrorBoundary>} />
+              <Route path="/about" element={<ErrorBoundary><About /></ErrorBoundary>} />
               <Route path="/pricing" element={<Navigate to="/" replace />} />
-              <Route path="/login" element={<Login />} />
-              <Route path="/signup" element={<Signup />} />
-              <Route path="/admin-login" element={<AdminLogin />} />
+              <Route path="/login" element={<ErrorBoundary><Login /></ErrorBoundary>} />
+              <Route path="/signup" element={<ErrorBoundary><Signup /></ErrorBoundary>} />
+              <Route path="/admin-login" element={<ErrorBoundary><AdminLogin /></ErrorBoundary>} />
 
               {/* Public growth surfaces (Phase 4). No auth: the whole point of a
                   lead magnet is that it works before anyone signs up. */}
@@ -140,6 +141,15 @@ const App = () => (
                 path="/onboarding"
                 element={<ProtectedRoute><OnboardingFlow /></ProtectedRoute>}
               />
+              {/* Registry-driven onboarding (NEET / GENERAL). Decoupled from
+                  the legacy 9-stage flow, which is untouched and still serves
+                  /onboarding. Make this the default by pointing /onboarding
+                  here instead. */}
+              <Route
+                path="/onboarding/flow"
+                element={<ProtectedRoute><ErrorBoundary><DynamicOnboarding /></ErrorBoundary></ProtectedRoute>}
+              />
+
               {/* Legacy onboarding routes redirect to new flow */}
               <Route path="/onboarding/profile" element={<Navigate to="/onboarding" replace />} />
               <Route path="/onboarding/goals" element={<Navigate to="/onboarding" replace />} />
@@ -194,7 +204,7 @@ const App = () => (
                 <Route path="/admin" element={<AdminRoute><ErrorBoundary><AdminPanel /></ErrorBoundary></AdminRoute>} />
               </Route>
 
-              <Route path="*" element={<NotFound />} />
+              <Route path="*" element={<ErrorBoundary><NotFound /></ErrorBoundary>} />
             </Routes>
             </Suspense>
           </DeepFocusProvider>

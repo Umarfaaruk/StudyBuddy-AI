@@ -17,7 +17,8 @@
     "load:frontend": "node tests/run-load.mjs --mode frontend",
     "load:api": "node tests/run-load.mjs --mode api",
     "test:onboarding": "node tests/unit/onboarding.test.mjs",
-    "test": "npm run test:unit && npm run test:onboarding"
+    "test": "npm run test:unit && npm run test:onboarding",
+    "verify": "node tests/verify-integrations.mjs"
   },
   "dependencies": {
     "@gsap/react": "^2.1.2",

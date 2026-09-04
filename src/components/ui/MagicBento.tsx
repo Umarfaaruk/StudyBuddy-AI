@@ -596,6 +596,15 @@ export const MagicBento = ({
                   );
                 };
 
+                // Bind once per element. React re-invokes an inline ref
+                // callback whenever its identity changes — which is every
+                // render — so without this guard three more GSAP handlers
+                // stack onto the same card each time. On the landing page that
+                // grows unbounded and every mousemove then runs N copies of
+                // the same animation work.
+                if (el.dataset.bentoBound === '1') return;
+                el.dataset.bentoBound = '1';
+
                 el.addEventListener('mousemove', handleMouseMove);
                 el.addEventListener('mouseleave', handleMouseLeave);
                 el.addEventListener('click', handleClick);
