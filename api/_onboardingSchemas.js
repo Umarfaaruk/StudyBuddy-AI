@@ -23,7 +23,7 @@
  */
 import { z } from "zod";
 
-export const FLOW_TYPES = ["JEE", "NEET", "GENERAL"];
+export const FLOW_TYPES = ["JEE", "NEET", "GATE", "GENERAL"];
 
 /**
  * Map an exam track to its onboarding flow.
@@ -40,6 +40,11 @@ export function flowTypeForExamTrack(examTrackId) {
       return "JEE";
     case "neet":
       return "NEET";
+    case "gate-cs":
+    case "gate-ec":
+    case "gate-ee":
+    case "gate-me":
+      return "GATE";
     default:
       return "GENERAL";
   }
@@ -169,6 +174,88 @@ const NEET_QUESTIONS = [
   },
   coachingStatus,
   coachingName,
+  studyHours(EXAM_HOURS),
+  biggestChallenge,
+];
+
+/**
+ * GATE differs from school-leaving exams in ways the questions must reflect:
+ * candidates are final-year undergraduates or working engineers, the score that
+ * matters is a normalised GATE score out of 1000 plus an All India Rank, and
+ * the outcome they are chasing is usually a PSU job OR an M.Tech seat — which
+ * changes what "doing well" means to them.
+ */
+const GATE_QUESTIONS = [
+  {
+    id: "candidateStage",
+    label: "Where are you right now?",
+    type: "single_select",
+    required: true,
+    options: [
+      "Pre-final year",
+      "Final year",
+      "Graduated, preparing full-time",
+      "Working professional",
+    ],
+  },
+  attemptNumber("GATE"),
+  {
+    id: "previousScore",
+    label: "What was your GATE score last time?",
+    type: "number",
+    required: true,
+    min: 0,
+    max: 1000,
+    help: "The normalised GATE score, out of 1000.",
+    showIf: { field: "attemptNumber", notEquals: "First" },
+  },
+  {
+    id: "targetGoal",
+    label: "What are you aiming for?",
+    type: "single_select",
+    required: true,
+    options: ["PSU recruitment", "M.Tech at an IIT", "M.Tech at an NIT", "Research / PhD", "Not decided"],
+  },
+  {
+    id: "targetScore",
+    label: "What GATE score are you targeting?",
+    type: "number",
+    required: true,
+    min: 0,
+    max: 1000,
+  },
+  {
+    id: "weakSubjects",
+    label: "Which areas worry you most?",
+    type: "multi_select",
+    required: true,
+    minSelected: 1,
+    // Kept deliberately paper-agnostic so one flow serves CS, ECE and any GATE
+    // paper added later without a new registry entry.
+    options: [
+      "General Aptitude",
+      "Engineering Mathematics",
+      "Core subjects",
+      "Programming / numerical problems",
+      "Theory-heavy subjects",
+    ],
+  },
+  {
+    id: "preparationMode",
+    label: "How are you preparing?",
+    type: "single_select",
+    required: true,
+    options: ["Coaching institute", "Online course", "Self-study", "Alongside a job"],
+  },
+  {
+    // Only asked of the people for whom it is the binding constraint.
+    id: "weekdayHours",
+    label: "Realistically, how many hours on a working day?",
+    type: "single_select",
+    required: true,
+    options: ["Less than 1", "1-2", "2-3", "More than 3"],
+    showIf: { field: "preparationMode", equals: "Alongside a job" },
+  },
   studyHours(EXAM_HOURS),
   biggestChallenge,
 ];
@@ -340,6 +427,13 @@ export const ONBOARDING_REGISTRY = {
     description: "A few questions about your background and how you are preparing.",
     questions: JEE_QUESTIONS,
     schema: buildFlowSchema("JEE", JEE_QUESTIONS),
+  },
+  GATE: {
+    flowType: "GATE",
+    title: "GATE preparation",
+    description: "A few questions about your background and what you are aiming for.",
+    questions: GATE_QUESTIONS,
+    schema: buildFlowSchema("GATE", GATE_QUESTIONS),
   },
   NEET: {
     flowType: "NEET",

@@ -55,6 +55,25 @@ const DynamicOnboarding = () => {
   const [serverIssues, setServerIssues] = useState<{ path: string; message: string }[]>([]);
   const [submitting, setSubmitting] = useState(false);
 
+  /**
+   * Tracks grouped by category, preserving sort_order within each group and
+   * ordering the groups by their first member. With JEE, NEET and two GATE
+   * papers the flat list stopped reading as a set of choices; a GATE candidate
+   * should see "GATE" once and pick a paper under it.
+   *
+   * Rows predating the category column fall into "Other exams" rather than
+   * vanishing — an unlabelled exam must still be selectable.
+   */
+  const groupedTracks = useMemo(() => {
+    const groups = new Map<string, typeof tracks>();
+    for (const t of tracks ?? []) {
+      const key = t.category?.trim() || "Other exams";
+      if (!groups.has(key)) groups.set(key, []);
+      groups.get(key)!.push(t);
+    }
+    return [...groups.entries()];
+  }, [tracks]);
+
   // The flow follows the exam. Changing exam therefore changes the questions.
   const flowType: FlowType = useMemo(
     () => flowTypeForExamTrack(examTrackId),
@@ -175,27 +194,39 @@ const DynamicOnboarding = () => {
               </div>
             ) : (
               <div className="grid gap-2">
-                {(tracks ?? []).map((t) => (
-                  <button
-                    key={t.id}
-                    type="button"
-                    onClick={() => selectExam(t.id)}
-                    aria-pressed={examTrackId === t.id}
-                    className={`text-left px-4 py-3.5 rounded-xl border transition-colors ${
-                      examTrackId === t.id
-                        ? "bg-primary text-primary-foreground border-primary"
-                        : "bg-card border-border text-foreground hover:border-primary/40"
-                    }`}
-                  >
-                    <div className="text-sm font-semibold">{t.name}</div>
-                    {t.description && (
-                      <div className={`text-xs mt-0.5 ${
-                        examTrackId === t.id ? "text-primary-foreground/80" : "text-muted-foreground"
-                      }`}>
-                        {t.description}
+                {groupedTracks.map(([category, group]) => (
+                  <div key={category} className="grid gap-2">
+                    {/* Only worth a heading once a category holds more than one
+                        paper — a lone "NEET" under a "Medical Entrance" label is
+                        a heading that says nothing. */}
+                    {(group?.length ?? 0) > 1 && (
+                      <div className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground pt-2">
+                        {category}
                       </div>
                     )}
-                  </button>
+                    {(group ?? []).map((t) => (
+                      <button
+                        key={t.id}
+                        type="button"
+                        onClick={() => selectExam(t.id)}
+                        aria-pressed={examTrackId === t.id}
+                        className={`text-left px-4 py-3.5 rounded-xl border transition-colors ${
+                          examTrackId === t.id
+                            ? "bg-primary text-primary-foreground border-primary"
+                            : "bg-card border-border text-foreground hover:border-primary/40"
+                        }`}
+                      >
+                        <div className="text-sm font-semibold">{t.name}</div>
+                        {t.description && (
+                          <div className={`text-xs mt-0.5 ${
+                            examTrackId === t.id ? "text-primary-foreground/80" : "text-muted-foreground"
+                          }`}>
+                            {t.description}
+                          </div>
+                        )}
+                      </button>
+                    ))}
+                  </div>
                 ))}
 
                 {/* Never a dead end: someone preparing for something we do not

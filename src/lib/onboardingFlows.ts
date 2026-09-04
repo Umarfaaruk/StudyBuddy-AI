@@ -36,6 +36,11 @@ export function flowTypeForExamTrack(examTrackId: string | null | undefined): Fl
       return "JEE";
     case "neet":
       return "NEET";
+    case "gate-cs":
+    case "gate-ec":
+    case "gate-ee":
+    case "gate-me":
+      return "GATE";
     default:
       return "GENERAL";
   }

@@ -40,7 +40,7 @@ const validGeneral = {
 
 console.log("\n=== registry ===");
 check("exposes all three flows",
-  FLOW_TYPES.length === 3 && ["JEE","NEET","GENERAL"].every(f => FLOW_TYPES.includes(f)),
+  FLOW_TYPES.length === 4 && ["JEE","NEET","GATE","GENERAL"].every(f => FLOW_TYPES.includes(f)),
   FLOW_TYPES.join(","));
 check("getFlow is case-insensitive", getFlow("neet")?.flowType === "NEET");
 check("getFlow rejects unknown", getFlow("BOGUS") === null);
@@ -89,6 +89,8 @@ const { flowTypeForExamTrack, isQuestionVisible, visibleQuestions } = mod;
 console.log("\n=== exam track -> flow ===");
 check("jee-main -> JEE", flowTypeForExamTrack("jee-main") === "JEE");
 check("neet -> NEET", flowTypeForExamTrack("neet") === "NEET");
+check("gate-cs -> GATE", flowTypeForExamTrack("gate-cs") === "GATE");
+check("gate-ec -> GATE", flowTypeForExamTrack("gate-ec") === "GATE");
 check("case-insensitive", flowTypeForExamTrack("JEE-MAIN") === "JEE");
 check("unknown track -> GENERAL", flowTypeForExamTrack("tspsc-group-1") === "GENERAL");
 check("null track -> GENERAL", flowTypeForExamTrack(null) === "GENERAL");
@@ -149,6 +151,102 @@ check("NEET rejects JEE-only subject",
 check("JEE rejects NEET-only subject",
   !validateSubmission("JEE", { ...jeeFirst, weakSubjects: ["Botany"] }).ok);
 check("JEE payload rejected on NEET route", !validateSubmission("NEET", jeeFirst).ok);
+
+
+
+/* ── GATE flow (Phase 1b) ─────────────────────────────────────────────────── */
+console.log("\n=== GATE flow ===");
+const gate = getFlow("GATE");
+check("GATE flow exists", gate !== null);
+
+// GATE is scored out of 1000, not 300 (JEE) or 720 (NEET). Getting this wrong
+// would let a candidate enter a target their exam cannot produce.
+const gateTarget = gate.questions.find(q => q.id === "targetScore");
+check("targetScore capped at 1000", gateTarget.max === 1000, String(gateTarget.max));
+
+// Working professionals are the only ones for whom weekday hours is the binding
+// constraint; asking everyone else is noise.
+const weekday = gate.questions.find(q => q.id === "weekdayHours");
+check("weekdayHours conditional", !!weekday.showIf);
+check("shown when preparing alongside a job",
+  isQuestionVisible(weekday, { preparationMode: "Alongside a job" }));
+check("hidden for full-time preparation",
+  !isQuestionVisible(weekday, { preparationMode: "Self-study" }));
+check("hidden while unanswered", !isQuestionVisible(weekday, {}));
+
+const gateFirst = {
+  flowType: "GATE", candidateStage: "Final year", attemptNumber: "First",
+  targetGoal: "PSU recruitment", targetScore: 750,
+  weakSubjects: ["Engineering Mathematics"],
+  preparationMode: "Self-study", studyHoursPerDay: "4-6",
+};
+const g1 = validateSubmission("GATE", gateFirst);
+check("first attempt valid without previousScore", g1.ok, JSON.stringify(g1.issues));
+
+const g2 = validateSubmission("GATE", { ...gateFirst, previousScore: 620 });
+check("previousScore rejected for a first attempt", !g2.ok);
+
+const g3 = validateSubmission("GATE",
+  { ...gateFirst, attemptNumber: "Second", previousScore: 620 });
+check("second attempt valid WITH previousScore", g3.ok, JSON.stringify(g3.issues));
+
+const g4 = validateSubmission("GATE", { ...gateFirst, attemptNumber: "Second" });
+check("second attempt REQUIRES previousScore", !g4.ok);
+
+const g5 = validateSubmission("GATE",
+  { ...gateFirst, preparationMode: "Alongside a job" });
+check("weekdayHours required once shown", !g5.ok);
+
+const g6 = validateSubmission("GATE",
+  { ...gateFirst, preparationMode: "Alongside a job", weekdayHours: "1-2" });
+check("valid once weekdayHours supplied", g6.ok, JSON.stringify(g6.issues));
+
+// A JEE answer set must not validate as GATE, or a mis-set flowType would
+// silently persist the wrong profile.
+check("JEE answers rejected as GATE", !validateSubmission("GATE", jeeFirst).ok);
+
+
+/* ── Server/client parity of the track -> flow map ────────────────────────── */
+/**
+ * src/lib/onboardingFlows.ts duplicates flowTypeForExamTrack() because the .ts
+ * cannot import the .js registry at runtime across the ESM boundary. A silent
+ * divergence would show a student one set of questions and validate them
+ * against another, so the two switch statements are compared as source.
+ */
+console.log("\n=== server/client mirror parity ===");
+const { readFileSync } = await import("fs");   // ROOT is already resolved above.
+
+/** Extract `case "x": ... return "Y"` pairs from a flowTypeForExamTrack body. */
+function extractMap(source) {
+  const body = source.slice(source.indexOf("function flowTypeForExamTrack"));
+  const switchBody = body.slice(body.indexOf("switch"), body.indexOf("\n}"));
+  const map = new Map();
+  let pending = [];
+  for (const line of switchBody.split("\n")) {
+    const c = line.match(/case\s+"([^"]+)"/);
+    if (c) { pending.push(c[1]); continue; }
+    const r = line.match(/return\s+"([^"]+)"/);
+    if (r) { for (const k of pending) map.set(k, r[1]); pending = []; }
+  }
+  return map;
+}
+
+const serverMap = extractMap(readFileSync(resolve(ROOT, "api/_onboardingSchemas.js"), "utf8"));
+const clientMap = extractMap(readFileSync(resolve(ROOT, "src/lib/onboardingFlows.ts"), "utf8"));
+
+check("server map is non-empty", serverMap.size > 0, `${serverMap.size} entries`);
+check("both maps cover the same tracks",
+  serverMap.size === clientMap.size &&
+  [...serverMap.keys()].every(k => clientMap.has(k)),
+  `server=[${[...serverMap.keys()]}] client=[${[...clientMap.keys()]}]`);
+check("every track maps to the same flow",
+  [...serverMap].every(([k, v]) => clientMap.get(k) === v),
+  [...serverMap].filter(([k, v]) => clientMap.get(k) !== v).map(([k]) => k).join(", ") || "all agree");
+
+// Parity is worthless if the flow it names does not exist.
+check("every mapped flow is a real flow",
+  [...new Set(serverMap.values())].every(f => getFlow(f) !== null));
+
 
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail === 0 ? 0 : 1);

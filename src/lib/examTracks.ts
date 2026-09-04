@@ -28,6 +28,8 @@ export interface ExamTrack {
   name: string;
   full_name: string | null;
   description: string | null;
+  /** Grouping label for the exam picker, e.g. "GATE". Null on older rows. */
+  category: string | null;
   is_active: boolean;
   sort_order: number;
 }
