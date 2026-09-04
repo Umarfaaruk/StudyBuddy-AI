@@ -86,6 +86,9 @@ const Feedback = lazyWithReload(() => import("./pages/Feedback"));
 const DiagnosticFlow = lazyWithReload(() => import("./pages/diagnostic/DiagnosticFlow"));
 const DiagnosticResults = lazyWithReload(() => import("./pages/diagnostic/DiagnosticResults"));
 const PracticeSession = lazyWithReload(() => import("./pages/practice/PracticeSession"));
+const MockTestList = lazyWithReload(() => import("./pages/mock/MockTestList"));
+const MockTestSession = lazyWithReload(() => import("./pages/mock/MockTestSession"));
+const MockTestResults = lazyWithReload(() => import("./pages/mock/MockTestResults"));
 
 /** Shared loading fallback shown while a route chunk downloads */
 const PageLoader = () => (
@@ -166,6 +169,12 @@ const App = () => (
                 {/* Bank-backed drill for one syllabus concept — the action the
                     review queue points at (Phase 2.2). */}
                 <Route path="/practice/:nodeId" element={<ErrorBoundary><PracticeSession /></ErrorBoundary>} />
+
+                {/* Mock tests (Phase 3.1). :testId/results is declared BEFORE
+                    :testId so the literal segment is not swallowed by the param. */}
+                <Route path="/mock" element={<ErrorBoundary><MockTestList /></ErrorBoundary>} />
+                <Route path="/mock/:testId/results" element={<ErrorBoundary><MockTestResults /></ErrorBoundary>} />
+                <Route path="/mock/:testId" element={<ErrorBoundary><MockTestSession /></ErrorBoundary>} />
 
                 <Route path="/progress" element={<ErrorBoundary><ProgressDashboard /></ErrorBoundary>} />
                 <Route path="/timer" element={<ErrorBoundary><TimerPage /></ErrorBoundary>} />

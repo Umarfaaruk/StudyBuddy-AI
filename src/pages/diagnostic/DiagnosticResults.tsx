@@ -8,6 +8,7 @@ import { useStudentExamContext } from "@/lib/examTracks";
 import { rankWeakestTopics, type PerTopicResult } from "@/lib/diagnostic";
 import MistakeReview, { type Mistake } from "@/components/MistakeReview";
 import { generateStudyPlan, saveStudyPlan, DEFAULT_HORIZON_DAYS, type GeneratedPlan } from "@/lib/studyPlan";
+import { captureMasterySnapshot } from "@/lib/mockTests";
 
 /**
  * DIAGNOSTIC RESULTS
@@ -68,6 +69,10 @@ const DiagnosticResults = () => {
           examCtx?.daysRemaining && examCtx.daysRemaining > 0
             ? examCtx.daysRemaining
             : DEFAULT_HORIZON_DAYS;
+
+        // Baseline snapshot: without one the outcome series would start at the
+        // first mock test, losing the "before" half of a before/after story.
+        await captureMasterySnapshot(user.uid);
 
         const generated = generateStudyPlan(state.perTopic, horizon);
         if (cancelled) return;

@@ -5,6 +5,7 @@ import {
   Star, AlertTriangle, Target, Trash2, Eye, Image, CheckCircle, X, Database
 } from "lucide-react";
 import QuestionBankImport from "@/components/admin/QuestionBankImport";
+import CohortAnalytics from "@/components/admin/CohortAnalytics";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/lib/supabase";
 import { createNotification } from "@/contexts/NotificationContext";
@@ -35,7 +36,7 @@ const AdminPanel = () => {
   const { user } = useAuth();
   const [searchQuery, setSearchQuery] = useState("");
   const [expandedUserId, setExpandedUserId] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<"insights" | "users" | "feedback" | "analytics" | "complaints" | "question-bank">("insights");
+  const [activeTab, setActiveTab] = useState<"insights" | "users" | "feedback" | "analytics" | "complaints" | "question-bank" | "cohorts">("insights");
   const [confirmDeleteUserId, setConfirmDeleteUserId] = useState<string | null>(null);
   const [deletingUserId, setDeletingUserId] = useState<string | null>(null);
   const [togglingUserId, setTogglingUserId] = useState<string | null>(null);
@@ -690,7 +691,23 @@ const AdminPanel = () => {
           <Database className="h-4 w-4 inline mr-1.5 -mt-0.5" />
           Question Bank
         </button>
+        <button
+          onClick={() => { setActiveTab("cohorts"); setSearchQuery(""); }}
+          className={`px-4 py-2 rounded-xl text-sm font-semibold transition-all ${
+            activeTab === "cohorts" ? "bg-[#0F172A] text-white shadow-md" : "text-gray-400 hover:text-gray-900 hover:bg-gray-100"
+          }`}
+        >
+          <Users className="h-4 w-4 inline mr-1.5 -mt-0.5" />
+          Cohorts
+        </button>
       </div>
+
+      {/* Cohort analytics (Phase 3.3 / 3.4) */}
+      {activeTab === "cohorts" && (
+        <div className="bg-white rounded-2xl border border-gray-100 p-6">
+          <CohortAnalytics />
+        </div>
+      )}
 
       {/* Question bank ingestion (Phase 1) */}
       {activeTab === "question-bank" && (
