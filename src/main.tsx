@@ -5,6 +5,7 @@ import { initSentry } from "@/lib/sentry";
 import { enforceCanonicalDomain } from "@/lib/canonicalDomain";
 import { renderBootFailure } from "@/lib/bootFailure";
 import { clearLegacyStorage } from "@/lib/legacyStorage";
+import { capturePendingAttribution } from "@/lib/referrals";
 
 /**
  * APP BOOTSTRAP
@@ -61,6 +62,11 @@ if (!enforceCanonicalDomain()) {
 
   // Drop `eduonx_*` keys left behind by the pre-rebrand build.
   clearLegacyStorage();
+
+  // Stash ?ref= / ?code= BEFORE anything can navigate away. OAuth bounces to
+  // Google and back, and the query string does not survive that round trip —
+  // without this, every referral through Google sign-in would be lost.
+  capturePendingAttribution();
 
   // Optional Sentry tracing — a no-op unless VITE_SENTRY_DSN is configured.
   void initSentry();

@@ -5,6 +5,7 @@ import { supabase } from "@/lib/supabase";
 // FIX Bug 20: clear the study-session retry queue on sign out so one user's
 // unsaved sessions are never flushed under another user's id on a shared browser.
 import { RETRY_QUEUE_KEY } from "@/lib/studySession";
+import { redeemPendingAttribution } from "@/lib/referrals";
 
 import { SITE_ORIGIN as CONFIGURED_ORIGIN } from "@/lib/canonicalDomain";
 
@@ -97,6 +98,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       const next = toAppUser(sbUser);
       setUser((prev) => (sameUser(prev, next) ? prev : next));
       setLoading(false);
+      // Redeem any referral / institute code captured before signup. Idempotent
+      // (UNIQUE on referred_user_id, composite PK on cohort membership), so
+      // running it on every auth event is harmless.
+      if (next) void redeemPendingAttribution(next.uid);
     };
 
     supabase.auth.getSession().then(({ data }) => apply(data.session?.user));

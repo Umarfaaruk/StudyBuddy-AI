@@ -89,6 +89,8 @@ const PracticeSession = lazyWithReload(() => import("./pages/practice/PracticeSe
 const MockTestList = lazyWithReload(() => import("./pages/mock/MockTestList"));
 const MockTestSession = lazyWithReload(() => import("./pages/mock/MockTestSession"));
 const MockTestResults = lazyWithReload(() => import("./pages/mock/MockTestResults"));
+const FreeTest = lazyWithReload(() => import("./pages/public/FreeTest"));
+const PublicLeaderboard = lazyWithReload(() => import("./pages/public/PublicLeaderboard"));
 
 /** Shared loading fallback shown while a route chunk downloads */
 const PageLoader = () => (
@@ -127,6 +129,11 @@ const App = () => (
               <Route path="/login" element={<Login />} />
               <Route path="/signup" element={<Signup />} />
               <Route path="/admin-login" element={<AdminLogin />} />
+
+              {/* Public growth surfaces (Phase 4). No auth: the whole point of a
+                  lead magnet is that it works before anyone signs up. */}
+              <Route path="/free-test" element={<ErrorBoundary><FreeTest /></ErrorBoundary>} />
+              <Route path="/most-improved" element={<ErrorBoundary><PublicLeaderboard /></ErrorBoundary>} />
 
               {/* Protected: Onboarding (new multi-stage flow) */}
               <Route
