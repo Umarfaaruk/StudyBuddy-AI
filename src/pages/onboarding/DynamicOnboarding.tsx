@@ -1,85 +1,114 @@
-import { useCallback, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { ArrowRight, Loader2 } from "lucide-react";
+import { ArrowRight, ArrowLeft, Loader2, GraduationCap } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import BrandMark from "@/components/BrandMark";
 import QuestionnaireRenderer from "@/components/onboarding/QuestionnaireRenderer";
 import DeploymentHealthNotice from "@/components/onboarding/DeploymentHealthNotice";
 import { useAuth } from "@/contexts/AuthContext";
 import { getAuthHeaders } from "@/lib/authHeaders";
-import { submitOnboarding, FLOW_LABELS, type FlowType } from "@/lib/onboardingFlows";
+import { useExamTracks } from "@/lib/examTracks";
+import { onboardingCopy } from "@/content/examPrepCopy";
+import {
+  submitOnboarding, flowTypeForExamTrack, stripHiddenAnswers,
+  useOnboardingFlow, type FlowType,
+} from "@/lib/onboardingFlows";
 
 /**
- * DYNAMIC ONBOARDING  (flow registry)
- * ===================================
- * Flow picker, then a questionnaire rendered entirely from server-supplied
- * definitions.
+ * ONBOARDING  (exam-aware, registry-driven)
+ * =========================================
+ * Three steps: pick the exam, give a target date, answer questions chosen FOR
+ * that exam.
  *
- * DECOUPLED BY DESIGN: this page owns no questions, no validation rules and no
- * persistence schema. It selects a flow type and hands off. Adding, reordering
- * or revalidating questions — or adding a whole new flow — happens in the
- * server registry with no change here, which is the point of the requirement
- * that onboarding be updatable without touching core app logic.
+ * The questions adapt to the student on two axes:
+ *   • WHICH FLOW — derived from the exam track, so a JEE candidate is asked
+ *     about percentiles and IITs while a NEET candidate is asked about a score
+ *     out of 720. A student with no track gets the GENERAL profile flow.
+ *   • WHICH QUESTIONS — `showIf` rules hide what cannot apply. A first-time
+ *     candidate is never asked for a previous score; asking would invite an
+ *     invented answer.
  *
- * The deployment health notice is rendered ABOVE the form and never gates it. A
- * student cannot fix an unreachable third-party service, and blocking their
- * signup over one converts somebody else's outage into our lost registration.
+ * EXAM TRACK IS CAPTURED HERE, FIRST, AND DELIBERATELY. The diagnostic, exam
+ * countdown, RAG grounding, practice sets and mock tests all key off
+ * profiles.exam_track_id. A student finishing onboarding without one reaches a
+ * dashboard where every exam feature says "pick your exam" — so this replaced
+ * the legacy flow only once it captured the same thing.
  */
 
-const FLOWS: FlowType[] = ["NEET", "GENERAL"];
+type Step = "exam" | "date" | "questions";
 
 const DynamicOnboarding = () => {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { user } = useAuth();
+  const { data: tracks, isLoading: tracksLoading } = useExamTracks();
 
-  const [flowType, setFlowType] = useState<FlowType | null>(null);
+  const [step, setStep] = useState<Step>("exam");
+  const [examTrackId, setExamTrackId] = useState<string | null>(null);
+  const [targetDate, setTargetDate] = useState("");
+  const [dateUnknown, setDateUnknown] = useState(false);
+
   const [answers, setAnswers] = useState<Record<string, unknown>>({});
   const [isValid, setIsValid] = useState(false);
   const [serverIssues, setServerIssues] = useState<{ path: string; message: string }[]>([]);
   const [submitting, setSubmitting] = useState(false);
 
+  // The flow follows the exam. Changing exam therefore changes the questions.
+  const flowType: FlowType = useMemo(
+    () => flowTypeForExamTrack(examTrackId),
+    [examTrackId]
+  );
+
+  // Needed at submit time to strip answers to questions no longer visible.
+  const { data: flow } = useOnboardingFlow(step === "questions" ? flowType : null);
+
   /**
-   * Switching flow discards the previous answers.
+   * Changing exam discards answers.
    *
-   * NEET and GENERAL share field ids with different option sets, so carrying
-   * state across would leave a value that is valid in one flow and rejected by
-   * the other — surfacing only at submit, as an error the student cannot trace.
-   * QuestionnaireRenderer resets its own internal state on the same signal;
-   * this clears the lifted copy so the two cannot disagree.
+   * Flows share field ids (`weakSubjects` exists in both JEE and NEET) with
+   * DIFFERENT option sets — "Mathematics" is valid for JEE and rejected by
+   * NEET. Carrying answers across would surface only at submit, as an error
+   * whose cause is off-screen.
    */
-  const selectFlow = useCallback((next: FlowType) => {
-    setFlowType((prev) => {
-      if (prev !== next) {
+  const selectExam = useCallback((id: string) => {
+    setExamTrackId((prev) => {
+      if (prev !== id) {
         setAnswers({});
         setIsValid(false);
         setServerIssues([]);
       }
-      return next;
+      return id;
     });
   }, []);
 
   const handleChange = useCallback((next: Record<string, unknown>, valid: boolean) => {
     setAnswers(next);
     setIsValid(valid);
-    // Stale server errors must not linger after the student edits the field
-    // they were complaining about.
     setServerIssues((prev) => (prev.length ? [] : prev));
   }, []);
 
   const handleSubmit = useCallback(async () => {
-    if (!flowType || !user) return;
+    if (!user || !flow) return;
     setSubmitting(true);
     setServerIssues([]);
     try {
       const headers = await getAuthHeaders();
-      const result = await submitOnboarding(flowType, answers, headers);
+      const result = await submitOnboarding(
+        {
+          flowType,
+          // Hidden answers are stripped: the server rejects a value for a
+          // question that does not apply, which is what a stale conditional
+          // answer looks like.
+          answers: stripHiddenAnswers(flow.questions, answers),
+          examTrackId,
+          targetExamDate: dateUnknown ? null : targetDate || null,
+        },
+        headers
+      );
 
       if (!result.ok) {
-        // Field-level issues render inline; anything else gets a toast, so a
-        // failure is never silent.
         if (result.issues?.length) {
           setServerIssues(result.issues);
           toast.error("Please check the highlighted answers.");
@@ -89,17 +118,22 @@ const DynamicOnboarding = () => {
         return;
       }
 
+      // The dashboard, countdown and diagnostic all read these immediately.
       queryClient.invalidateQueries({ queryKey: ["profile-onboarding-check", user.uid] });
       queryClient.invalidateQueries({ queryKey: ["profile", user.uid] });
+      queryClient.invalidateQueries({ queryKey: ["student-exam-context", user.uid] });
+
       toast.success("You're all set.");
       navigate("/dashboard", { replace: true });
     } catch (err) {
-      console.error("[DynamicOnboarding] submit failed:", err);
+      console.error("[Onboarding] submit failed:", err);
       toast.error("Could not reach the server. Please try again.");
     } finally {
       setSubmitting(false);
     }
-  }, [flowType, user, answers, queryClient, navigate]);
+  }, [user, flow, flowType, answers, examTrackId, targetDate, dateUnknown, queryClient, navigate]);
+
+  const stepIndex = step === "exam" ? 0 : step === "date" ? 1 : 2;
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
@@ -109,50 +143,147 @@ const DynamicOnboarding = () => {
         </div>
       </header>
 
+      <div className="w-full bg-muted h-1.5">
+        <div
+          className="bg-primary h-1.5 rounded-r-full transition-all duration-500"
+          style={{ width: `${((stepIndex + 1) / 3) * 100}%` }}
+        />
+      </div>
+
       <main className="flex-1 max-w-2xl w-full mx-auto px-6 py-8 space-y-6">
-        {/* Advisory only — never blocks the flow below it. */}
+        {/* Advisory only — never gates the flow beneath it. */}
         <DeploymentHealthNotice />
 
-        <div>
-          <h1 className="font-display text-2xl font-bold text-foreground tracking-tight">
-            Let&rsquo;s set you up
-          </h1>
-          <p className="text-sm text-muted-foreground mt-1">
-            Pick what you&rsquo;re preparing for and we&rsquo;ll tailor the questions.
-          </p>
-        </div>
-
-        <div className="grid gap-2 sm:grid-cols-2">
-          {FLOWS.map((f) => (
-            <button
-              key={f}
-              type="button"
-              onClick={() => selectFlow(f)}
-              aria-pressed={flowType === f}
-              className={`text-left px-4 py-3.5 rounded-xl border transition-colors ${
-                flowType === f
-                  ? "bg-primary text-primary-foreground border-primary"
-                  : "bg-card border-border text-foreground hover:border-primary/40"
-              }`}
-            >
-              <div className="text-sm font-semibold">{FLOW_LABELS[f]}</div>
-              <div
-                className={`text-xs mt-0.5 ${
-                  flowType === f ? "text-primary-foreground/80" : "text-muted-foreground"
-                }`}
-              >
-                {f === "NEET"
-                  ? "Academic background and exam preparation"
-                  : "General profile and study preferences"}
+        {/* ── Step 1: exam ───────────────────────────────────────── */}
+        {step === "exam" && (
+          <div className="space-y-6">
+            <div className="text-center space-y-2">
+              <div className="inline-flex h-12 w-12 rounded-2xl bg-primary/10 items-center justify-center">
+                <GraduationCap className="h-6 w-6 text-primary" />
               </div>
-            </button>
-          ))}
-        </div>
+              <h1 className="font-display text-2xl font-bold text-foreground tracking-tight">
+                {onboardingCopy.examPickerLabel}
+              </h1>
+              <p className="text-sm text-muted-foreground">{onboardingCopy.examPickerHelp}</p>
+            </div>
 
-        {flowType && (
-          <>
-            {/* Keyed on flowType so React remounts on a switch — belt and braces
-                alongside the renderer's own reset. */}
+            {tracksLoading ? (
+              <div className="grid gap-2">
+                {[0, 1].map((i) => (
+                  <div key={i} className="h-[72px] rounded-xl border border-border bg-muted/40 animate-pulse" />
+                ))}
+              </div>
+            ) : (
+              <div className="grid gap-2">
+                {(tracks ?? []).map((t) => (
+                  <button
+                    key={t.id}
+                    type="button"
+                    onClick={() => selectExam(t.id)}
+                    aria-pressed={examTrackId === t.id}
+                    className={`text-left px-4 py-3.5 rounded-xl border transition-colors ${
+                      examTrackId === t.id
+                        ? "bg-primary text-primary-foreground border-primary"
+                        : "bg-card border-border text-foreground hover:border-primary/40"
+                    }`}
+                  >
+                    <div className="text-sm font-semibold">{t.name}</div>
+                    {t.description && (
+                      <div className={`text-xs mt-0.5 ${
+                        examTrackId === t.id ? "text-primary-foreground/80" : "text-muted-foreground"
+                      }`}>
+                        {t.description}
+                      </div>
+                    )}
+                  </button>
+                ))}
+
+                {/* Never a dead end: someone preparing for something we do not
+                    yet support still gets a profile and a working account. */}
+                <button
+                  type="button"
+                  onClick={() => selectExam("")}
+                  aria-pressed={examTrackId === ""}
+                  className={`text-left px-4 py-3.5 rounded-xl border transition-colors ${
+                    examTrackId === ""
+                      ? "bg-primary text-primary-foreground border-primary"
+                      : "bg-card border-border text-foreground hover:border-primary/40"
+                  }`}
+                >
+                  <div className="text-sm font-semibold">Something else</div>
+                  <div className={`text-xs mt-0.5 ${
+                    examTrackId === "" ? "text-primary-foreground/80" : "text-muted-foreground"
+                  }`}>
+                    General study profile
+                  </div>
+                </button>
+              </div>
+            )}
+
+            <Button
+              onClick={() => setStep("date")}
+              disabled={examTrackId === null}
+              className="w-full h-11 gap-2"
+            >
+              Continue <ArrowRight className="h-4 w-4" />
+            </Button>
+          </div>
+        )}
+
+        {/* ── Step 2: exam date ──────────────────────────────────── */}
+        {step === "date" && (
+          <div className="space-y-6">
+            <div className="space-y-2">
+              <h1 className="font-display text-2xl font-bold text-foreground tracking-tight">
+                {onboardingCopy.examDateLabel}
+              </h1>
+              <p className="text-sm text-muted-foreground">{onboardingCopy.examDateHelp}</p>
+            </div>
+
+            <input
+              type="date"
+              value={targetDate}
+              disabled={dateUnknown}
+              min={new Date().toISOString().slice(0, 10)}
+              onChange={(e) => setTargetDate(e.target.value)}
+              className="w-full h-11 rounded-lg border border-border bg-background px-3 text-sm disabled:opacity-50"
+            />
+
+            {/* A Class 11 student genuinely may not know. Blocking here would
+                cost the signup for information they cannot supply. */}
+            <label className="flex items-center gap-2 text-sm text-muted-foreground cursor-pointer">
+              <input
+                type="checkbox"
+                checked={dateUnknown}
+                onChange={(e) => {
+                  setDateUnknown(e.target.checked);
+                  if (e.target.checked) setTargetDate("");
+                }}
+                className="h-4 w-4 rounded border-border"
+              />
+              {onboardingCopy.examDateMissing}
+            </label>
+
+            <div className="flex gap-2">
+              <Button variant="outline" onClick={() => setStep("exam")} className="h-11 gap-2">
+                <ArrowLeft className="h-4 w-4" /> Back
+              </Button>
+              <Button
+                onClick={() => setStep("questions")}
+                disabled={!dateUnknown && !targetDate}
+                className="flex-1 h-11 gap-2"
+              >
+                Continue <ArrowRight className="h-4 w-4" />
+              </Button>
+            </div>
+          </div>
+        )}
+
+        {/* ── Step 3: exam-specific questions ────────────────────── */}
+        {step === "questions" && (
+          <div className="space-y-6">
+            {/* Keyed on flowType so React remounts on an exam change, alongside
+                the renderer's own reset. */}
             <QuestionnaireRenderer
               key={flowType}
               flowType={flowType}
@@ -160,14 +291,14 @@ const DynamicOnboarding = () => {
               serverIssues={serverIssues}
             />
 
-            <div className="flex items-center justify-between pt-2">
-              <p className="text-xs text-muted-foreground">
-                {isValid ? "Ready to submit" : "Answer the required questions to continue"}
-              </p>
+            <div className="flex items-center gap-2 pt-2">
+              <Button variant="outline" onClick={() => setStep("date")} className="h-11 gap-2">
+                <ArrowLeft className="h-4 w-4" /> Back
+              </Button>
               <Button
                 onClick={handleSubmit}
                 disabled={!isValid || submitting}
-                className="h-11 gap-2"
+                className="flex-1 h-11 gap-2"
               >
                 {submitting ? (
                   <><Loader2 className="h-4 w-4 animate-spin" /> Saving…</>
@@ -176,7 +307,7 @@ const DynamicOnboarding = () => {
                 )}
               </Button>
             </div>
-          </>
+          </div>
         )}
       </main>
     </div>

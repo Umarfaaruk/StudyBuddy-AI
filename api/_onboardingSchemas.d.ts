@@ -6,7 +6,7 @@
  * broke when api/grade.ts tried to import a .ts file from src/).
  */
 
-export type FlowType = "NEET" | "GENERAL";
+export type FlowType = "JEE" | "NEET" | "GENERAL";
 
 export type QuestionFieldType =
   | "single_select"
@@ -14,6 +14,14 @@ export type QuestionFieldType =
   | "number"
   | "text"
   | "textarea";
+
+/** Conditional visibility rule. Exactly one operator is set. */
+export interface ShowIfCondition {
+  field: string;
+  equals?: unknown;
+  notEquals?: unknown;
+  in?: unknown[];
+}
 
 export interface OnboardingQuestion {
   id: string;
@@ -29,6 +37,8 @@ export interface OnboardingQuestion {
   /** text / textarea only. */
   maxLength?: number;
   help?: string;
+  /** When present, the question is only shown if this condition holds. */
+  showIf?: ShowIfCondition;
 }
 
 export interface OnboardingFlowDefinition {
@@ -56,6 +66,15 @@ export declare const FLOW_TYPES: FlowType[];
 export declare const ONBOARDING_REGISTRY: Record<FlowType, OnboardingFlowDefinition>;
 export declare function isValidFlowType(value: unknown): boolean;
 export declare function getFlow(flowType: string): OnboardingFlowDefinition | null;
+export declare function flowTypeForExamTrack(examTrackId: string | null | undefined): FlowType;
+export declare function isQuestionVisible(
+  question: OnboardingQuestion,
+  answers: Record<string, unknown>
+): boolean;
+export declare function visibleQuestions(
+  questions: OnboardingQuestion[],
+  answers: Record<string, unknown>
+): OnboardingQuestion[];
 export declare function validateSubmission(
   flowType: string,
   payload: Record<string, unknown>

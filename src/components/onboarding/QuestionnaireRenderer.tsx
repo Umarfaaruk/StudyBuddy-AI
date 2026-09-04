@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { AlertCircle, Loader2 } from "lucide-react";
 import { Textarea } from "@/components/ui/textarea";
 import {
-  useOnboardingFlow, buildSchemaForQuestions, emptyAnswersFor,
+  useOnboardingFlow, buildSchemaForQuestions, emptyAnswersFor, isQuestionVisible,
   type FlowType, type OnboardingQuestion,
 } from "@/lib/onboardingFlows";
 
@@ -47,9 +47,18 @@ const QuestionnaireRenderer = ({ flowType, onChange, serverIssues }: Props) => {
     setTouched({});
   }, [flow]);
 
+  // Only the questions that currently apply. Recomputed on every answer change
+  // so a conditional question appears the moment its trigger is selected.
+  const visible = useMemo(
+    () => (flow ? flow.questions.filter((q) => isQuestionVisible(q, answers)) : []),
+    [flow, answers]
+  );
+
+  // Schema is derived from the VISIBLE set, so a hidden conditional field can
+  // never block submission with an error the student cannot see.
   const schema = useMemo(
-    () => (flow ? buildSchemaForQuestions(flow.questions) : null),
-    [flow]
+    () => (flow ? buildSchemaForQuestions(flow.questions, answers) : null),
+    [flow, answers]
   );
 
   const clientIssues = useMemo(() => {
@@ -123,7 +132,7 @@ const QuestionnaireRenderer = ({ flowType, onChange, serverIssues }: Props) => {
         <p className="text-sm text-muted-foreground mt-0.5">{flow.description}</p>
       </div>
 
-      {flow.questions.map((q) => {
+      {visible.map((q) => {
         const err = errorFor(q);
         const value = answers[q.id];
 

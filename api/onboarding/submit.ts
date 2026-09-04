@@ -51,6 +51,8 @@ export default async function handler(req: any, res: any) {
 
   const flowType: string = body?.flowType;
   const answers: Record<string, unknown> = body?.answers ?? {};
+  const examTrackId: string | null = body?.examTrackId ?? null;
+  const targetExamDate: string | null = body?.targetExamDate ?? null;
 
   if (!flowType) {
     return res.status(400).json({ error: "flowType is required", validTypes: FLOW_TYPES });
@@ -78,6 +80,7 @@ export default async function handler(req: any, res: any) {
       .upsert({
         user_id: caller.uid,
         onboarding_flow_type: flowType.toUpperCase(),
+        exam_track_id_at_onboarding: examTrackId,
         onboarding_payload: validated,
         onboarding_version: 4,
         updated_at: new Date().toISOString(),
@@ -86,9 +89,22 @@ export default async function handler(req: any, res: any) {
 
     // Mark onboarding complete only after the answers are safely stored, so a
     // failed write never leaves a student flagged as onboarded with no data.
+    //
+    // exam_track_id is written HERE and not left to a later screen: the
+    // diagnostic, exam countdown, RAG grounding and mock tests all key off it,
+    // and a student who finishes onboarding without one lands on a dashboard
+    // where every exam feature reports "pick your exam".
+    const profileUpdate: Record<string, unknown> = {
+      onboarding_completed: true,
+      updated_at: new Date().toISOString(),
+    };
+    if (examTrackId) profileUpdate.exam_track_id = examTrackId;
+    // Empty string would fail the date column; null is the "not known yet" value.
+    if (targetExamDate) profileUpdate.target_exam_date = targetExamDate;
+
     const { error: profileError } = await db
       .from("profiles")
-      .update({ onboarding_completed: true, updated_at: new Date().toISOString() })
+      .update(profileUpdate)
       .eq("id", caller.uid);
     if (profileError) throw profileError;
 

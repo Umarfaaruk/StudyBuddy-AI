@@ -136,19 +136,22 @@ const App = () => (
               <Route path="/free-test" element={<ErrorBoundary><FreeTest /></ErrorBoundary>} />
               <Route path="/most-improved" element={<ErrorBoundary><PublicLeaderboard /></ErrorBoundary>} />
 
-              {/* Protected: Onboarding (new multi-stage flow) */}
+              {/* Onboarding. The registry-driven flow is the DEFAULT: it picks
+                  questions from the student's exam track and captures
+                  exam_track_id + target_exam_date, which the diagnostic,
+                  countdown, RAG grounding and mock tests all key off.
+                  The legacy 9-stage flow is kept at /onboarding/classic —
+                  reachable, unmodified, and a one-line revert if needed. */}
               <Route
                 path="/onboarding"
-                element={<ProtectedRoute><OnboardingFlow /></ProtectedRoute>}
-              />
-              {/* Registry-driven onboarding (NEET / GENERAL). Decoupled from
-                  the legacy 9-stage flow, which is untouched and still serves
-                  /onboarding. Make this the default by pointing /onboarding
-                  here instead. */}
-              <Route
-                path="/onboarding/flow"
                 element={<ProtectedRoute><ErrorBoundary><DynamicOnboarding /></ErrorBoundary></ProtectedRoute>}
               />
+              <Route
+                path="/onboarding/classic"
+                element={<ProtectedRoute><ErrorBoundary><OnboardingFlow /></ErrorBoundary></ProtectedRoute>}
+              />
+              {/* Old path kept working for anyone mid-flow on a stale tab. */}
+              <Route path="/onboarding/flow" element={<Navigate to="/onboarding" replace />} />
 
               {/* Legacy onboarding routes redirect to new flow */}
               <Route path="/onboarding/profile" element={<Navigate to="/onboarding" replace />} />

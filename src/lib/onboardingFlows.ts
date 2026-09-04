@@ -14,13 +14,55 @@
 import { useQuery } from "@tanstack/react-query";
 import { z } from "zod";
 import type {
-  FlowType, OnboardingQuestion,
+  FlowType, OnboardingQuestion, ShowIfCondition,
 } from "../../api/_onboardingSchemas";
 
 // Re-exported so components import flow types from one place. This is a
 // TYPE-ONLY re-export: erased at compile time, so nothing crosses the ESM
 // boundary at runtime.
-export type { FlowType, OnboardingQuestion };
+export type { FlowType, OnboardingQuestion, ShowIfCondition };
+
+/**
+ * Map an exam track to its onboarding flow.
+ *
+ * MUST mirror flowTypeForExamTrack() in api/_onboardingSchemas.js. Duplicated
+ * only because the server copy cannot be imported at runtime across the ESM
+ * boundary; a test asserts the two agree for every configured track.
+ */
+export function flowTypeForExamTrack(examTrackId: string | null | undefined): FlowType {
+  switch ((examTrackId || "").toLowerCase()) {
+    case "jee-main":
+    case "jee-advanced":
+      return "JEE";
+    case "neet":
+      return "NEET";
+    default:
+      return "GENERAL";
+  }
+}
+
+/**
+ * Whether a question applies, given the answers so far.
+ * Mirrors isQuestionVisible() on the server — a field hidden here must never be
+ * required there, or the submit button would do nothing with no visible cause.
+ */
+export function isQuestionVisible(
+  question: OnboardingQuestion,
+  answers: Record<string, unknown>
+): boolean {
+  const cond = question.showIf as ShowIfCondition | undefined;
+  if (!cond) return true;
+  const actual = answers?.[cond.field];
+
+  if (cond.equals !== undefined) return actual === cond.equals;
+  if (cond.notEquals !== undefined) {
+    // Unanswered controlling field keeps the dependent question hidden, so it
+    // does not flash up before the governing choice is made.
+    return actual !== undefined && actual !== null && actual !== "" && actual !== cond.notEquals;
+  }
+  if (Array.isArray(cond.in)) return cond.in.includes(actual);
+  return true;
+}
 
 export interface OnboardingFlow {
   flowType: FlowType;
@@ -30,6 +72,7 @@ export interface OnboardingFlow {
 }
 
 export const FLOW_LABELS: Record<FlowType, string> = {
+  JEE: "JEE",
   NEET: "NEET",
   GENERAL: "General",
 };
@@ -59,10 +102,15 @@ export function useOnboardingFlow(flowType: FlowType | null) {
  * Mirrors the server's rules field-for-field. Where the two could disagree the
  * SERVER wins — this exists for fast feedback, not as a security boundary.
  */
-export function buildSchemaForQuestions(questions: OnboardingQuestion[]) {
+export function buildSchemaForQuestions(
+  questions: OnboardingQuestion[],
+  answers: Record<string, unknown> = {}
+) {
   const shape: Record<string, z.ZodTypeAny> = {};
 
-  for (const q of questions) {
+  // Only validate what the student can actually see. Validating a hidden
+  // conditional field would block submission on a question never shown.
+  for (const q of questions.filter((x) => isQuestionVisible(x, answers))) {
     let field: z.ZodTypeAny;
 
     switch (q.type) {
@@ -123,15 +171,41 @@ export interface SubmitResult {
   error?: string;
 }
 
+export interface SubmitPayload {
+  flowType: FlowType;
+  answers: Record<string, unknown>;
+  /** Persisted to profiles — the whole exam-prep engine keys off this. */
+  examTrackId: string | null;
+  targetExamDate: string | null;
+}
+
+/**
+ * Strip answers to questions that are not currently visible.
+ *
+ * The server rejects a value supplied for a hidden question, because that means
+ * client and server disagree about visibility. A student who answers "Second
+ * attempt", fills in a previous score, then switches to "First" would otherwise
+ * submit a stale score for a question no longer on screen.
+ */
+export function stripHiddenAnswers(
+  questions: OnboardingQuestion[],
+  answers: Record<string, unknown>
+): Record<string, unknown> {
+  const out: Record<string, unknown> = {};
+  for (const q of questions) {
+    if (isQuestionVisible(q, answers)) out[q.id] = answers[q.id];
+  }
+  return out;
+}
+
 export async function submitOnboarding(
-  flowType: FlowType,
-  answers: Record<string, unknown>,
+  payload: SubmitPayload,
   authHeaders: Record<string, string>
 ): Promise<SubmitResult> {
   const res = await fetch("/api/onboarding/submit", {
     method: "POST",
     headers: { "Content-Type": "application/json", ...authHeaders },
-    body: JSON.stringify({ flowType, answers }),
+    body: JSON.stringify(payload),
   });
 
   const body = await res.json().catch(() => ({} as any));

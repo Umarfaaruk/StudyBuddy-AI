@@ -152,7 +152,7 @@ function checkOptionalKeys() {
 
 /* ── 5. Onboarding endpoints ──────────────────────────────────────────────── */
 async function checkOnboarding() {
-  for (const type of ["NEET", "GENERAL"]) {
+  for (const type of ["JEE", "NEET", "GENERAL"]) {
     try {
       const r = await timedFetch(`${BASE}/api/onboarding-questions/${type}`);
       if (!r.ok) { record(`GET /api/onboarding-questions/${type}`, FAIL, `HTTP ${r.status}`); continue; }
