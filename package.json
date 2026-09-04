@@ -9,7 +9,7 @@
   },
   "scripts": {
     "dev": "vite --config vite.config.ts",
-    "build": "vite build --config vite.config.ts",
+    "build": "vite build --config vite.config.ts && node scripts/generate-seo.mjs",
     "lint": "eslint --config eslint.config.js src",
     "preview": "vite preview --config vite.config.ts",
     "test:unit": "node tests/unit/diagnostic.test.mjs",
@@ -18,7 +18,9 @@
     "load:api": "node tests/run-load.mjs --mode api",
     "test:onboarding": "node tests/unit/onboarding.test.mjs",
     "test": "npm run test:unit && npm run test:onboarding",
-    "verify": "node tests/verify-integrations.mjs"
+    "verify": "node tests/verify-integrations.mjs",
+    "build:only": "vite build --config vite.config.ts",
+    "seo": "node scripts/generate-seo.mjs"
   },
   "dependencies": {
     "@gsap/react": "^2.1.2",

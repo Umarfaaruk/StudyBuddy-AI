@@ -92,6 +92,7 @@ const MockTestSession = lazyWithReload(() => import("./pages/mock/MockTestSessio
 const MockTestResults = lazyWithReload(() => import("./pages/mock/MockTestResults"));
 const FreeTest = lazyWithReload(() => import("./pages/public/FreeTest"));
 const PublicLeaderboard = lazyWithReload(() => import("./pages/public/PublicLeaderboard"));
+const TopicPage = lazyWithReload(() => import("./pages/public/TopicPage"));
 
 /** Shared loading fallback shown while a route chunk downloads */
 const PageLoader = () => (
@@ -135,6 +136,11 @@ const App = () => (
                   lead magnet is that it works before anyone signs up. */}
               <Route path="/free-test" element={<ErrorBoundary><FreeTest /></ErrorBoundary>} />
               <Route path="/most-improved" element={<ErrorBoundary><PublicLeaderboard /></ErrorBoundary>} />
+              {/* SEO topic pages (Phase 4.7). Same URLs are prerendered to
+                  static HTML by scripts/generate-seo.mjs; this is what a human
+                  sees once the SPA hydrates over that. Path is /learn/... not
+                  /practice/... to avoid colliding with the authed practice route. */}
+              <Route path="/learn/:trackId/:subjectSlug/:chapterSlug" element={<ErrorBoundary><TopicPage /></ErrorBoundary>} />
 
               {/* Onboarding. The registry-driven flow is the DEFAULT: it picks
                   questions from the student's exam track and captures
