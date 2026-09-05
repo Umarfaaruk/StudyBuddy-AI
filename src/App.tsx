@@ -55,6 +55,8 @@ import NotFound from "./pages/NotFound";
 
 // Lazy: everything behind auth or rarely hit on first visit
 const About = lazyWithReload(() => import("./pages/About"));
+const PrivacyPolicy = lazyWithReload(() => import("./pages/legal/PrivacyPolicy"));
+const TermsOfService = lazyWithReload(() => import("./pages/legal/TermsOfService"));
 const OnboardingFlow = lazyWithReload(() => import("./pages/onboarding/OnboardingFlow"));
 const Dashboard = lazyWithReload(() => import("./pages/Dashboard"));
 const DoubtInput = lazyWithReload(() => import("./pages/doubts/DoubtInput"));
@@ -127,6 +129,11 @@ const App = () => (
               {/* Public */}
               <Route path="/" element={<ErrorBoundary><Index /></ErrorBoundary>} />
               <Route path="/about" element={<ErrorBoundary><About /></ErrorBoundary>} />
+              {/* Public and unauthenticated by design: a privacy policy that
+                  requires an account to read is not a privacy policy. Both were
+                  linked from the footer for a long time while 404ing. */}
+              <Route path="/privacy" element={<ErrorBoundary><PrivacyPolicy /></ErrorBoundary>} />
+              <Route path="/terms" element={<ErrorBoundary><TermsOfService /></ErrorBoundary>} />
               <Route path="/pricing" element={<Navigate to="/" replace />} />
               <Route path="/login" element={<ErrorBoundary><Login /></ErrorBoundary>} />
               <Route path="/signup" element={<ErrorBoundary><Signup /></ErrorBoundary>} />

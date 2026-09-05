@@ -137,6 +137,18 @@ const STATIC_PAGES = [
       "Answer 8 questions and find the chapters costing you the most marks. No account needed.",
   },
   {
+    path: "/privacy",
+    title: "Privacy Policy — StudyBuddy AI",
+    description:
+      "What StudyBuddy AI collects, who processes it, and how to have it corrected or deleted. Includes our position on students under 18.",
+  },
+  {
+    path: "/terms",
+    title: "Terms of Service — StudyBuddy AI",
+    description:
+      "Terms for using StudyBuddy AI, including our independence from the examination bodies and the limits of AI-generated study material.",
+  },
+  {
     path: "/most-improved",
     title: "Most improved students — StudyBuddy AI",
     description:
