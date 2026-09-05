@@ -25,14 +25,14 @@ import Footer from "@/components/landing/Footer";
  */
 
 /**
- * MUST BE REPLACED BEFORE LAUNCH.
+ * The reachable point of contact the DPDP Act requires for data-principal
+ * requests — access, correction, erasure, and withdrawal of consent.
  *
- * A privacy policy without a working contact address is not a privacy policy —
- * the DPDP Act requires a reachable point of contact for data-principal
- * requests. This placeholder is deliberately obvious so it cannot ship
- * unnoticed.
+ * Currently a personal address. Move it to a role address (support@ or
+ * privacy@ on the company domain) once that domain exists: a policy that
+ * outlives one person's inbox needs an address that does too.
  */
-export const CONTACT_EMAIL = "support@studybuddy-ai.example";
+export const CONTACT_EMAIL = "umarfaaruk154246@gmail.com";
 
 /** Bump whenever either document changes materially. */
 export const LAST_UPDATED = "5 September 2026";
