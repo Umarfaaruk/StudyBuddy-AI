@@ -7,17 +7,32 @@ import BrandMark from "@/components/BrandMark";
 // be real links (legal risk). Platform/Feature links now route to the relevant
 // app pages. Legal links point to dedicated pages — create /privacy and /terms
 // routes, or swap the `to` values for external URLs if you host them elsewhere.
+// A route audit found /about, /free-test and /most-improved had no inbound
+// link anywhere in the app, despite /about and /most-improved being prerendered
+// into sitemap.xml. They were reachable only by typing the URL, and
+// /most-improved is the social-proof page.
+//
+// NOTE: /privacy and /terms are still listed below and BOTH 404 - the routes
+// were never created. They are deliberately left in place rather than silently
+// deleted, because removing a privacy policy link is a legal decision, not a
+// tidy-up. Either add the pages or drop these two entries.
 const footerLinks: Record<string, { label: string; to: string }[]> = {
-  Platform: [
-    { label: "AI Tutor", to: "/materials/tutor" },
-    { label: "Quiz Engine", to: "/quiz" },
+  Prepare: [
+    { label: "Free diagnostic test", to: "/free-test" },
+    { label: "Mock tests", to: "/mock" },
     { label: "Progress Tracker", to: "/progress" },
-    { label: "Study Timer", to: "/timer" },
+    { label: "AI Tutor", to: "/materials/tutor" },
   ],
   Features: [
     { label: "Document Learning", to: "/materials" },
     { label: "Streaks & XP", to: "/achievements" },
     { label: "Leaderboards", to: "/leaderboard" },
+    { label: "Study Timer", to: "/timer" },
+  ],
+  Company: [
+    { label: "About", to: "/about" },
+    { label: "Most improved students", to: "/most-improved" },
+    { label: "Send feedback", to: "/feedback" },
   ],
   Legal: [
     { label: "Privacy Policy", to: "/privacy" },

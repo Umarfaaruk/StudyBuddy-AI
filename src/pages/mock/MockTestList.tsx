@@ -97,10 +97,20 @@ const MockTestList = () => {
           <div className="h-12 w-12 rounded-2xl bg-muted flex items-center justify-center mx-auto">
             <Database className="h-6 w-6 text-muted-foreground" />
           </div>
-          <h2 className="text-sm font-semibold text-foreground">No mock tests yet</h2>
-          <p className="text-xs text-muted-foreground">
-            An administrator can create them under Admin → Mock Tests.
+          <h2 className="text-sm font-semibold text-foreground">
+            No mock tests for {examCtx?.track?.name ?? "your exam"} yet
+          </h2>
+          <p className="text-xs text-muted-foreground max-w-sm mx-auto">
+            Full-length papers for this track are still being put together. The
+            diagnostic already works and will show you which chapters are
+            costing you the most marks.
           </p>
+          {/* Never leave a student on a dead end. The empty state used to name
+              an admin screen they cannot open, which reads as a broken app
+              rather than a section that is not ready. */}
+          <Button onClick={() => navigate("/diagnostic")} className="h-10">
+            Take the diagnostic instead
+          </Button>
         </div>
       ) : (
         <div className="space-y-2">

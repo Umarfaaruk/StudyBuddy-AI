@@ -4,6 +4,7 @@ import {
   LayoutDashboard, BookOpen, MessageCircleQuestion, Trophy,
   BarChart3, Upload, Settings, User, Gamepad2, Bot,
   Focus, X, Menu, ShieldCheck, ChevronLeft, ChevronRight,
+  Stethoscope, FileText,
 } from "lucide-react";
 import { useDeepFocus } from "@/hooks/useDeepFocus";
 import GlobalTimer from "@/components/GlobalTimer";
@@ -16,8 +17,19 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import BrandMark from "@/components/BrandMark";
 
+/**
+ * Primary navigation.
+ *
+ * /diagnostic and /mock were previously reachable ONLY from a Dashboard card
+ * (the diagnostic) or from nothing at all (mock tests were linked from no page
+ * in the app and could only be reached by typing the URL). Both are core to the
+ * exam-prep product, so a student exploring the sidebar would never have found
+ * the feature that produces their weak-chapter list or their score trend.
+ */
 const sidebarLinks = [
   { to: "/dashboard", icon: LayoutDashboard, label: "Home" },
+  { to: "/diagnostic", icon: Stethoscope, label: "Diagnostic" },
+  { to: "/mock", icon: FileText, label: "Mock Tests" },
   { to: "/lessons", icon: BookOpen, label: "Academy" },
   { to: "/tools", icon: Bot, label: "AI Tutor" },
   { to: "/progress", icon: BarChart3, label: "Progress" },
@@ -34,8 +46,8 @@ const librarySidebarLinks = [
 const mobileNavLinks = [
   { to: "/dashboard", icon: LayoutDashboard, label: "Home" },
   { to: "/lessons", icon: BookOpen, label: "Academy" },
+  { to: "/mock", icon: FileText, label: "Mocks" },
   { to: "/doubts", icon: MessageCircleQuestion, label: "Ask" },
-  { to: "/materials", icon: Upload, label: "Resources" },
   { to: "/tools", icon: Bot, label: "AI Tutor" },
 ];
 

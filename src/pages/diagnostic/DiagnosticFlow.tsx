@@ -177,8 +177,11 @@ const DiagnosticFlow = () => {
           {availableCount === 1 ? "" : "s"}. A diagnostic needs at least{" "}
           {DIAGNOSTIC_MIN_QUESTIONS} to say anything useful about your strengths.
         </p>
+        {/* The count above is honest and useful; naming the admin screen was
+            not, since a student cannot open it. */}
         <p className="text-xs text-muted-foreground">
-          An administrator can add questions under Admin → Question Bank, then publish them.
+          More questions are being added for this track. Everything else in your
+          account works in the meantime.
         </p>
         <Button variant="outline" onClick={() => navigate("/dashboard")}>
           Back to dashboard
