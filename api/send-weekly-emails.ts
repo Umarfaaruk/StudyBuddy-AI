@@ -86,12 +86,27 @@ function emailHtml(name: string, weeklyXp: number, totalXp: number, streak: numb
 
 export default async function handler(req: any, res: any) {
   // ── Auth: only the cron (or someone with the secret) may trigger sends ──
+  //
+  // FAILS CLOSED. This previously ran the check only `if (secret)`, so an unset
+  // CRON_SECRET left the endpoint fully open: any caller could POST here and
+  // mail every active user, burning the Resend quota and putting the sending
+  // domain at risk. An endpoint that sends mail to the whole user base must
+  // refuse to run when it cannot authenticate the caller, not wave them through.
+  //
+  // Vercel Cron sends `Authorization: Bearer <CRON_SECRET>` automatically once
+  // CRON_SECRET is set in the project's environment, so this is also the
+  // configuration Vercel expects.
   const secret = process.env.CRON_SECRET;
-  if (secret) {
-    const auth = req.headers?.authorization || req.headers?.Authorization;
-    if (auth !== `Bearer ${secret}`) {
-      return res.status(401).json({ error: "Unauthorized" });
-    }
+  if (!secret) {
+    console.error("[send-weekly-emails] refused: CRON_SECRET is not configured");
+    return res.status(503).json({
+      error: "Email sending is not configured: CRON_SECRET is missing.",
+    });
+  }
+
+  const auth = req.headers?.authorization || req.headers?.Authorization;
+  if (auth !== `Bearer ${secret}`) {
+    return res.status(401).json({ error: "Unauthorized" });
   }
 
   const apiKey = process.env.RESEND_API_KEY;
