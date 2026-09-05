@@ -66,7 +66,9 @@ function testApi() {
   const res = http.post(
     `${BASE}/api/groq`,
     JSON.stringify({
-      model: "llama-3.1-8b-instant",
+      // Must stay inside ALLOWED_MODELS in api/groq.ts. The previous value
+      // was retired by Groq, so this test was measuring 404s, not load.
+      model: "qwen/qwen3.8-27b",
       messages: [{ role: "user", content: "Reply with the number 42 only." }],
       max_tokens: 5,
       temperature: 0,
