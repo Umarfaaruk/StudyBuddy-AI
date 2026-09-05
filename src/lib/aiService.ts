@@ -3,11 +3,12 @@
  * ======================================
  *
  * Centralized AI service using the Groq API (OpenAI-compatible).
- * Uses the llama-3.3-70b-versatile model for fast, high-quality responses.
+ * Uses the groq/compound-mini model for fast, high-quality responses.
  *
  * API endpoint: /api/groq (server-side proxy to Groq)
  * Auth: Bearer token via server-only GROQ_API_KEY
- * Vision model: meta-llama/llama-4-scout-17b-16e-instruct (for image Q&A)
+ * Vision: NO vision-capable model is currently available on Groq, so image
+ * Q&A falls back to the text model and cannot read the image. See below.
  *
  * RATE LIMIT HANDLING:
  *   Both aiComplete() and aiStream() automatically retry on 429 errors
@@ -25,8 +26,10 @@ const GROQ_PROXY_URL = "/api/groq";
  *   MODEL_SMALL — 8B instant, 3× faster + lower rate-limit pressure.
  *                 Use for: quiz JSON generation, study planner JSON, doc analysis.
  */
-export const MODEL_LARGE = "llama-3.3-70b-versatile";
-export const MODEL_SMALL = "llama-3.1-8b-instant";
+// Both retired by Groq and replaced. Must stay inside ALLOWED_MODELS in
+// api/groq.ts, which rejects anything else with a 400.
+export const MODEL_LARGE = "groq/compound-mini";
+export const MODEL_SMALL = "qwen/qwen3.8-27b";
 
 const MAX_RETRIES = 3;
 const BASE_DELAY_MS = 2000; // 2 seconds initial backoff
@@ -340,7 +343,10 @@ export async function aiVisionComplete(
         headers: await buildHeaders(),
         signal,
         body: JSON.stringify({
-          model: "meta-llama/llama-4-scout-17b-16e-instruct", // Vision model
+          // Groq retired llama-4-scout and currently serves NO vision model,
+          // so this path can no longer read an image. It degrades to the text
+          // model, which will answer from the typed question alone.
+          model: MODEL_LARGE,
           messages,
           temperature,
           max_tokens: maxTokens,

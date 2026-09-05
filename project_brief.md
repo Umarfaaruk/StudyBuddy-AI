@@ -129,9 +129,9 @@ Custom animations defined: `fade-up`, `fade-in`, `xp-pop`, `slide-in-right`, `ac
 | Component | Details |
 |---|---|
 | **AI Provider** | [Groq API](https://api.groq.com/openai/v1/chat/completions) (OpenAI-compatible) |
-| **Primary Model** | `llama-3.3-70b-versatile` — chat, doubts, YouTube summaries |
-| **Fast Model** | `llama-3.1-8b-instant` — quiz JSON, planner JSON, document analysis |
-| **Vision Model** | `meta-llama/llama-4-scout-17b-16e-instruct` — Camera Q&A (image-based) |
+| **Primary Model** | `groq/compound-mini` — chat, doubts, YouTube summaries |
+| **Fast Model** | `qwen/qwen3.8-27b` — quiz JSON, planner JSON, document analysis |
+| **Vision Model** | **none available** — Groq retired llama-4-scout; Camera Q&A cannot read images until a vision model is added |
 | **Proxy** | [/api/groq](file:///d:/edunox90-main/api/groq.ts) — server-side proxy with authentication |
 
 ### AI Features

@@ -20,7 +20,8 @@
     "test": "npm run test:unit && npm run test:onboarding",
     "verify": "node tests/verify-integrations.mjs",
     "build:only": "vite build --config vite.config.ts",
-    "seo": "node scripts/generate-seo.mjs"
+    "seo": "node scripts/generate-seo.mjs",
+    "test:e2e": "node tests/e2e-authenticated.mjs"
   },
   "dependencies": {
     "@gsap/react": "^2.1.2",

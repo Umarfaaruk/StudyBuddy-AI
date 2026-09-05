@@ -120,6 +120,33 @@ async function checkGroq() {
     });
     record("Groq (AI)", r.ok ? OK : FAIL,
       r.ok ? `HTTP 200` : `HTTP ${r.status} — key may be revoked`);
+
+    // A live key is not enough: providers RETIRE models. Every model in the
+    // app's allowlist was silently withdrawn by Groq, which killed the tutor,
+    // doubts, quiz generation and the planner while every other check stayed
+    // green. Compare the allowlist against what Groq actually serves.
+    if (r.ok) {
+      const body = await r.json();
+      const live = new Set((body.data ?? []).map((m) => m.id));
+
+      const src = readFileSync(resolve(ROOT, "api/groq.ts"), "utf8");
+      const block = src.slice(src.indexOf("ALLOWED_MODELS"), src.indexOf("DEFAULT_MODEL"));
+      const allowed = [...block.matchAll(/"([^"]+)"/g)].map((m) => m[1]);
+      const dead = allowed.filter((m) => !live.has(m));
+
+      record("Groq models still served",
+        dead.length === 0 ? OK : FAIL,
+        dead.length === 0
+          ? `all ${allowed.length} allowlisted models available`
+          : `RETIRED: ${dead.join(", ")} — every AI feature using them returns 404`);
+
+      const defMatch = src.match(/DEFAULT_MODEL\s*=\s*"([^"]+)"/);
+      if (defMatch) {
+        record("Groq default model available",
+          live.has(defMatch[1]) ? OK : FAIL,
+          live.has(defMatch[1]) ? defMatch[1] : `${defMatch[1]} is GONE`);
+      }
+    }
   } catch (e) {
     record("Groq (AI)", FAIL, String(e.message || e));
   }

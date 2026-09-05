@@ -20,14 +20,36 @@ import { requireAuth } from "./_verifyToken.js";
 
 const GROQ_URL = "https://api.groq.com/openai/v1/chat/completions";
 
-/** Only models the app uses. Anything else is rejected with 400. */
+/**
+ * Only models the app uses. Anything else is rejected with 400.
+ *
+ * The previous entries - llama-3.3-70b-versatile, llama-3.1-8b-instant and
+ * llama-4-scout - were ALL retired by Groq and now return 404. Every AI feature
+ * in the app was dead: the tutor, doubt solving, quiz generation, the planner
+ * and Camera Q&A. Nothing surfaced it, because the failure looked to a user
+ * like a generic "AI request failed" and no check compared this list against
+ * what Groq actually serves.
+ *
+ * Verified live against GET /openai/v1/models before being written here.
+ * `npm run verify` now fails when an allowlisted model disappears, so the next
+ * retirement is caught rather than discovered by a student.
+ */
 const ALLOWED_MODELS = new Set([
-  "llama-3.3-70b-versatile",            // chat, doubts, summaries
-  "llama-3.1-8b-instant",               // quiz / planner / doc-analysis JSON
-  "meta-llama/llama-4-scout-17b-16e-instruct", // vision (Camera Q&A)
+  "groq/compound",                      // chat, doubts, summaries
+  "groq/compound-mini",                 // default - clean prose, 131k context
+  "openai/gpt-oss-120b",                // heavier reasoning
+  "openai/gpt-oss-20b",                 // fast JSON work
+  "qwen/qwen3.8-27b",                   // fastest of the set
+  "qwen/qwen3.6-27b",
 ]);
 
-const DEFAULT_MODEL = "llama-3.3-70b-versatile";
+/**
+ * compound-mini rather than a gpt-oss model: the gpt-oss family spends output
+ * tokens on reasoning before emitting any text, so a short max_tokens returns
+ * an EMPTY string rather than a brief answer, and it renders formulae as LaTeX
+ * (\(F=ma\)) which this UI does not typeset.
+ */
+const DEFAULT_MODEL = "groq/compound-mini";
 const MAX_MESSAGES = 24;
 const MAX_TOTAL_CHARS = 60_000;          // text-only requests
 const MAX_BODY_BYTES = 200_000;          // text-only requests
