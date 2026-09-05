@@ -15,6 +15,10 @@ import {
   submitOnboarding, flowTypeForExamTrack, stripHiddenAnswers,
   useOnboardingFlow, type FlowType,
 } from "@/lib/onboardingFlows";
+import {
+  isMinor, dateOfBirthIssue, guardianIssues, consentStepComplete,
+  emptyGuardian, GUARDIAN_RELATIONSHIPS, type GuardianDetails,
+} from "@/lib/guardianConsent";
 
 /**
  * ONBOARDING  (exam-aware, registry-driven)
@@ -37,7 +41,7 @@ import {
  * the legacy flow only once it captured the same thing.
  */
 
-type Step = "exam" | "date" | "questions";
+type Step = "exam" | "date" | "age" | "questions";
 
 const DynamicOnboarding = () => {
   const navigate = useNavigate();
@@ -49,6 +53,13 @@ const DynamicOnboarding = () => {
   const [examTrackId, setExamTrackId] = useState<string | null>(null);
   const [targetDate, setTargetDate] = useState("");
   const [dateUnknown, setDateUnknown] = useState(false);
+
+  // Age and, for a minor, guardian consent. Collected BEFORE the questionnaire
+  // because the questionnaire is where the bulk of personal data is gathered,
+  // and a child's data should not be collected before consent exists for it.
+  const [dateOfBirth, setDateOfBirth] = useState("");
+  const [guardian, setGuardian] = useState<GuardianDetails>(emptyGuardian);
+  const [consentTouched, setConsentTouched] = useState(false);
 
   const [answers, setAnswers] = useState<Record<string, unknown>>({});
   const [isValid, setIsValid] = useState(false);
@@ -108,6 +119,13 @@ const DynamicOnboarding = () => {
     setServerIssues((prev) => (prev.length ? [] : prev));
   }, []);
 
+  // Recomputed on every render so the guardian block appears the moment a
+  // date of birth under 18 is entered.
+  const dobIssue = dateOfBirth ? dateOfBirthIssue(dateOfBirth) : null;
+  const minorNow = isMinor(dateOfBirth);
+  const gIssues = guardianIssues(guardian);
+  const consentReady = consentStepComplete(dateOfBirth, guardian);
+
   const handleSubmit = useCallback(async () => {
     if (!user || !flow) return;
     setSubmitting(true);
@@ -117,6 +135,11 @@ const DynamicOnboarding = () => {
       const result = await submitOnboarding(
         {
           flowType,
+          dateOfBirth: dateOfBirth || null,
+          // Only sent when it applies. The server decides who is a minor from
+          // the date of birth, so sending a guardian block for an adult would
+          // simply be ignored.
+          guardian: minorNow ? guardian : null,
           // Hidden answers are stripped: the server rejects a value for a
           // question that does not apply, which is what a stale conditional
           // answer looks like.
@@ -150,9 +173,11 @@ const DynamicOnboarding = () => {
     } finally {
       setSubmitting(false);
     }
-  }, [user, flow, flowType, answers, examTrackId, targetDate, dateUnknown, queryClient, navigate]);
+  }, [user, flow, flowType, answers, examTrackId, targetDate, dateUnknown,
+      dateOfBirth, guardian, minorNow, queryClient, navigate]);
 
-  const stepIndex = step === "exam" ? 0 : step === "date" ? 1 : 2;
+  const stepIndex = step === "exam" ? 0 : step === "date" ? 1 : step === "age" ? 2 : 3;
+  const TOTAL_STEPS = 4;
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
@@ -165,7 +190,7 @@ const DynamicOnboarding = () => {
       <div className="w-full bg-muted h-1.5">
         <div
           className="bg-primary h-1.5 rounded-r-full transition-all duration-500"
-          style={{ width: `${((stepIndex + 1) / 3) * 100}%` }}
+          style={{ width: `${((stepIndex + 1) / TOTAL_STEPS) * 100}%` }}
         />
       </div>
 
@@ -300,7 +325,7 @@ const DynamicOnboarding = () => {
                 <ArrowLeft className="h-4 w-4" /> Back
               </Button>
               <Button
-                onClick={() => setStep("questions")}
+                onClick={() => setStep("age")}
                 disabled={!dateUnknown && !targetDate}
                 className="flex-1 h-11 gap-2"
               >
@@ -310,7 +335,154 @@ const DynamicOnboarding = () => {
           </div>
         )}
 
-        {/* ── Step 3: exam-specific questions ────────────────────── */}
+        {/* ── Step 3: age, and guardian consent for minors ────────── */}
+        {step === "age" && (
+          <div className="space-y-6">
+            <div className="space-y-2">
+              <h1 className="font-display text-2xl font-bold text-foreground tracking-tight">
+                How old are you?
+              </h1>
+              <p className="text-sm text-muted-foreground">
+                We ask because Indian law requires a parent or guardian to agree
+                before we can hold information about a student under 18.
+              </p>
+            </div>
+
+            <div className="space-y-1.5">
+              <label htmlFor="dob" className="text-sm font-medium text-foreground">
+                Date of birth
+              </label>
+              <input
+                id="dob"
+                type="date"
+                value={dateOfBirth}
+                max={new Date().toISOString().slice(0, 10)}
+                onChange={(e) => { setDateOfBirth(e.target.value); setConsentTouched(true); }}
+                className="w-full h-11 rounded-lg border border-border bg-background px-3 text-sm"
+              />
+              {consentTouched && dobIssue && (
+                <p className="text-xs text-destructive">{dobIssue}</p>
+              )}
+            </div>
+
+            {/* Shown only when the date of birth says it is needed. This is a
+                UI decision only — the server recomputes it and rejects a minor
+                submitted without these details. */}
+            {minorNow && !dobIssue && (
+              <div className="rounded-xl border border-border bg-card p-5 space-y-4">
+                <div className="space-y-1">
+                  <h2 className="text-sm font-bold text-foreground">
+                    Your parent or guardian needs to agree
+                  </h2>
+                  <p className="text-xs text-muted-foreground">
+                    Please fill this in together with them. We will contact them
+                    to confirm.
+                  </p>
+                </div>
+
+                <div className="space-y-1.5">
+                  <label htmlFor="gname" className="text-xs font-medium text-foreground">
+                    Their full name
+                  </label>
+                  <input
+                    id="gname"
+                    type="text"
+                    value={guardian.guardianName}
+                    onChange={(e) => setGuardian((g) => ({ ...g, guardianName: e.target.value }))}
+                    className="w-full h-10 rounded-lg border border-border bg-background px-3 text-sm"
+                  />
+                  {consentTouched && gIssues.guardianName && (
+                    <p className="text-xs text-destructive">{gIssues.guardianName}</p>
+                  )}
+                </div>
+
+                <div className="space-y-1.5">
+                  <label htmlFor="gemail" className="text-xs font-medium text-foreground">
+                    Their email address
+                  </label>
+                  <input
+                    id="gemail"
+                    type="email"
+                    value={guardian.guardianEmail}
+                    onChange={(e) => setGuardian((g) => ({ ...g, guardianEmail: e.target.value }))}
+                    className="w-full h-10 rounded-lg border border-border bg-background px-3 text-sm"
+                  />
+                  {consentTouched && gIssues.guardianEmail && (
+                    <p className="text-xs text-destructive">{gIssues.guardianEmail}</p>
+                  )}
+                </div>
+
+                <div className="space-y-1.5">
+                  <span className="text-xs font-medium text-foreground">
+                    They are my
+                  </span>
+                  <div className="flex flex-wrap gap-2">
+                    {GUARDIAN_RELATIONSHIPS.map((rel) => (
+                      <button
+                        key={rel}
+                        type="button"
+                        onClick={() => setGuardian((g) => ({ ...g, guardianRelationship: rel }))}
+                        aria-pressed={guardian.guardianRelationship === rel}
+                        className={`px-3 py-1.5 rounded-lg border text-xs transition-colors ${
+                          guardian.guardianRelationship === rel
+                            ? "bg-primary text-primary-foreground border-primary"
+                            : "bg-background border-border text-foreground hover:border-primary/40"
+                        }`}
+                      >
+                        {rel}
+                      </button>
+                    ))}
+                  </div>
+                  {consentTouched && gIssues.guardianRelationship && (
+                    <p className="text-xs text-destructive">{gIssues.guardianRelationship}</p>
+                  )}
+                </div>
+
+                {/* Unticked by default, always. A pre-ticked box is not consent. */}
+                <label className="flex items-start gap-2.5 text-xs text-muted-foreground cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={guardian.guardianConsentConfirmed}
+                    onChange={(e) => {
+                      setConsentTouched(true);
+                      setGuardian((g) => ({ ...g, guardianConsentConfirmed: e.target.checked }));
+                    }}
+                    className="h-4 w-4 mt-0.5 rounded border-border flex-shrink-0"
+                  />
+                  <span>
+                    My parent or guardian has read the{" "}
+                    <a href="/privacy" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">
+                      Privacy Policy
+                    </a>{" "}
+                    and{" "}
+                    <a href="/terms" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">
+                      Terms of Service
+                    </a>
+                    , and agrees to me using StudyBuddy AI.
+                  </span>
+                </label>
+                {consentTouched && gIssues.guardianConsentConfirmed && (
+                  <p className="text-xs text-destructive">{gIssues.guardianConsentConfirmed}</p>
+                )}
+              </div>
+            )}
+
+            <div className="flex gap-2">
+              <Button variant="outline" onClick={() => setStep("date")} className="h-11 gap-2">
+                <ArrowLeft className="h-4 w-4" /> Back
+              </Button>
+              <Button
+                onClick={() => { setConsentTouched(true); if (consentReady) setStep("questions"); }}
+                disabled={!consentReady}
+                className="flex-1 h-11 gap-2"
+              >
+                Continue <ArrowRight className="h-4 w-4" />
+              </Button>
+            </div>
+          </div>
+        )}
+
+        {/* ── Step 4: exam-specific questions ────────────────────── */}
         {step === "questions" && (
           <div className="space-y-6">
             {/* Keyed on flowType so React remounts on an exam change, alongside
@@ -323,7 +495,7 @@ const DynamicOnboarding = () => {
             />
 
             <div className="flex items-center gap-2 pt-2">
-              <Button variant="outline" onClick={() => setStep("date")} className="h-11 gap-2">
+              <Button variant="outline" onClick={() => setStep("age")} className="h-11 gap-2">
                 <ArrowLeft className="h-4 w-4" /> Back
               </Button>
               <Button

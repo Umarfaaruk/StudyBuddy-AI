@@ -15,6 +15,7 @@
 import { createClient } from "@supabase/supabase-js";
 import { requireAuth } from "../_verifyToken.js";
 import { validateSubmission, FLOW_TYPES } from "../_onboardingSchemas.js";
+import { validateConsentBlock, POLICY_VERSION } from "../_guardianConsent.js";
 
 function getDb() {
   const url = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL;
@@ -53,9 +54,26 @@ export default async function handler(req: any, res: any) {
   const answers: Record<string, unknown> = body?.answers ?? {};
   const examTrackId: string | null = body?.examTrackId ?? null;
   const targetExamDate: string | null = body?.targetExamDate ?? null;
+  const dateOfBirth: string | null = body?.dateOfBirth ?? null;
+  const guardian = body?.guardian ?? null;
 
   if (!flowType) {
     return res.status(400).json({ error: "flowType is required", validTypes: FLOW_TYPES });
+  }
+
+  // Age and guardian consent are checked BEFORE the flow answers, and the
+  // server recomputes whether the user is a minor from the submitted date of
+  // birth rather than trusting a flag. A student who edits the client bundle to
+  // hide the guardian fields changes what they see, not what is accepted.
+  //
+  // Fails closed on a missing or unparseable date of birth: isMinor() treats
+  // "unknown age" as a child, so omitting the field cannot bypass the check.
+  const consent = validateConsentBlock({ dateOfBirth, guardian });
+  if (!consent.ok) {
+    return res.status(422).json({
+      error: "Age or guardian details are missing or invalid.",
+      issues: consent.issues,
+    });
   }
 
   // Validate the flow BEFORE saving, as required: a payload whose declared flow
@@ -101,6 +119,7 @@ export default async function handler(req: any, res: any) {
     if (examTrackId) profileUpdate.exam_track_id = examTrackId;
     // Empty string would fail the date column; null is the "not known yet" value.
     if (targetExamDate) profileUpdate.target_exam_date = targetExamDate;
+    if (consent.data?.dateOfBirth) profileUpdate.date_of_birth = consent.data.dateOfBirth;
 
     const { error: profileError } = await db
       .from("profiles")
@@ -108,7 +127,41 @@ export default async function handler(req: any, res: any) {
       .eq("id", caller.uid);
     if (profileError) throw profileError;
 
-    return res.status(200).json({ ok: true, flowType: flowType.toUpperCase() });
+    // Record the guardian's consent for a minor.
+    //
+    // Written LAST and with the service role, because guardian_consents has no
+    // INSERT policy for `authenticated` at all — a student cannot forge a
+    // consent record for themselves, only receive one written on their behalf
+    // here after the server has agreed they need it.
+    //
+    // verified_at is deliberately left NULL. What is stored is the student's
+    // DECLARATION that a guardian agreed, which is not the same as the guardian
+    // confirming it. The out-of-band confirmation step (emailing
+    // verification_token to guardian_email) is not implemented yet, and calling
+    // this "verified" would make the record claim more than it knows.
+    if (consent.data?.minor && consent.data.guardian) {
+      const g = consent.data.guardian;
+      const { error: consentError } = await db
+        .from("guardian_consents")
+        .upsert({
+          user_id: caller.uid,
+          guardian_name: g.guardianName,
+          guardian_email: g.guardianEmail,
+          guardian_relationship: g.guardianRelationship,
+          student_date_of_birth: consent.data.dateOfBirth,
+          policy_version: POLICY_VERSION,
+          declared_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        }, { onConflict: "user_id" });
+      // Hard failure: a minor's record must not be left without its consent row.
+      if (consentError) throw consentError;
+    }
+
+    return res.status(200).json({
+      ok: true,
+      flowType: flowType.toUpperCase(),
+      minor: consent.data?.minor ?? false,
+    });
   } catch (err: any) {
     console.error("[onboarding/submit] failed:", err?.message ?? err);
     return res.status(500).json({ error: "Could not save your answers. Please try again." });

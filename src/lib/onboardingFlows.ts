@@ -182,6 +182,18 @@ export interface SubmitPayload {
   /** Persisted to profiles — the whole exam-prep engine keys off this. */
   examTrackId: string | null;
   targetExamDate: string | null;
+  /**
+   * Date of birth, ISO yyyy-mm-dd. The server recomputes whether the user is a
+   * minor from THIS value rather than trusting any flag the client sends.
+   */
+  dateOfBirth: string | null;
+  /** Required by the server when the date of birth indicates a minor. */
+  guardian: {
+    guardianName: string;
+    guardianEmail: string;
+    guardianRelationship: string;
+    guardianConsentConfirmed: boolean;
+  } | null;
 }
 
 /**

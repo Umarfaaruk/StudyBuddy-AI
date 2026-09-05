@@ -39,12 +39,26 @@ const PrivacyPolicy = () => (
       </p>
       <p>
         <strong className="text-foreground">
-          If you are under 18, please use StudyBuddy AI only with your parent or
-          guardian&rsquo;s knowledge and permission.
+          If you are under 18, we ask for your date of birth during signup and,
+          if you are a minor, we will not continue until you give us your parent
+          or guardian&rsquo;s name, relationship and email address, and confirm
+          that they have read this policy and agree.
         </strong>{" "}
+        We keep a dated record of that consent, including which version of this
+        policy was agreed to.
+      </p>
+      <p>
+        We want to be straightforward about a limit here. What we currently
+        record is your confirmation that your guardian agreed. We are building
+        the step that contacts your guardian directly to confirm it with them,
+        and until that is live our record is a declaration rather than an
+        independent verification. We would rather say this plainly than imply a
+        stronger check than we perform.
+      </p>
+      <p>
         A parent or guardian may contact us at any time to see what we hold
-        about their child, correct it, or have it deleted, using the address
-        above.
+        about their child, correct it, withdraw their consent, or have the data
+        deleted, using the address above.
       </p>
       <p>
         We do not serve behavioural or targeted advertising to any user, and we
