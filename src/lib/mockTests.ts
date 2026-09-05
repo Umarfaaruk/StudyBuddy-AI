@@ -16,6 +16,7 @@
 
 import { supabase } from "@/lib/supabase";
 import type { DiagnosticQuestion } from "@/lib/diagnostic";
+import type { CollectedAnswer } from "@/components/QuestionPlayer";
 import type { PerTopicResult } from "@/lib/diagnostic";
 
 export type MockScope = "full_syllabus" | "subject" | "chapter";
@@ -165,6 +166,84 @@ async function attachNodeNames(questions: DiagnosticQuestion[]): Promise<void> {
     const pid = parentById.get(q.syllabus_node_id);
     q.subjectName = pid ? parentNames.get(pid) : undefined;
   }
+}
+
+/* ── Resuming an interrupted attempt ──────────────────────────────────────── */
+
+/**
+ * An attempt that was started but never submitted.
+ *
+ * `startedAt` comes from the SERVER row, not from the browser. That is the
+ * whole point: the deadline is derived from it, so closing the tab, editing
+ * local storage or changing the system clock cannot buy extra time.
+ */
+export interface OpenAttempt {
+  id: string;
+  startedAt: number;
+}
+
+/** The most recent unsubmitted attempt at this test, if there is one. */
+export async function findOpenAttempt(
+  userId: string, mockTestId: string
+): Promise<OpenAttempt | null> {
+  const { data, error } = await supabase
+    .from("mock_test_attempts")
+    .select("id, started_at")
+    .eq("user_id", userId)
+    .eq("mock_test_id", mockTestId)
+    .eq("status", "in_progress")
+    .order("started_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (error) throw error;
+  if (!data) return null;
+  return { id: data.id as string, startedAt: new Date(data.started_at as string).getTime() };
+}
+
+/**
+ * Locally cached progress for one attempt.
+ *
+ * The QUESTION SET is stored, not just the answers. buildMockQuestionSet
+ * reshuffles with Math.random() on every call, so a refresh would otherwise
+ * produce a different set in a different order and the restored answers would
+ * silently attach to the wrong questions — a scoring corruption far worse than
+ * simply losing the answers.
+ *
+ * This is a per-browser convenience only. Nothing here is trusted: the clock
+ * comes from the server row, and grading re-reads the answer key server-side.
+ */
+export interface MockProgress {
+  questions: DiagnosticQuestion[];
+  answers: CollectedAnswer[];
+}
+
+const progressKey = (attemptId: string) => `studybuddy:mock:${attemptId}`;
+
+export function saveMockProgress(attemptId: string, progress: MockProgress): void {
+  try {
+    localStorage.setItem(progressKey(attemptId), JSON.stringify(progress));
+  } catch {
+    // Private mode, quota, or storage blocked. Losing the cache costs the
+    // student their answers on a refresh; throwing here would cost them the
+    // whole test. Degrade quietly.
+  }
+}
+
+export function loadMockProgress(attemptId: string): MockProgress | null {
+  try {
+    const raw = localStorage.getItem(progressKey(attemptId));
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as MockProgress;
+    if (!Array.isArray(parsed?.questions) || !Array.isArray(parsed?.answers)) return null;
+    if (parsed.questions.length === 0) return null;
+    return parsed;
+  } catch {
+    return null;
+  }
+}
+
+export function clearMockProgress(attemptId: string): void {
+  try { localStorage.removeItem(progressKey(attemptId)); } catch { /* nothing to do */ }
 }
 
 export async function startMockAttempt(

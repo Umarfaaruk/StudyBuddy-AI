@@ -10,8 +10,10 @@ import { gradeAnswers, rollUpByTopic, buildMistakes } from "@/lib/grading";
 import {
   fetchMockTests, buildMockQuestionSet, startMockAttempt,
   completeMockAttempt, captureMasterySnapshot,
+  findOpenAttempt, saveMockProgress, loadMockProgress, clearMockProgress,
   type MockTest, type MockQuestionSet,
 } from "@/lib/mockTests";
+import { deadlineFrom, remainingSeconds, isExpired, resumeDecision } from "@/lib/mockTimer";
 
 /**
  * MOCK TEST SESSION  (Phase 3.1)
@@ -24,9 +26,21 @@ import {
  * setInterval-based countdown drifts, and browsers throttle timers in background
  * tabs — so a student who switched tabs would be handed extra minutes, silently
  * corrupting the comparability the whole feature exists for.
+ *
+ * THE DEADLINE COMES FROM THE SERVER. It is mock_test_attempts.started_at plus
+ * the test duration, never Date.now() at the moment Start was pressed. That
+ * distinction is what makes a refresh survivable: reloading resumes the SAME
+ * attempt with the SAME deadline, instead of minting a second attempt row and
+ * a full fresh clock, which is what this component used to do.
+ *
+ * Answers are cached in localStorage against the attempt id, together with the
+ * QUESTION SET - buildMockQuestionSet reshuffles on every call, so restoring
+ * answers without the set they were collected against would attach them to the
+ * wrong questions. The cache is a convenience: losing it costs answers, never
+ * time, and never affects grading, which re-reads the key server-side.
  */
 
-type Phase = "loading" | "ready" | "running" | "submitting" | "empty" | "error";
+type Phase = "loading" | "ready" | "resuming" | "running" | "submitting" | "empty" | "error";
 
 const fmt = (totalSeconds: number) => {
   const s = Math.max(0, totalSeconds);
@@ -46,6 +60,10 @@ const MockTestSession = () => {
   const [set, setSet] = useState<MockQuestionSet | null>(null);
   const [remaining, setRemaining] = useState<number>(0);
   const [errorMsg, setErrorMsg] = useState("");
+  const [resumed, setResumed] = useState(false);
+  // Set when submission failed but the answers are still in hand, so the
+  // student can retry instead of losing a finished test to a dropped network.
+  const [canRetrySubmit, setCanRetrySubmit] = useState(false);
 
   const attemptIdRef = useRef<string | null>(null);
   const deadlineRef = useRef<number>(0);
@@ -73,6 +91,34 @@ const MockTestSession = () => {
         const built = await buildMockQuestionSet(found);
         if (cancelled) return;
         if (built.questions.length === 0) { setSet(built); setPhase("empty"); return; }
+
+        // Is an attempt already running? A refresh, a crashed tab and a closed
+        // laptop all land here.
+        const open = user ? await findOpenAttempt(user.uid, found.id) : null;
+        if (cancelled) return;
+
+        if (open) {
+          attemptIdRef.current = open.id;
+          startedAtRef.current = open.startedAt;
+          deadlineRef.current = deadlineFrom(open.startedAt, found.duration_minutes);
+
+          // Prefer the cached set: it is the one the student actually saw.
+          const cached = loadMockProgress(open.id);
+          if (cached) {
+            answersRef.current = cached.answers;
+            setSet({ ...built, questions: cached.questions });
+          } else {
+            // Cache gone (storage cleared, different browser). Resume with a
+            // fresh set but the ORIGINAL deadline: answers are lost, time is
+            // not quietly refunded.
+            answersRef.current = [];
+            setSet(built);
+          }
+          setResumed(true);
+          setPhase("resuming");
+          return;
+        }
+
         setSet(built);
         setPhase("ready");
       } catch (err) {
@@ -83,10 +129,21 @@ const MockTestSession = () => {
       }
     })();
     return () => { cancelled = true; };
-  }, [examLoading, examTrackId, testId, navigate]);
+  }, [examLoading, examTrackId, testId, navigate, user]);
 
   const submit = useCallback(async (answers: CollectedAnswer[], expired = false) => {
     if (submittingRef.current || !test) return;
+
+    // Fail fast while offline rather than firing a grade request that cannot
+    // arrive. The answers stay in hand and in localStorage, so retrying once
+    // the connection returns submits the real test.
+    if (typeof navigator !== "undefined" && navigator.onLine === false) {
+      setErrorMsg("You appear to be offline. Your answers are saved - reconnect and try again.");
+      setCanRetrySubmit(true);
+      setPhase("error");
+      return;
+    }
+
     submittingRef.current = true;
     setPhase("submitting");
 
@@ -108,6 +165,9 @@ const MockTestSession = () => {
       // Snapshot AFTER grading, so the captured mastery includes this attempt.
       if (user) await captureMasterySnapshot(user.uid);
 
+      // Submitted; the cache would now only be a stale resume point.
+      if (attemptIdRef.current) clearMockProgress(attemptIdRef.current);
+
       queryClient.invalidateQueries({ queryKey: ["due-reviews"] });
       queryClient.invalidateQueries({ queryKey: ["mock-attempts"] });
 
@@ -123,9 +183,30 @@ const MockTestSession = () => {
       console.error("[mock] submit failed:", err);
       submittingRef.current = false;
       setErrorMsg((err as Error).message || "Could not submit your test.");
+      setCanRetrySubmit(true);
       setPhase("error");
     }
   }, [test, user, queryClient, navigate]);
+
+  /**
+   * Settle a resumed attempt.
+   *
+   * Its own effect because the decision needs `submit`, which needs `test` -
+   * both of which only exist once the load effect has finished.
+   *
+   * If the deadline passed while the tab was shut, the test is submitted with
+   * whatever was answered. Handing back a fresh clock would make the score
+   * incomparable with every other attempt, which is the one thing a mock test
+   * cannot afford.
+   */
+  useEffect(() => {
+    if (phase !== "resuming" || !test || !set) return;
+    if (resumeDecision(startedAtRef.current, test.duration_minutes, Date.now()) === "submit") {
+      void submit(answersRef.current, true);
+    } else {
+      setPhase("running");
+    }
+  }, [phase, test, set, submit]);
 
   // Countdown. Recomputed from the deadline on every tick, so drift and
   // background-tab throttling cannot extend the allotted time.
@@ -133,9 +214,9 @@ const MockTestSession = () => {
     if (phase !== "running" || !test) return;
 
     const tick = () => {
-      const left = Math.round((deadlineRef.current - Date.now()) / 1000);
-      setRemaining(left);
-      if (left <= 0) void submit(answersRef.current, true);
+      const now = Date.now();
+      setRemaining(remainingSeconds(deadlineRef.current, now));
+      if (isExpired(deadlineRef.current, now)) void submit(answersRef.current, true);
     };
     tick();
     const id = setInterval(tick, 1000);
@@ -155,9 +236,19 @@ const MockTestSession = () => {
   const begin = useCallback(async () => {
     if (!user || !test || !set) return;
     try {
-      attemptIdRef.current = await startMockAttempt(user.uid, test, set.questions.length);
-      startedAtRef.current = Date.now();
-      deadlineRef.current = Date.now() + test.duration_minutes * 60_000;
+      const attemptId = await startMockAttempt(user.uid, test, set.questions.length);
+      attemptIdRef.current = attemptId;
+
+      // Read the clock back from the row just written, so the deadline is
+      // anchored to the same server timestamp a later resume will read.
+      const open = await findOpenAttempt(user.uid, test.id);
+      startedAtRef.current = open?.startedAt ?? Date.now();
+      deadlineRef.current = deadlineFrom(startedAtRef.current, test.duration_minutes);
+
+      answersRef.current = [];
+      // Persist the set NOW: a refresh one second later must resume this exact
+      // set, not a fresh shuffle.
+      saveMockProgress(attemptId, { questions: set.questions, answers: [] });
       setPhase("running");
     } catch (err) {
       console.error("[mock] could not start:", err);
@@ -166,7 +257,7 @@ const MockTestSession = () => {
     }
   }, [user, test, set]);
 
-  if (phase === "loading" || examLoading) {
+  if (phase === "loading" || phase === "resuming" || examLoading) {
     return (
       <div className="min-h-[60vh] flex items-center justify-center">
         <Loader2 className="h-6 w-6 animate-spin text-primary" />
@@ -198,7 +289,22 @@ const MockTestSession = () => {
         </div>
         <h1 className="text-xl font-bold text-foreground">Something went wrong</h1>
         <p className="text-sm text-muted-foreground">{errorMsg}</p>
-        <Button variant="outline" onClick={() => navigate("/mock")}>Back to tests</Button>
+        {/* Leaving only a "Back to tests" button here would throw away a
+            finished test because a request failed once. */}
+        <div className="flex items-center justify-center gap-2">
+          {canRetrySubmit && (
+            <Button
+              onClick={() => {
+                setCanRetrySubmit(false);
+                submittingRef.current = false;
+                void submit(answersRef.current, false);
+              }}
+            >
+              Try submitting again
+            </Button>
+          )}
+          <Button variant="outline" onClick={() => navigate("/mock")}>Back to tests</Button>
+        </div>
       </div>
     );
   }
@@ -263,9 +369,27 @@ const MockTestSession = () => {
         </span>
       </div>
 
+      {resumed && (
+        <p className="text-xs text-muted-foreground rounded-lg bg-muted px-3 py-2">
+          Resumed from where you left off. The clock has kept running since you
+          started, so the time left reflects that.
+        </p>
+      )}
+
       <QuestionPlayer
         questions={set.questions}
-        onAnswered={(a) => { answersRef.current = [...answersRef.current, a]; }}
+        initialAnswers={answersRef.current}
+        onAnswered={(a) => {
+          answersRef.current = [...answersRef.current, a];
+          // Written after every answer, so an interruption loses at most the
+          // question currently on screen.
+          if (attemptIdRef.current) {
+            saveMockProgress(attemptIdRef.current, {
+              questions: set.questions,
+              answers: answersRef.current,
+            });
+          }
+        }}
         onComplete={(answers) => void submit(answers)}
         finishLabel="Submit test"
       />

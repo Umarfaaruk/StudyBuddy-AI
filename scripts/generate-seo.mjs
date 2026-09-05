@@ -120,9 +120,9 @@ function writePage(path, html) {
 const STATIC_PAGES = [
   {
     path: "/",
-    title: "StudyBuddy AI — JEE & NEET preparation with an AI tutor",
+    title: "StudyBuddy AI — JEE, NEET & GATE preparation with an AI tutor",
     description:
-      "Diagnostic-led practice, syllabus-grounded answers and a study plan built around your exam date. Free to start.",
+      "Diagnostic-led practice for JEE, NEET and GATE: syllabus-grounded answers and a study plan built around your exam date. Free to start.",
   },
   {
     path: "/about",
@@ -132,7 +132,7 @@ const STATIC_PAGES = [
   },
   {
     path: "/free-test",
-    title: "Free JEE & NEET diagnostic test — no signup",
+    title: "Free JEE, NEET & GATE diagnostic test — no signup",
     description:
       "Answer 8 questions and find the chapters costing you the most marks. No account needed.",
   },

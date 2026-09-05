@@ -41,6 +41,15 @@ interface Props {
   /** Skipping records an unanswered response rather than forcing a guess. */
   allowSkip?: boolean;
   finishLabel?: string;
+  /**
+   * Answers already collected, for resuming an interrupted session.
+   *
+   * Read ONCE, as the initial state. Treating it as a controlled prop would
+   * fight the component's own state on every answer. The player resumes at
+   * index `initialAnswers.length`, so the caller must pass the SAME question
+   * set these answers were collected against.
+   */
+  initialAnswers?: CollectedAnswer[];
 }
 
 const QuestionPlayer = ({
@@ -50,10 +59,13 @@ const QuestionPlayer = ({
   totalExpected,
   allowSkip = true,
   finishLabel = "Finish",
+  initialAnswers,
 }: Props) => {
-  const [index, setIndex] = useState(0);
+  // Lazy initialisers: `initialAnswers` seeds the first render only, so a
+  // parent that rebuilds the array on each render cannot reset progress.
+  const [index, setIndex] = useState(() => initialAnswers?.length ?? 0);
   const [selected, setSelected] = useState<string | null>(null);
-  const [answers, setAnswers] = useState<CollectedAnswer[]>([]);
+  const [answers, setAnswers] = useState<CollectedAnswer[]>(() => initialAnswers ?? []);
 
   const questionStartRef = useRef<number>(Date.now());
   // Guards a double-click on the final question from completing twice.

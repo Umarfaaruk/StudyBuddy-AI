@@ -28,9 +28,9 @@ export function fillCopy(template: string, vars: Record<string, string | number>
 export const GENERIC_EXAM_LABEL = "your exam";
 
 export const landingCopy = {
-  eyebrow: "JEE & NEET PREPARATION",
+  eyebrow: "JEE, NEET & GATE PREPARATION",
   headline: "Crack {exam} with a tutor that knows your weak spots.",
-  headlineGeneric: "Crack JEE & NEET with a tutor that knows your weak spots.",
+  headlineGeneric: "Crack JEE, NEET & GATE with a tutor that knows your weak spots.",
   subheadline:
     "Diagnostic-led practice, syllabus-grounded answers, and a study plan built around your exam date — not generic tutoring.",
   primaryCta: "Take the free diagnostic",
