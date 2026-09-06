@@ -43,7 +43,7 @@ const AILearning = () => {
     return () => {
       componentMountedRef.current = false;
       if (abortControllerRef.current) {
-        console.log("[AILearning] 🧹 Aborting in-flight requests on unmount");
+        if (import.meta.env.DEV) console.log("[AILearning] 🧹 Aborting in-flight requests on unmount");
         abortControllerRef.current.abort();
       }
     };
@@ -175,7 +175,7 @@ Always provide structured, comprehensive responses that help the student deeply 
     ];
 
     try {
-      console.log("[AILearning] 📤 Sending question:", userMsg.content);
+      if (import.meta.env.DEV) console.log("[AILearning] 📤 Sending question:", userMsg.content);
 
       let accumulated = "";
 
@@ -202,13 +202,13 @@ Always provide structured, comprehensive responses that help the student deeply 
       );
 
       if (componentMountedRef.current) {
-        console.log("[AILearning] ✅ Response complete");
+        if (import.meta.env.DEV) console.log("[AILearning] ✅ Response complete");
       }
     } catch (e: any) {
       if (!componentMountedRef.current) return;
 
       if (e.name === "AbortError") {
-        console.log("[AILearning] ⏹️ Response cancelled");
+        if (import.meta.env.DEV) console.log("[AILearning] ⏹️ Response cancelled");
         toast.info("Response cancelled");
       } else {
         console.error("[AILearning] ❌ Error:", e);

@@ -196,7 +196,7 @@ async function aiCompleteInner(options: AIRequestOptions): Promise<string> {
     if (resp.status === 429) {
       if (attempt < MAX_RETRIES) {
         const delay = getRetryDelay(resp, attempt);
-        console.log(`[AI] ⏳ Rate limited. Retrying in ${(delay / 1000).toFixed(1)}s (attempt ${attempt + 1}/${MAX_RETRIES})...`);
+        if (import.meta.env.DEV) console.log(`[AI] ⏳ Rate limited. Retrying in ${(delay / 1000).toFixed(1)}s (attempt ${attempt + 1}/${MAX_RETRIES})...`);
         await sleep(delay, signal);
         continue;
       }
@@ -250,7 +250,7 @@ async function aiStreamInner(
     if (resp.status === 429) {
       if (attempt < MAX_RETRIES) {
         const delay = getRetryDelay(resp, attempt);
-        console.log(`[AI] ⏳ Rate limited. Retrying in ${(delay / 1000).toFixed(1)}s (attempt ${attempt + 1}/${MAX_RETRIES})...`);
+        if (import.meta.env.DEV) console.log(`[AI] ⏳ Rate limited. Retrying in ${(delay / 1000).toFixed(1)}s (attempt ${attempt + 1}/${MAX_RETRIES})...`);
         // Notify the UI that we're waiting
         onToken(`\n\n⏳ *Rate limited — retrying in ${Math.ceil(delay / 1000)}s...*\n\n`);
         await sleep(delay, signal);
@@ -362,7 +362,7 @@ export async function aiVisionComplete(
       if (resp.status === 429) {
         if (attempt < MAX_RETRIES) {
           const delay = getRetryDelay(resp, attempt);
-          console.log(`[AI Vision] ⏳ Rate limited. Retrying in ${(delay / 1000).toFixed(1)}s (attempt ${attempt + 1}/${MAX_RETRIES})...`);
+          if (import.meta.env.DEV) console.log(`[AI Vision] ⏳ Rate limited. Retrying in ${(delay / 1000).toFixed(1)}s (attempt ${attempt + 1}/${MAX_RETRIES})...`);
           await sleep(delay, signal);
           continue;
         }

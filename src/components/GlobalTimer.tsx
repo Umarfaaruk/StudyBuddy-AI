@@ -121,7 +121,7 @@ const GlobalTimer = () => {
         if (typeof savedSeconds === "number" && savedSeconds > 0) {
           setSeconds(savedSeconds);
           startedAtRef.current = savedStartedAt || new Date().toISOString();
-          console.log(`[Timer] ✅ Recovered ${savedSeconds}s from localStorage`);
+          if (import.meta.env.DEV) console.log(`[Timer] ✅ Recovered ${savedSeconds}s from localStorage`);
         }
       }
     } catch {
@@ -219,7 +219,7 @@ const GlobalTimer = () => {
       if (e.key !== sessionKey) return;
       if (e.newValue === null) {
         // Another tab saved — reset this tab
-        console.log("[Timer] 🔄 Another tab saved. Resetting.");
+        if (import.meta.env.DEV) console.log("[Timer] 🔄 Another tab saved. Resetting.");
         setSeconds(0);
         startedAtRef.current = new Date().toISOString();
         invalidateProgress();
@@ -247,7 +247,7 @@ const GlobalTimer = () => {
 
     try {
       const cappedDuration = Math.min(dur, MAX_SESSION_SECONDS);
-      console.log(`[Timer] 💾 Saving ${cappedDuration}s session`);
+      if (import.meta.env.DEV) console.log(`[Timer] 💾 Saving ${cappedDuration}s session`);
 
       const { xp, newStreak } = await saveStudySession(
         user.uid, startedAtRef.current, cappedDuration, streak, currentTopicId
@@ -304,7 +304,7 @@ const GlobalTimer = () => {
     tabSwitchSaveTimeoutRef.current = setTimeout(() => {
       // Auto-save if user hasn't returned within 30 seconds
       if (pausedRef.current && secondsRef.current >= MIN_SAVE_DURATION) {
-        console.log("[Timer] 💾 Auto-saving due to inactivity (30s)");
+        if (import.meta.env.DEV) console.log("[Timer] 💾 Auto-saving due to inactivity (30s)");
         handleSave(false); // Save without auto-restart
       }
     }, TAB_SWITCH_AUTO_SAVE_MS);
@@ -324,7 +324,7 @@ const GlobalTimer = () => {
       if (document.hidden) {
         // Tab switched away — pause counter
         if (runningRef.current && !pausedRef.current) {
-          console.log("[Timer] ⏸️ Paused (tab hidden) — will auto-save in 30 seconds if not resumed");
+          if (import.meta.env.DEV) console.log("[Timer] ⏸️ Paused (tab hidden) — will auto-save in 30 seconds if not resumed");
           setPaused(true);
           // Save progress to localStorage immediately
           if (sessionKey) {
@@ -346,12 +346,12 @@ const GlobalTimer = () => {
 
         if (runningRef.current && pausedRef.current) {
           // Timer was paused — resume it
-          console.log("[Timer] ▶️ Resumed (tab visible)");
+          if (import.meta.env.DEV) console.log("[Timer] ▶️ Resumed (tab visible)");
           setPaused(false);
           lastActivityRef.current = Date.now();
         } else if (!runningRef.current && !pausedRef.current && !isSavingRef.current) {
           // Timer was auto-saved while away — restart fresh session
-          console.log("[Timer] ▶️ Restarting (tab returned after auto-save)");
+          if (import.meta.env.DEV) console.log("[Timer] ▶️ Restarting (tab returned after auto-save)");
           setRunning(true);
           if (secondsRef.current === 0) {
             startedAtRef.current = new Date().toISOString();
@@ -363,7 +363,7 @@ const GlobalTimer = () => {
 
     const handleBlur = () => {
       if (runningRef.current && !pausedRef.current && !document.hidden) {
-        console.log("[Timer] ⏸️ Paused (window blur) — will auto-save in 30 seconds if not resumed");
+        if (import.meta.env.DEV) console.log("[Timer] ⏸️ Paused (window blur) — will auto-save in 30 seconds if not resumed");
         setPaused(true);
         // Save to localStorage immediately
         if (sessionKey) {
@@ -386,12 +386,12 @@ const GlobalTimer = () => {
       cancelAutoSave();
 
       if (runningRef.current && pausedRef.current && !document.hidden) {
-        console.log("[Timer] ▶️ Resumed (window focus)");
+        if (import.meta.env.DEV) console.log("[Timer] ▶️ Resumed (window focus)");
         setPaused(false);
         lastActivityRef.current = Date.now();
       } else if (!runningRef.current && !pausedRef.current && !document.hidden && !isSavingRef.current) {
         // Timer was auto-saved while away — restart
-        console.log("[Timer] ▶️ Restarting (focus returned after auto-save)");
+        if (import.meta.env.DEV) console.log("[Timer] ▶️ Restarting (focus returned after auto-save)");
         setRunning(true);
         if (secondsRef.current === 0) {
           startedAtRef.current = new Date().toISOString();
@@ -422,7 +422,7 @@ const GlobalTimer = () => {
       if (inactivityTimeoutRef.current) clearTimeout(inactivityTimeoutRef.current);
       inactivityTimeoutRef.current = setTimeout(() => {
         if (!document.hidden && runningRef.current && !pausedRef.current) {
-          console.log("[Timer] ⏸️ Auto-paused (30 min inactivity)");
+          if (import.meta.env.DEV) console.log("[Timer] ⏸️ Auto-paused (30 min inactivity)");
           toast.warning("Timer paused due to inactivity. Click to resume.");
           setPaused(true);
         }
@@ -469,7 +469,7 @@ const GlobalTimer = () => {
             });
             // sendBeacon to a logging endpoint if available; otherwise localStorage is our fallback
             // Note: localStorage + pendingSave is our offline-save strategy
-            console.log("[Timer] 📡 Saving via localStorage on unload:", beaconData);
+            if (import.meta.env.DEV) console.log("[Timer] 📡 Saving via localStorage on unload:", beaconData);
           } catch {}
         }
       }
@@ -491,7 +491,7 @@ const GlobalTimer = () => {
       if (stored) {
         const parsed = JSON.parse(stored);
         if (parsed.pendingSave && parsed.seconds >= MIN_SAVE_DURATION) {
-          console.log(`[Timer] 📦 Saving pending session from previous load: ${parsed.seconds}s`);
+          if (import.meta.env.DEV) console.log(`[Timer] 📦 Saving pending session from previous load: ${parsed.seconds}s`);
           // Save async, then clear
           saveStudySession(user.uid, parsed.startedAt, parsed.seconds, streak, parsed.topicId)
             .then(({ xp, newStreak }) => {
@@ -531,13 +531,13 @@ const GlobalTimer = () => {
     if (paused) {
       setPaused(false);
       lastActivityRef.current = Date.now();
-      console.log("[Timer] ▶️ Manual resume");
+      if (import.meta.env.DEV) console.log("[Timer] ▶️ Manual resume");
     } else if (!running) {
       setRunning(true);
       if (seconds === 0) {
         startedAtRef.current = new Date().toISOString();
       }
-      console.log("[Timer] ▶️ Manual start");
+      if (import.meta.env.DEV) console.log("[Timer] ▶️ Manual start");
     }
   }, [paused, running, seconds, cancelAutoSave]);
 

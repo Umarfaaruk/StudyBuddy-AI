@@ -133,7 +133,7 @@ async function extractTextFromPDF(file: File): Promise<string> {
 
     // Load worker via blob to bypass browser CORS restrictions for web workers
     const workerUrl = `https://unpkg.com/pdfjs-dist@${pdfjsLib.version}/build/pdf.worker.min.mjs`;
-    console.log(`[PDF] Fetching worker from ${workerUrl}`);
+    if (import.meta.env.DEV) console.log(`[PDF] Fetching worker from ${workerUrl}`);
     const response = await fetch(workerUrl);
     if (!response.ok) throw new Error(`Failed to fetch PDF worker from CDN: ${response.statusText}`);
     const blob = await response.blob();

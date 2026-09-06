@@ -184,7 +184,7 @@ const AISolution = () => {
         if (!componentMountedRef.current) return;
         
         if (e.name === "AbortError") {
-          console.log("[AISolution] 🛑 Response cancelled");
+          if (import.meta.env.DEV) console.log("[AISolution] 🛑 Response cancelled");
         } else {
           console.error("[AISolution] Error:", e);
           setError(e.message);

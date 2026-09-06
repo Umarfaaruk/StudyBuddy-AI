@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import MistakeReview, { type Mistake } from "@/components/MistakeReview";
 import { rankWeakestTopics, type PerTopicResult } from "@/lib/diagnostic";
 import TestimonialPrompt from "@/components/TestimonialPrompt";
+import ShareCard from "@/components/ShareCard";
 
 /**
  * MOCK TEST RESULTS  (Phase 3.1)
@@ -27,6 +28,14 @@ interface ResultState {
   mistakes: Mistake[];
   expired: boolean;
 }
+
+/**
+ * Only offer the share card for a result worth boasting about. The colour
+ * bands below treat anything under 60 as needing work; asking a student to
+ * broadcast a weak score to WhatsApp would be tone-deaf, so the prompt starts
+ * comfortably clear of that line rather than appearing on every result.
+ */
+const SHAREABLE_SCORE = 70;
 
 const scoreColour = (s: number) =>
   s < 35 ? "text-destructive" : s < 60 ? "text-cta" : s < 80 ? "text-foreground" : "text-success";
@@ -122,6 +131,20 @@ const MockTestResults = () => {
 
       {/* Milestone-triggered testimonial capture (Phase 3.5) — self-hiding. */}
       <TestimonialPrompt latestScore={state.score} />
+
+      {/* Growth loop (Phase 4.3): a strong result is the moment a student is
+          most willing to tell a friend. The card's default link points at the
+          free test, so the share lands somewhere a non-user can act on. */}
+      {state.score >= SHAREABLE_SCORE && (
+        <ShareCard
+          headline={`${state.score}% on ${state.title}`}
+          subline={
+            state.percentile !== null
+              ? `Ahead of ${state.percentile}% of attempts`
+              : `${state.correct} of ${state.total} correct`
+          }
+        />
+      )}
 
       <div className="flex gap-2">
         <Button onClick={() => navigate("/progress")} className="h-11">See your progress</Button>

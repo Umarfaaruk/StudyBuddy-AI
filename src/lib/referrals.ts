@@ -107,7 +107,7 @@ export async function redeemPendingAttribution(userId: string): Promise<void> {
     }
   } catch (err) {
     // A duplicate is the expected outcome on repeat logins, not a failure.
-    console.debug("[referrals] attribution already redeemed or unavailable:", err);
+    if (import.meta.env.DEV) console.log("[referrals] attribution already redeemed or unavailable:", err);
   } finally {
     clearPendingAttribution();
   }

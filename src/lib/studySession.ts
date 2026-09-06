@@ -176,7 +176,7 @@ export async function saveStudySession(
       `please check that your Supabase RLS policies allow inserts into "study_sessions".`
     );
   }
-  console.log(`[StudySession] ✅ Session saved: ${durationSeconds}s, topic_id: ${topicId}`);
+  if (import.meta.env.DEV) console.log(`[StudySession] ✅ Session saved: ${durationSeconds}s, topic_id: ${topicId}`);
 
   // ── NON-CRITICAL: XP + Streak (run in parallel, never block the result) ──
   let newStreak = 1;

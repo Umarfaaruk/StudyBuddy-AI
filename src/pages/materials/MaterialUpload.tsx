@@ -28,7 +28,7 @@ async function extractTextFromPDF(file: File): Promise<string> {
 
     // Load worker via blob to bypass browser CORS restrictions for web workers
     const workerUrl = `https://unpkg.com/pdfjs-dist@${pdfjsLib.version}/build/pdf.worker.min.mjs`;
-    console.log(`[PDF] Fetching worker from ${workerUrl}`);
+    if (import.meta.env.DEV) console.log(`[PDF] Fetching worker from ${workerUrl}`);
     const response = await fetch(workerUrl);
     if (!response.ok) throw new Error(`Failed to fetch PDF worker from CDN: ${response.statusText}`);
     const blob = await response.blob();
@@ -41,7 +41,7 @@ async function extractTextFromPDF(file: File): Promise<string> {
     const totalPages = pdf.numPages;
     const textParts: string[] = [];
 
-    console.log(`[PDF] Extracting text from ${totalPages} pages of "${file.name}"`);
+    if (import.meta.env.DEV) console.log(`[PDF] Extracting text from ${totalPages} pages of "${file.name}"`);
 
     for (let pageNum = 1; pageNum <= totalPages; pageNum++) {
       try {
@@ -69,7 +69,7 @@ async function extractTextFromPDF(file: File): Promise<string> {
     const fullText = textParts.join('\n\n');
 
     if (fullText.trim().length > 50) {
-      console.log(`[PDF] ✅ Extracted ${fullText.length} chars from "${file.name}"`);
+      if (import.meta.env.DEV) console.log(`[PDF] ✅ Extracted ${fullText.length} chars from "${file.name}"`);
       return fullText;
     }
 
