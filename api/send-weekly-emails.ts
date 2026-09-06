@@ -14,11 +14,13 @@
  *   SUPABASE_URL + SUPABASE_SERVICE_ROLE_KEY – server DB access
  *                                   (or SUPABASE_SECRET_KEY, the name the
  *                                    Vercel↔Supabase integration injects)
+ *   CRON_SECRET                   – every request must send
+ *                                   Authorization: Bearer <CRON_SECRET>.
+ *                                   Vercel Cron sends this automatically; with
+ *                                   it unset the endpoint refuses to run.
  * Optional:
  *   RESEND_FROM                   – e.g. "StudyBuddy AI <noreply@yourdomain.com>"
  *                                   (defaults to Resend's onboarding sender)
- *   CRON_SECRET                   – if set, the request must send
- *                                   Authorization: Bearer <CRON_SECRET>
  */
 import { Resend } from "resend";
 import { createClient } from "@supabase/supabase-js";
