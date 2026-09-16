@@ -13,8 +13,9 @@ const FEEDBACK_INTERVAL_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
  * Logic:
  * 1. Check the `feedback` table for user's most recent submission
  * 2. Also check `user_preferences/{uid}` for `last_feedback_at` timestamp
- * 3. If > 7 days since last feedback, show mandatory modal
- * 4. Users can only dismiss after submitting
+ * 3. If > 7 days since last feedback, show the modal
+ * 4. Closing it without submitting snoozes for a week (see handleClose), so
+ *    it asks again later rather than blocking the session
  */
 const FeedbackEnforcer = () => {
   const { user } = useAuth();
@@ -157,7 +158,7 @@ const FeedbackEnforcer = () => {
     <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm animate-in fade-in duration-300">
       <div className="bg-white rounded-2xl shadow-2xl w-[440px] max-w-[calc(100vw-32px)] overflow-hidden animate-in zoom-in-95 slide-in-from-bottom-4 duration-300">
         {/* Header */}
-        <div className="bg-gradient-to-r from-[#29ABE2] to-[#29ABE2] px-6 py-5 text-white">
+        <div className="bg-gradient-to-r from-[#29ABE2] to-[#1D4ED8] px-6 py-5 text-white">
           <div className="flex items-center gap-3">
             <div className="h-10 w-10 rounded-xl bg-white/20 flex items-center justify-center">
               <MessageSquare className="h-5 w-5" />
@@ -227,7 +228,7 @@ const FeedbackEnforcer = () => {
           <button
             onClick={handleSubmit}
             disabled={isSubmitting || rating === 0}
-            className="w-full h-11 rounded-xl bg-[#29ABE2] text-white font-semibold text-sm hover:bg-[#29ABE2] disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 transition-all"
+            className="w-full h-11 rounded-xl bg-[#29ABE2] text-white font-semibold text-sm hover:bg-[#1f95c7] disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 transition-all"
           >
             {isSubmitting ? (
               <>
@@ -242,7 +243,9 @@ const FeedbackEnforcer = () => {
             )}
           </button>
 
-          <p className="text-[10px] text-gray-300 text-center">
+          {/* was text-[10px] text-gray-300 — roughly 1.5:1 on white, far under
+              the 4.5:1 minimum for body text, so it read as a smudge. */}
+          <p className="text-xs text-gray-500 text-center">
             Your feedback helps us build a better learning experience for everyone.
           </p>
         </div>

@@ -51,13 +51,25 @@ const Profile = () => {
         const { data: sessionRows } = await supabase.from("study_sessions").select("duration_seconds").eq("user_id", user.uid);
         const totalStudySeconds = (sessionRows ?? []).reduce((sum, r) => sum + (r.duration_seconds || 0), 0);
 
+        // Lessons completed. This used to be reported as `quizCount`, so the
+        // "Lessons Done" tile silently mirrored "Quizzes Taken" — a student who
+        // had taken six quizzes and finished one lesson was told they had
+        // finished six. lesson_progress.completed_lessons is a text[] of lesson
+        // ids per topic, so the real figure is the total length across rows.
+        const { data: progressRows } = await supabase
+          .from("lesson_progress").select("completed_lessons").eq("user_id", user.uid);
+        const lessonsCompleted = (progressRows ?? []).reduce(
+          (sum, r) => sum + (Array.isArray(r.completed_lessons) ? r.completed_lessons.length : 0),
+          0
+        );
+
         return {
           totalXp,
           level: Math.floor(totalXp / 200) + 1,
           levelProgress: totalXp % 200,
           streak: streak,
           quizCount: quizCount,
-          lessonsCompleted: quizCount,
+          lessonsCompleted,
           studyHours: (totalStudySeconds / 3600).toFixed(1),
           badges: [],
         };
