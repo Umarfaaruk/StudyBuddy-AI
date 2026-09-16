@@ -516,7 +516,9 @@ export default async function handler(req: any, res: any) {
       transcript: "",
       segments: [],
       transcriptSource: "none",
-      error: err instanceof Error ? err.message : "Internal server error",
+      // Generic by policy (src/lib/userFacingErrors.ts): the real message can
+      // name a provider, a key or a URL. The full error is logged above.
+      error: "Could not fetch that transcript. Please try again.",
     } as TranscriptResponse);
   }
 }

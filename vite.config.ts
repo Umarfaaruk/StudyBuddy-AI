@@ -224,7 +224,26 @@ export default defineConfig(({ command, mode }) => {
     postcss: path.resolve(__dirname),
   },
   build: {
-    sourcemap: true,
+    /**
+     * "hidden", not true.
+     *
+     * Both emit .map files; the difference is the `//# sourceMappingURL=` line
+     * appended to each bundle. With `true` that line ships, so any browser —
+     * and anyone curious — fetches the maps and gets the complete original
+     * source back, every file and every comment. For a codebase the README
+     * declares proprietary, that is the whole product readable at a URL, and it
+     * also hands a reader the internal notes explaining how the auth and RLS
+     * boundaries work.
+     *
+     * "hidden" still writes the maps, so they can be uploaded to Sentry and
+     * stack traces stay readable there. They simply are not advertised to the
+     * client. It also takes the deploy from ~13MB to ~2MB.
+     *
+     * No secrets were ever in the bundle — checked: no service-role key, no
+     * Groq/Resend/YouTube key, no CRON_SECRET. Only the anon key and the
+     * Supabase URL, both of which are meant to be public.
+     */
+    sourcemap: "hidden",
     rollupOptions: {
       output: {
         manualChunks: {

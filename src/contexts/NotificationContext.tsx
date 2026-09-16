@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useState, ReactNode, useCallback } from "react";
+import { createContext, useContext, useEffect, useState, ReactNode, useCallback, useMemo } from "react";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/contexts/AuthContext";
 
@@ -93,8 +93,16 @@ export const NotificationProvider = ({ children }: { children: ReactNode }) => {
     if (error) console.error("[Notifications] Add notification error:", error);
   }, [user]);
 
+  // Memoised for the same reason as AuthContext: an inline object literal
+  // changes identity every render, so every consumer re-renders. The three
+  // functions are already useCallback'd, so this only changes when the data does.
+  const value = useMemo(
+    () => ({ notifications, unreadCount, markAsRead, markAllAsRead, addNotification }),
+    [notifications, unreadCount, markAsRead, markAllAsRead, addNotification]
+  );
+
   return (
-    <NotificationContext.Provider value={{ notifications, unreadCount, markAsRead, markAllAsRead, addNotification }}>
+    <NotificationContext.Provider value={value}>
       {children}
     </NotificationContext.Provider>
   );
