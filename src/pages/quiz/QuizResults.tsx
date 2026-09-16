@@ -3,6 +3,8 @@ import { Link, useLocation, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Trophy, RotateCcw, ArrowRight, Target, TrendingUp, Zap } from "lucide-react";
 import { supabase } from "@/lib/supabase";
+import { must } from "@/lib/dbWrite";
+import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
 
 const QuizResults = () => {
@@ -29,8 +31,11 @@ const QuizResults = () => {
 
     const save = async () => {
       try {
-        // Save quiz attempt
-        await supabase.from("quiz_attempts").insert({
+        // Save quiz attempt. Through must() so a rejected insert is a real
+        // error: this runs once (saved.current guards re-entry), so a silent
+        // failure meant the attempt, its XP and its topic progress were gone
+        // for good with nothing but a console line to show for it.
+        await must(supabase.from("quiz_attempts").insert({
           user_id: user.uid,
           topic_id: topicId || null,
           quiz_id: quizId || null,
@@ -38,7 +43,7 @@ const QuizResults = () => {
           score,
           total_questions: total,
           xp_awarded: xp,
-        });
+        }), "save your quiz result");
 
         // Award XP via the add_xp() RPC (writes the xp_logs audit entry AND
         // bumps profiles.total_xp atomically; xp_logs stays the source of truth).
@@ -79,6 +84,9 @@ const QuizResults = () => {
         }
       } catch (error) {
         console.error("[QuizResults] Save error:", error);
+        // The score on screen is real, but it is not in the database — say so
+        // rather than letting the student believe it was recorded.
+        toast.error("Your score is shown below but couldn't be saved. Check your connection.");
       }
     };
     save();

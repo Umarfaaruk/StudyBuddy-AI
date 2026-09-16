@@ -11,6 +11,7 @@
  *   the user is requester OR addressee).
  */
 import { supabase } from "@/lib/supabase";
+import { must } from "@/lib/dbWrite";
 import { createNotification } from "@/contexts/NotificationContext";
 
 export type FriendStatus = "none" | "pending_sent" | "pending_received" | "friends";
@@ -82,7 +83,13 @@ export async function acceptFriendRequest(
   requesterUid: string,
   accepterUid: string
 ): Promise<void> {
-  await supabase.from("friendships").update({ status: "accepted" }).eq("id", recordId);
+  // must() first: if the acceptance itself fails there is nothing to notify
+  // anyone about, and sending "X accepted your friend request" for a request
+  // that is still pending is worse than showing an error.
+  await must(
+    supabase.from("friendships").update({ status: "accepted" }).eq("id", recordId),
+    "accept the friend request"
+  );
   await createNotification(requesterUid, {
     title: "Friend request accepted",
     message: `${accepterName || "Someone"} accepted your friend request.`,
@@ -93,5 +100,8 @@ export async function acceptFriendRequest(
 
 /** Remove/cancel/decline a relationship (delete the record). */
 export async function removeFriendRecord(recordId: string): Promise<void> {
-  await supabase.from("friendships").delete().eq("id", recordId);
+  await must(
+    supabase.from("friendships").delete().eq("id", recordId),
+    "remove that friend"
+  );
 }

@@ -13,6 +13,7 @@ import { useDeepFocus } from "@/hooks/useDeepFocus";
 import { awardXP } from "@/lib/studySession";
 import { toast } from "sonner";
 import { supabase } from "@/lib/supabase";
+import { must } from "@/lib/dbWrite";
 
 const LESSON_XP = 20; // XP awarded per lesson completion
 
@@ -68,14 +69,17 @@ const MiniNotes = ({
   const add = async () => {
     if (!draft.trim() || !user) return;
     try {
-      await supabase.from("saved_notes").insert({
+      // must(): supabase-js reports failure through { error } rather than
+      // throwing, so this catch never fired and "Note saved!" appeared even
+      // when the note was not written.
+      await must(supabase.from("saved_notes").insert({
         user_id: user.uid,
         lesson_id: lessonId,
         lesson_title: lessonTitle || "Untitled Lesson",
         topic_id: topicId || "",
         topic_title: topicTitle || "Untitled Topic",
         text: draft.trim(),
-      });
+      }), "save your note");
       setDraft("");
       toast.success("Note saved!");
     } catch (err) {
@@ -86,7 +90,7 @@ const MiniNotes = ({
 
   const remove = async (id: string) => {
     try {
-      await supabase.from("saved_notes").delete().eq("id", id);
+      await must(supabase.from("saved_notes").delete().eq("id", id), "delete your note");
       toast.success("Note deleted");
     } catch (err) {
       console.error("Failed to delete note:", err);
@@ -235,12 +239,19 @@ const LessonViewer = () => {
 
       const updated = Array.from(new Set([...(existingProgress.completed_lessons || []), currentLesson.id]));
 
-      await supabase.from("lesson_progress").upsert({
-        user_id: user.uid,
-        topic_id: topicId,
-        completed_lessons: updated,
-        updated_at: new Date().toISOString(),
-      }, { onConflict: "user_id,topic_id" });
+      // Through must(): a rejected upsert used to resolve normally, so the
+      // mutation's onSuccess ran and told the student "Lesson completed!
+      // +XP earned" while lesson_progress still had the old array. The
+      // completion silently vanished on the next load.
+      await must(
+        supabase.from("lesson_progress").upsert({
+          user_id: user.uid,
+          topic_id: topicId,
+          completed_lessons: updated,
+          updated_at: new Date().toISOString(),
+        }, { onConflict: "user_id,topic_id" }),
+        "mark the lesson complete"
+      );
 
       await awardXP(user.uid, LESSON_XP, "lesson");
     },

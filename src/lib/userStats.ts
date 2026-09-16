@@ -23,6 +23,18 @@ export interface UserStatsRow {
   lastActive: string;
 }
 
+/**
+ * Average quiz accuracy as a percentage, 0–100.
+ *
+ * `quiz_attempts.score` is a COUNT of correct answers, so each attempt's
+ * accuracy is score/total_questions. Both ratios are clamped per attempt
+ * because nothing in the database guarantees score <= total_questions — one
+ * corrupt row used to be enough to put "RETENTION 750%" on the progress
+ * dashboard, which reads as a broken product rather than as bad data. A
+ * migration now enforces the invariant going forward (0013); this clamp is the
+ * display-side half, so rows written before it, or by any future path that
+ * bypasses it, still render a sane figure.
+ */
 export function computeAvgQuizScore(
   attempts: { score?: number; total_questions?: number }[]
 ): number {
@@ -31,7 +43,9 @@ export function computeAvgQuizScore(
   for (const a of attempts) {
     const total = a.total_questions ?? 0;
     if (total > 0) {
-      totalPct += (a.score ?? 0) / total;
+      const ratio = (a.score ?? 0) / total;
+      // A negative score is as impossible as one above the question count.
+      totalPct += Math.min(Math.max(ratio, 0), 1);
       count++;
     }
   }

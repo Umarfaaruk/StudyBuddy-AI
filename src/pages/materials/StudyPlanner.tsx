@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
+import { must } from "@/lib/dbWrite";
 import { useAuth } from "@/contexts/AuthContext";
 import { aiComplete, MODEL_SMALL } from "@/lib/aiService";
 import { PLANNER_SYSTEM_PROMPT } from "@/lib/prompts";
@@ -317,7 +318,10 @@ Limit the response to match the number of days (${daysDiff} days), max 14 entrie
     try {
       const newSchedule = [...activePlan.schedule];
       newSchedule[dayIndex].completed = !newSchedule[dayIndex].completed;
-      await supabase.from("study_plans").update({ schedule: newSchedule }).eq("id", activePlan.id);
+      await must(
+        supabase.from("study_plans").update({ schedule: newSchedule }).eq("id", activePlan.id),
+        "save your progress"
+      );
       refetchPlans();
     } catch (e) {
       toast.error("Failed to update progress");
