@@ -8,6 +8,7 @@ import QuestionBankImport from "@/components/admin/QuestionBankImport";
 import CohortAnalytics from "@/components/admin/CohortAnalytics";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/lib/supabase";
+import { must } from "@/lib/dbWrite";
 import { createNotification } from "@/contexts/NotificationContext";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
@@ -36,7 +37,7 @@ const AdminPanel = () => {
   const { user } = useAuth();
   const [searchQuery, setSearchQuery] = useState("");
   const [expandedUserId, setExpandedUserId] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<"insights" | "users" | "feedback" | "analytics" | "complaints" | "question-bank" | "cohorts">("insights");
+  const [activeTab, setActiveTab] = useState<"insights" | "users" | "feedback" | "complaints" | "question-bank" | "cohorts">("insights");
   const [confirmDeleteUserId, setConfirmDeleteUserId] = useState<string | null>(null);
   const [deletingUserId, setDeletingUserId] = useState<string | null>(null);
   const [togglingUserId, setTogglingUserId] = useState<string | null>(null);
@@ -56,7 +57,18 @@ const AdminPanel = () => {
 
   // Complaints Filtering & Operations State
   const [priorityFilter, setPriorityFilter] = useState<string>("All");
-  const [statusFilter, setStatusFilter] = useState<string>("All");
+  /**
+   * Defaults to "Open" — every status except Resolved and Rejected.
+   *
+   * Closed complaints used to pile up in the same list as live ones, so the
+   * queue grew forever and finished work competed for attention with work
+   * that still needed doing. Resolving a complaint now clears it from this
+   * view by itself; the "Resolved", "Rejected" and "All" options below still
+   * bring it back, and nothing is deleted just for being closed.
+   */
+  const [statusFilter, setStatusFilter] = useState<string>("Open");
+  const [confirmDeleteComplaintId, setConfirmDeleteComplaintId] = useState<string | null>(null);
+  const [deletingComplaintId, setDeletingComplaintId] = useState<string | null>(null);
   const [selectedComplaintId, setSelectedComplaintId] = useState<string | null>(null);
   const [editAdminNotes, setEditAdminNotes] = useState<string>("");
   const [showResolutionModal, setShowResolutionModal] = useState<boolean>(false);
@@ -302,7 +314,12 @@ const AdminPanel = () => {
           c.id.toLowerCase().includes(q);
         if (!matchesQuery) return false;
       }
-      if (statusFilter !== "All" && c.status !== statusFilter) return false;
+      // "Open" is a bucket, not a stored status: anything not yet closed.
+      if (statusFilter === "Open") {
+        if (c.status === "Resolved" || c.status === "Rejected") return false;
+      } else if (statusFilter !== "All" && c.status !== statusFilter) {
+        return false;
+      }
       if (priorityFilter !== "All" && c.priority !== priorityFilter) return false;
       
       return true;
@@ -325,11 +342,14 @@ const AdminPanel = () => {
       const nowStr = new Date().toISOString();
       const oldStatus = complaint.status;
 
-      await supabase.from("complaints").update({
+      // must(): a rejected update used to resolve normally, so the admin saw
+      // "status updated", the student got a notification, and the complaint
+      // still carried its old status.
+      await must(supabase.from("complaints").update({
         status: newStatus,
         admin_notes: editAdminNotes,
         updated_at: nowStr,
-      }).eq("id", complaintId);
+      }).eq("id", complaintId), "update that complaint");
 
       const historyId = `HST-${Math.floor(100000 + Math.random() * 900000)}`;
       await supabase.from("complaint_history").insert({
@@ -372,6 +392,38 @@ const AdminPanel = () => {
     }
   };
 
+  /**
+   * Permanently delete a complaint.
+   *
+   * Deliberately NOT what "Resolved" does: resolving is a status change that
+   * keeps the record, its resolution notes and its audit trail, and simply
+   * drops it out of the default "Open" view. This is the separate, explicit
+   * act of throwing the record away — for duplicates, spam, or tidying up
+   * long-closed items — so it asks for confirmation first and is only offered
+   * on complaints that are already closed.
+   *
+   * complaint_history.complaint_id is ON DELETE CASCADE, so the history rows
+   * go with it and nothing is left orphaned.
+   */
+  const handleDeleteComplaint = async (complaintId: string) => {
+    setDeletingComplaintId(complaintId);
+    try {
+      await must(
+        supabase.from("complaints").delete().eq("id", complaintId),
+        "delete that complaint"
+      );
+      setComplaints((prev) => prev.filter((c) => c.id !== complaintId));
+      if (selectedComplaintId === complaintId) setSelectedComplaintId(null);
+      toast.success("Complaint deleted");
+    } catch (error) {
+      console.error("[AdminPanel] Delete complaint failed:", error);
+      toast.error("Could not delete that complaint. Please try again.");
+    } finally {
+      setDeletingComplaintId(null);
+      setConfirmDeleteComplaintId(null);
+    }
+  };
+
   const handleResolveComplaint = async () => {
     if (!selectedComplaintId) return;
     const complaint = complaintsList.find((c) => c.id === selectedComplaintId);
@@ -392,14 +444,14 @@ const AdminPanel = () => {
       const nowStr = new Date().toISOString();
       const oldStatus = complaint.status;
 
-      await supabase.from("complaints").update({
+      await must(supabase.from("complaints").update({
         status: "Resolved",
         admin_notes: editAdminNotes,
         resolution_notes: resolutionNotes.trim(),
         fix_summary: fixSummary.trim(),
         resolved_at: nowStr,
         updated_at: nowStr,
-      }).eq("id", selectedComplaintId);
+      }).eq("id", selectedComplaintId), "resolve that complaint");
 
       const historyId = `HST-${Math.floor(100000 + Math.random() * 900000)}`;
       await supabase.from("complaint_history").insert({
@@ -526,57 +578,11 @@ const AdminPanel = () => {
       : 0;
 
   const totalUsers = platformStats?.totalUsers || 0;
-  const featureUsageData = totalUsers > 0
-    ? [
-        {
-          feature: "Study Sessions",
-          activeUsers: platformStats?.users.filter((u) => u.studyHours > 0).length || 0,
-          color: "from-emerald-400 to-emerald-600",
-          bgColor: "bg-emerald-500",
-          icon: "📚",
-        },
-        {
-          feature: "Quizzes",
-          activeUsers: platformStats?.users.filter((u) => u.quizCount > 0).length || 0,
-          color: "from-[#29ABE2] to-[#29ABE2]",
-          bgColor: "bg-[#29ABE2]",
-          icon: "🎯",
-        },
-        {
-          feature: "Doubt Sessions",
-          activeUsers: platformStats?.users.filter((u) => u.doubtCount > 0).length || 0,
-          color: "from-violet-400 to-violet-600",
-          bgColor: "bg-violet-500",
-          icon: "❓",
-        },
-        {
-          feature: "Materials Upload",
-          activeUsers: platformStats?.users.filter((u) => u.materialsCount > 0).length || 0,
-          color: "from-amber-400 to-amber-600",
-          bgColor: "bg-amber-500",
-          icon: "📄",
-        },
-        {
-          feature: "Flashcards",
-          activeUsers: platformStats?.users.filter((u) => u.flashcardCount > 0).length || 0,
-          color: "from-pink-400 to-pink-600",
-          bgColor: "bg-pink-500",
-          icon: "🗂️",
-        },
-        {
-          feature: "Study Plans",
-          activeUsers: platformStats?.users.filter((u) => u.studyPlanCount > 0).length || 0,
-          color: "from-[#29ABE2] to-[#29ABE2]",
-          bgColor: "bg-[#29ABE2]",
-          icon: "📋",
-        },
-      ]
-    : [];
-
-  const lowUsageFeatures = featureUsageData.filter(
-    (f) => totalUsers > 0 && f.activeUsers / totalUsers < 0.3
-  );
-
+  // featureUsageData / lowUsageFeatures used to live here to feed a standalone
+  // "Analytics" tab. That tab held one card, sat beside a tab called
+  // "Insights" that also held charts, and gave no clue which contained what.
+  // The card now lives under Insights > Engagement and recomputes adoption
+  // from its own data, so these two are gone rather than left dangling.
   return (
     <div className="p-4 md:p-8 max-w-7xl mx-auto space-y-6">
       {/* Header */}
@@ -603,10 +609,16 @@ const AdminPanel = () => {
         </div>
       )}
 
-      {/* Platform Stats Cards */}
+      {/* ── Platform stats ───────────────────────────────────────────────────
+          Trimmed from six tiles to three. Total Users, Active Today and Study
+          Hours were repeated verbatim by the Insights tab one row below —
+          the same numbers twice on one screen, on every tab. What is left is
+          the three figures Insights does NOT show anywhere, so nothing was
+          lost and the duplication is gone.
+      ─────────────────────────────────────────────────────────────────────── */}
       {isLoading ? (
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
-          {Array.from({ length: 6 }).map((_, i) => (
+        <div className="grid grid-cols-3 gap-3">
+          {Array.from({ length: 3 }).map((_, i) => (
             <div key={i} className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100">
               <Skeleton className="h-9 w-9 rounded-lg mb-3" />
               <Skeleton className="h-7 w-16 mb-1.5" />
@@ -615,14 +627,11 @@ const AdminPanel = () => {
           ))}
         </div>
       ) : (
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
+        <div className="grid grid-cols-3 gap-3">
           {[
-            { label: "Total Users",  value: (platformStats?.totalUsers || 0).toLocaleString(), icon: Users,  color: "text-[#29ABE2]",   bgColor: "bg-[#29ABE2]/10" },
-            { label: "Active Today", value: (platformStats?.activeToday || 0).toLocaleString(), icon: Zap,    color: "text-emerald-500", bgColor: "bg-emerald-500/10" },
-            { label: "Total XP",     value: (platformStats?.totalXp || 0).toLocaleString(),     icon: Trophy, color: "text-[#29ABE2]",   bgColor: "bg-[#29ABE2]/10" },
-            { label: "Study Hours",  value: `${platformStats?.totalStudyHours || 0}h`,          icon: Clock,  color: "text-amber-500",   bgColor: "bg-amber-500/10" },
-            { label: "Avg Streak",   value: `${platformStats?.avgStreak || 0}d`,                icon: Flame,  color: "text-red-500",     bgColor: "bg-red-500/10" },
-            { label: "Avg Rating",   value: `${avgRating}★`,                                    icon: Star,   color: "text-yellow-500",  bgColor: "bg-yellow-500/10" },
+            { label: "Total XP",   value: (platformStats?.totalXp || 0).toLocaleString(), icon: Trophy, color: "text-[#29ABE2]",  bgColor: "bg-[#29ABE2]/10" },
+            { label: "Avg Streak", value: `${platformStats?.avgStreak || 0}d`,            icon: Flame,  color: "text-red-500",    bgColor: "bg-red-500/10" },
+            { label: "Avg Rating", value: `${avgRating}★`,                                icon: Star,   color: "text-yellow-500", bgColor: "bg-yellow-500/10" },
           ].map((stat) => (
             <div key={stat.label} className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100 hover:border-[#29ABE2]/30 hover:shadow-md transition-all duration-200">
               <div className={`h-9 w-9 rounded-lg ${stat.bgColor} flex items-center justify-center mb-3`}>
@@ -674,15 +683,6 @@ const AdminPanel = () => {
           Complaints ({complaintsList.length})
         </button>
         <button
-          onClick={() => { setActiveTab("analytics"); setSearchQuery(""); }}
-          className={`px-4 py-2 rounded-xl text-sm font-semibold transition-all ${
-            activeTab === "analytics" ? "bg-[#0F172A] text-white shadow-md" : "text-gray-400 hover:text-gray-900 hover:bg-gray-100"
-          }`}
-        >
-          <BarChart3 className="h-4 w-4 inline mr-1.5 -mt-0.5" />
-          Analytics
-        </button>
-        <button
           onClick={() => { setActiveTab("question-bank"); setSearchQuery(""); }}
           className={`px-4 py-2 rounded-xl text-sm font-semibold transition-all ${
             activeTab === "question-bank" ? "bg-[#0F172A] text-white shadow-md" : "text-gray-400 hover:text-gray-900 hover:bg-gray-100"
@@ -720,7 +720,7 @@ const AdminPanel = () => {
       {activeTab === "insights" && <AdminInsights />}
 
       {/* Search */}
-      {activeTab !== "analytics" && activeTab !== "insights" && (
+      {activeTab !== "insights" && (
         <div className="relative">
           <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
           <input
@@ -966,7 +966,9 @@ const AdminPanel = () => {
                       f.source === "ai_chat"
                         ? "bg-purple-50 text-purple-600"
                         : f.source === "enforced_modal"
-                        ? "bg-[#29ABE2] text-[#29ABE2]"
+                        // was bg-[#29ABE2] text-[#29ABE2] — identical colours,
+                        // so "Weekly" rendered as an empty blue pill.
+                        ? "bg-[#29ABE2]/10 text-[#29ABE2]"
                         : "bg-gray-50 text-gray-500"
                     }`}>
                       {f.source === "ai_chat" ? "AI Chat" : f.source === "enforced_modal" ? "Weekly" : "Manual"}
@@ -983,121 +985,6 @@ const AdminPanel = () => {
         </div>
       )}
 
-      {/* ── ANALYTICS TAB ─────────────────────────────────── */}
-      {activeTab === "analytics" && (
-        <div className="space-y-6">
-          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5 md:p-6">
-            <div className="flex items-center gap-3 mb-6">
-              <div className="h-9 w-9 rounded-lg bg-[#29ABE2]/10 flex items-center justify-center">
-                <BarChart3 className="h-4 w-4 text-[#29ABE2]" />
-              </div>
-              <div>
-                <h3 className="text-base font-bold text-gray-900">Feature Adoption</h3>
-                <p className="text-xs text-gray-400">How many users are actively using each feature</p>
-              </div>
-            </div>
-
-            {isLoading ? (
-              <div className="space-y-4">
-                {Array.from({ length: 6 }).map((_, i) => (
-                  <div key={i} className="flex items-center gap-4">
-                    <Skeleton className="h-4 w-28" />
-                    <Skeleton className="h-8 flex-1 rounded-lg" />
-                    <Skeleton className="h-4 w-16" />
-                  </div>
-                ))}
-              </div>
-            ) : totalUsers === 0 ? (
-              <div className="text-center py-12">
-                <BarChart3 className="h-10 w-10 text-gray-200 mx-auto mb-3" />
-                <p className="text-sm text-gray-400">No user data available yet</p>
-              </div>
-            ) : (
-              <div className="space-y-3">
-                {featureUsageData
-                  .sort((a, b) => b.activeUsers - a.activeUsers)
-                  .map((feature) => {
-                    const pct = Math.round((feature.activeUsers / totalUsers) * 100);
-                    const barColor =
-                      pct >= 60
-                        ? "bg-gradient-to-r from-emerald-400 to-emerald-500"
-                        : pct >= 30
-                        ? "bg-gradient-to-r from-amber-400 to-amber-500"
-                        : "bg-gradient-to-r from-red-400 to-red-500";
-                    return (
-                      <div key={feature.feature} className="group">
-                        <div className="flex items-center gap-4">
-                          <div className="w-36 flex items-center gap-2 flex-shrink-0">
-                            <span className="text-base">{feature.icon}</span>
-                            <span className="text-sm font-medium text-gray-700 truncate">{feature.feature}</span>
-                          </div>
-                          <div className="flex-1 h-9 bg-gray-100 rounded-lg overflow-hidden relative">
-                            <div
-                              className={`h-full ${barColor} rounded-lg transition-all duration-700 ease-out relative`}
-                              style={{ width: `${Math.max(pct, 3)}%` }}
-                            >
-                              <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
-                            </div>
-                            {pct >= 15 && (
-                              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[11px] font-bold text-white drop-shadow-sm">
-                                {pct}%
-                              </span>
-                            )}
-                          </div>
-                          <div className="w-24 text-right flex-shrink-0">
-                            <span className="text-sm font-bold text-gray-900">{feature.activeUsers}</span>
-                            <span className="text-xs text-gray-400">/{totalUsers}</span>
-                            {pct < 15 && (
-                              <span className="text-[10px] text-gray-400 ml-1">({pct}%)</span>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                    );
-                  })}
-              </div>
-            )}
-          </div>
-
-          {lowUsageFeatures.length > 0 && (
-            <div className="bg-amber-50 border border-amber-200 rounded-2xl p-5 md:p-6">
-              <div className="flex items-center gap-2 mb-4">
-                <AlertTriangle className="h-5 w-5 text-amber-500" />
-                <h3 className="text-sm font-bold text-amber-800">Low Usage Insights</h3>
-              </div>
-              <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                {lowUsageFeatures.map((feature) => {
-                  const pct = totalUsers > 0 ? Math.round((feature.activeUsers / totalUsers) * 100) : 0;
-                  const unusedCount = totalUsers - feature.activeUsers;
-                  const reasons: Record<string, string> = {
-                    "Study Sessions": "Users may not be aware of the study timer or find manual session tracking cumbersome.",
-                    "Quizzes": "Quiz feature might need more topic variety or users haven't completed enough lessons to take quizzes.",
-                    "Doubt Sessions": "Users may not know they can ask AI for help, or prefer searching online instead.",
-                    "Materials Upload": "File upload limit, supported formats, or the value proposition of uploading materials may be unclear.",
-                    "Flashcards": "Users might not realize flashcards are available, or prefer other study methods.",
-                    "Study Plans": "Creating study plans may feel too structured for casual learners. Consider auto-generating plans.",
-                  };
-                  return (
-                    <div key={feature.feature} className="bg-white rounded-xl p-4 border border-amber-200/50 shadow-sm">
-                      <div className="flex items-center gap-2 mb-2">
-                        <span className="text-lg">{feature.icon}</span>
-                        <span className="text-sm font-semibold text-gray-900">{feature.feature}</span>
-                      </div>
-                      <div className="text-xs text-gray-500 mb-2">
-                        Only <span className="font-bold text-amber-600">{pct}%</span> of users ({feature.activeUsers}/{totalUsers}) are using this.{" "}
-                        <span className="font-semibold text-gray-700">{unusedCount} user{unusedCount !== 1 ? "s" : ""}</span> haven't tried it.
-                      </div>
-                      <p className="text-[11px] text-gray-400 leading-relaxed italic">
-                        💡 {reasons[feature.feature] || "Consider improving discoverability and onboarding for this feature."}
-                      </p>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          )}
-        </div>
-      )}
       {/* ── COMPLAINTS TAB ────────────────────────────────── */}
       {activeTab === "complaints" && (
         <div className="space-y-4">
@@ -1110,8 +997,10 @@ const AdminPanel = () => {
                 onChange={(e) => setStatusFilter(e.target.value)}
                 className="text-xs bg-gray-50 border border-gray-200 rounded-lg p-2 font-medium text-gray-700 outline-none focus:border-[#29ABE2]"
               >
-                {["All", "Pending", "Under Review", "In Progress", "Testing", "Resolved", "Rejected"].map((st) => (
-                  <option key={st} value={st}>{st}</option>
+                {["Open", "All", "Pending", "Under Review", "In Progress", "Testing", "Resolved", "Rejected"].map((st) => (
+                  <option key={st} value={st}>
+                    {st === "Open" ? "Open (not yet closed)" : st}
+                  </option>
                 ))}
               </select>
             </div>
@@ -1344,6 +1233,54 @@ const AdminPanel = () => {
                         })}
                       </div>
                     </div>
+
+                    {/* Permanent delete — only for complaints that are already
+                        closed. Offering it on live ones invites deleting a
+                        report instead of dealing with it, and the record is
+                        also the student's receipt that they were heard. */}
+                    {(activeComplaint.status === "Resolved" || activeComplaint.status === "Rejected") && (
+                      <div className="border-t border-gray-100 pt-4">
+                        <label className="text-xs font-bold text-gray-400 uppercase tracking-wider block mb-1.5">
+                          Danger zone
+                        </label>
+                        {confirmDeleteComplaintId === activeComplaint.id ? (
+                          <div className="rounded-xl border border-red-200 bg-red-50 p-3 space-y-2.5">
+                            <p className="text-[11px] text-red-700 font-medium leading-relaxed">
+                              Delete <span className="font-mono font-bold">{activeComplaint.id}</span> for good?
+                              This removes the report, its resolution notes and its
+                              status history. It cannot be undone.
+                            </p>
+                            <div className="flex gap-2">
+                              <button
+                                onClick={() => handleDeleteComplaint(activeComplaint.id)}
+                                disabled={deletingComplaintId === activeComplaint.id}
+                                className="flex-1 py-2 rounded-lg bg-red-600 hover:bg-red-700 disabled:opacity-50 text-[11px] font-bold text-white transition-all inline-flex items-center justify-center gap-1.5"
+                              >
+                                {deletingComplaintId === activeComplaint.id ? (
+                                  <><Loader2 className="h-3 w-3 animate-spin" /> Deleting…</>
+                                ) : (
+                                  <><Trash2 className="h-3 w-3" /> Yes, delete it</>
+                                )}
+                              </button>
+                              <button
+                                onClick={() => setConfirmDeleteComplaintId(null)}
+                                disabled={deletingComplaintId === activeComplaint.id}
+                                className="flex-1 py-2 rounded-lg border border-gray-200 bg-white hover:bg-gray-50 text-[11px] font-semibold text-gray-600 transition-all"
+                              >
+                                Keep it
+                              </button>
+                            </div>
+                          </div>
+                        ) : (
+                          <button
+                            onClick={() => setConfirmDeleteComplaintId(activeComplaint.id)}
+                            className="w-full py-2 rounded-lg border border-red-200 bg-white hover:bg-red-50 text-[11px] font-bold text-red-600 transition-all inline-flex items-center justify-center gap-1.5"
+                          >
+                            <Trash2 className="h-3 w-3" /> Delete this complaint
+                          </button>
+                        )}
+                      </div>
+                    )}
                   </div>
                 </div>
               );

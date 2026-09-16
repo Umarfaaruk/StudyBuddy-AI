@@ -167,9 +167,20 @@ const AppLayout = () => {
   const isActive = (to: string) =>
     pathname === to || (to !== "/dashboard" && pathname.startsWith(to + "/"));
 
+  /**
+   * The admin panel shares this layout, which means it also inherited the
+   * student study widgets: a floating "00:00 Stopped" timer pinned bottom-left
+   * and an AI-tutor chat bubble bottom-right, both on top of the complaint
+   * queue. Nobody triaging bug reports is running a Pomodoro or asking the
+   * tutor about projectile motion, and the bubble overlapped the content.
+   * The sidebar stays — it is how an admin gets back to the app — but these
+   * three student-only widgets sit out on /admin.
+   */
+  const isAdminRoute = pathname.startsWith("/admin");
+
   return (
     <div className="min-h-screen bg-[#0F172A] flex">
-      <GlobalTimer />
+      {!isAdminRoute && <GlobalTimer />}
 
       {/* Desktop Sidebar */}
       {!isDeepFocus && (
@@ -383,8 +394,8 @@ const AppLayout = () => {
             <PageTransition />
           </div>
         </div>
-        <StudyBuddyAIChat />
-        <SnapEnhance />
+        {!isAdminRoute && <StudyBuddyAIChat />}
+        {!isAdminRoute && <SnapEnhance />}
       </main>
     </div>
   );

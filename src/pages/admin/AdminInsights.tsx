@@ -3,7 +3,7 @@ import { supabase } from "@/lib/supabase";
 import {
   LayoutDashboard, GraduationCap, Activity, Brain, Loader2,
   Users, Clock, TrendingUp, TrendingDown, Target, BookOpen,
-  Bell, Trophy, AlertTriangle, Flame, Zap, Award,
+  Bell, Trophy, AlertTriangle, Flame, Zap, Award, BarChart3,
 } from "lucide-react";
 
 /**
@@ -34,7 +34,7 @@ const AdminInsights = () => {
     const tables = [
       "profiles", "xp_logs", "study_sessions", "quiz_attempts", "lesson_progress",
       "topic_progress", "materials", "notifications", "topics", "doubt_sessions",
-      "flashcards", "user_streaks",
+      "flashcards", "user_streaks", "study_plans",
     ];
     (async () => {
       const out: Record<string, any[]> = {};
@@ -221,7 +221,29 @@ function computeMetrics(raw: Record<string, any[]>) {
   const doubtsSolved = doubts.filter((d) => d.status === "solved").length;
   const doubtsPending = doubts.length - doubtsSolved;
 
+  /**
+   * Feature adoption — how many DISTINCT users have ever used each feature.
+   *
+   * Moved here from a standalone top-level "Analytics" tab that held this one
+   * card. A tab called "Analytics" sitting next to a tab called "Insights",
+   * each with its own charts, gave no way to guess which held what; this is an
+   * engagement question, so it lives under Engagement.
+   */
+  const plans = raw.study_plans ?? [];
+  const usersWith = (rows: any[], key = "user_id") =>
+    new Set(rows.map((r) => r?.[key]).filter(Boolean)).size;
+
+  const featureAdoption = [
+    { feature: "Study Sessions", icon: "📚", activeUsers: usersWith(sessions) },
+    { feature: "Quizzes",        icon: "🎯", activeUsers: usersWith(quizzes) },
+    { feature: "Doubt Sessions", icon: "❓", activeUsers: usersWith(doubts) },
+    { feature: "Materials",      icon: "📄", activeUsers: usersWith(materials) },
+    { feature: "Flashcards",     icon: "🗂️", activeUsers: usersWith(flashcards) },
+    { feature: "Study Plans",    icon: "📋", activeUsers: usersWith(plans) },
+  ].sort((a, b) => b.activeUsers - a.activeUsers);
+
   return {
+    featureAdoption,
     totalUsers, newUsers7d, dau, wau, mau, totalLearningHours, avgSessionMin,
     practiceAccuracy, completionRate, avgCourseProgress, avgMastery,
     strongest, weakest, notifOpenRate, leaderboardParticipation, matByType,
@@ -372,6 +394,48 @@ const Engagement = ({ m }: { m: M }) => (
         </div>
       </Panel>
     </div>
+
+    <Panel title="Feature Adoption" icon={BarChart3}>
+      {m.totalUsers === 0 ? (
+        <Empty text="No user data available yet." />
+      ) : (
+        <div className="space-y-2.5">
+          {m.featureAdoption.map((f) => {
+            const share = pct(f.activeUsers, m.totalUsers);
+            const tone =
+              share >= 60 ? "bg-emerald-500" : share >= 30 ? "bg-amber-500" : "bg-red-400";
+            return (
+              <div key={f.feature} className="flex items-center gap-3">
+                <div className="w-36 flex items-center gap-2 shrink-0">
+                  <span className="text-base leading-none">{f.icon}</span>
+                  <span className="text-sm text-gray-700 truncate">{f.feature}</span>
+                </div>
+                <div className="flex-1 h-7 bg-gray-100 rounded-lg overflow-hidden relative">
+                  <div
+                    className={`h-full ${tone} rounded-lg transition-all duration-700`}
+                    style={{ width: `${Math.max(share, 2)}%` }}
+                  />
+                  {share >= 14 && (
+                    <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[11px] font-bold text-white">
+                      {share}%
+                    </span>
+                  )}
+                </div>
+                <div className="w-20 text-right shrink-0 text-sm">
+                  <span className="font-bold text-gray-900">{f.activeUsers}</span>
+                  <span className="text-xs text-gray-400">/{m.totalUsers}</span>
+                  {share < 14 && <span className="text-[10px] text-gray-400 ml-1">({share}%)</span>}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+      <p className="text-[11px] text-gray-400 mt-2.5">
+        Distinct users who have used each feature at least once. Low bars are
+        where the product is not landing yet.
+      </p>
+    </Panel>
   </div>
 );
 
