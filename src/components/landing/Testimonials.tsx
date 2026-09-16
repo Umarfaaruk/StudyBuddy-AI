@@ -1,19 +1,28 @@
 import { Star } from "lucide-react";
 
 const testimonials: { quote: string; name: string; role: string; metric: string }[] = [];
-// Testimonials will be populated with real user feedback once available
+// Testimonials will be populated with real user feedback once available.
+// Until then this section renders NOTHING — see the early return below.
 
-const Testimonials = () => (
-  <section className="py-24 bg-background">
-    <div className="container max-w-7xl mx-auto px-4">
-      <div className="text-center max-w-2xl mx-auto mb-16">
-        <p className="text-xs font-semibold uppercase tracking-[0.2em] text-accent mb-4">Success Stories</p>
-        <h2 className="text-3xl md:text-4xl font-bold text-foreground tracking-tight">
-          Loved by students everywhere.
-        </h2>
-      </div>
+/**
+ * A "Loved by students everywhere" heading above an empty grid reads as a
+ * broken page, and inventing quotes to fill it would be fabricating reviews.
+ * So the section hides itself entirely while the list is empty, and comes back
+ * on its own as soon as real feedback is added above.
+ */
+const Testimonials = () => {
+  if (testimonials.length === 0) return null;
 
-      {testimonials.length > 0 ? (
+  return (
+    <section className="py-24 bg-background">
+      <div className="container max-w-7xl mx-auto px-4">
+        <div className="text-center max-w-2xl mx-auto mb-16">
+          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-accent mb-4">Success Stories</p>
+          <h2 className="text-3xl md:text-4xl font-bold text-foreground tracking-tight">
+            Loved by students everywhere.
+          </h2>
+        </div>
+
         <div className="grid md:grid-cols-3 gap-6">
           {testimonials.map((t) => (
             <div key={t.name} className="bg-card border border-border rounded-2xl p-7 flex flex-col">
@@ -35,13 +44,9 @@ const Testimonials = () => (
             </div>
           ))}
         </div>
-      ) : (
-        <div className="text-center py-12 text-muted-foreground text-sm">
-          Student testimonials coming soon — be the first to share your experience!
-        </div>
-      )}
-    </div>
-  </section>
-);
+      </div>
+    </section>
+  );
+};
 
 export default Testimonials;

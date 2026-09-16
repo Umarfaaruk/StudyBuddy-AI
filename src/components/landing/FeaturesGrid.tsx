@@ -43,7 +43,7 @@ const FeaturesGrid = () => (
         <h2 className="text-3xl md:text-4xl font-bold text-foreground mb-4 tracking-tight">
           Everything you need to study smarter
         </h2>
-        <div className="text-muted-foreground text-lg h-16">
+        <div className="text-muted-foreground text-lg min-h-[3.5rem]">
           <DecryptedText 
             text="A complete toolkit designed to transform how you learn, practice, and grow." 
             animateOn="view" 
@@ -54,7 +54,7 @@ const FeaturesGrid = () => (
         </div>
       </div>
 
-      <div className="mt-8">
+      <div>
         <MagicBento
           cards={features.map(f => ({ 
             ...f, 

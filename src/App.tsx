@@ -8,6 +8,7 @@ import { DeepFocusProvider } from "@/hooks/useDeepFocus";
 import ProtectedRoute from "@/components/ProtectedRoute";
 import AdminRoute from "@/components/AdminRoute";
 import ErrorBoundary from "@/components/ErrorBoundary";
+import ScrollToHash from "@/components/ScrollToHash";
 import AppLayout from "./components/layout/AppLayout";
 
 import { lazy, Suspense, type ComponentType } from "react";
@@ -121,6 +122,8 @@ const App = () => (
     <TooltipProvider>
       <Sonner />
       <BrowserRouter>
+        {/* Inside the router so it can read the location; renders nothing. */}
+        <ScrollToHash />
         <AuthProvider>
           <NotificationProvider>
           <DeepFocusProvider>

@@ -15,18 +15,33 @@ const HeroSection = () => (
             AI-Powered Learning Platform
           </div>
 
-          <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold leading-[1.1] tracking-tight min-h-[140px] md:min-h-[160px] lg:min-h-[180px] text-white">
-            <TextType
-              text="Your AI Study Companion for Smarter Learning"
-              typingSpeed={75}
-              pauseDuration={3000}
-              showCursor
-              cursorCharacter="_"
-              deletingSpeed={50}
-              variableSpeed={false}
-              cursorBlinkDuration={0.5}
-              loop={false}
-            />
+          {/* The headline types itself in, so its box has to be the size of the
+              FINISHED sentence from the first frame or the page jumps as it
+              types. Fixed min-heights used to do that job and guessed high —
+              140-180px for two lines that need 80-132px — which left a band of
+              dead space under the headline at every width. Instead, an
+              invisible copy of the final text reserves exactly the right
+              height, and the animated copy is laid over it in the same grid
+              cell. Self-correcting: nothing to re-tune if the wording or the
+              type scale changes. The trailing "_" matches the cursor, so the
+              reserved box also covers the widest frame of the animation. */}
+          <h1 className="grid text-4xl md:text-5xl lg:text-6xl font-bold leading-[1.1] tracking-tight text-white">
+            <span aria-hidden="true" className="invisible col-start-1 row-start-1">
+              Your AI Study Companion for Smarter Learning_
+            </span>
+            <span className="col-start-1 row-start-1">
+              <TextType
+                text="Your AI Study Companion for Smarter Learning"
+                typingSpeed={75}
+                pauseDuration={3000}
+                showCursor
+                cursorCharacter="_"
+                deletingSpeed={50}
+                variableSpeed={false}
+                cursorBlinkDuration={0.5}
+                loop={false}
+              />
+            </span>
           </h1>
 
           <p className="text-slate-300 text-lg md:text-xl leading-relaxed max-w-lg">
@@ -34,8 +49,10 @@ const HeroSection = () => (
           </p>
 
           <div className="flex flex-wrap gap-4">
+            {/* /signup, not /login — a button labelled "Sign Up Free" that
+                lands on the log-in form is the one dead end on the funnel. */}
             <Button className="bg-cta text-white hover:bg-cta/90 font-semibold text-sm h-12 px-7 rounded-xl gap-2 shadow-sm animate-float" asChild>
-              <Link to="/login">
+              <Link to="/signup">
                 Sign Up Free
                 <ArrowRight className="h-4 w-4" />
               </Link>
@@ -47,10 +64,12 @@ const HeroSection = () => (
             </Button>
           </div>
 
-          <div className="flex items-center gap-6 pt-2 text-sm text-slate-400">
-            <span className="flex items-center gap-1.5">✓ Free to start</span>
-            <span className="flex items-center gap-1.5">✓ No credit card</span>
-            <span className="flex items-center gap-1.5">✓ Instant AI access</span>
+          {/* flex-wrap + nowrap on each item so a narrow screen drops a whole
+              claim to the next line instead of splitting "No credit / card". */}
+          <div className="flex flex-wrap items-center gap-x-6 gap-y-2 pt-2 text-sm text-slate-400">
+            <span className="whitespace-nowrap">✓ Free to start</span>
+            <span className="whitespace-nowrap">✓ No credit card</span>
+            <span className="whitespace-nowrap">✓ Instant AI access</span>
           </div>
         </div>
 

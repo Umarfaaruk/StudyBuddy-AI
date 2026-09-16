@@ -286,3 +286,34 @@
    links, tabs and flex children to 44px, distorting alignment across the app
    (e.g. the timer's small control button rendered 44px wide). Touch-target
    sizing is handled per component where it actually matters. */
+
+/* ──────────────────────────────────────────────────────────────────────────
+ * REDUCED MOTION
+ * This app animates a lot: a typewriter headline, floating hero cards, a
+ * pulsing badge, GSAP particles and spotlights, page transitions. None of it
+ * carries information, and for a visitor who has asked their OS for less
+ * motion — because it triggers nausea or vertigo, or simply because they find
+ * it distracting — all of it is noise they cannot turn off.
+ *
+ * Honouring the OS setting collapses every decorative animation to its final
+ * state. Content stays exactly where it is; only the movement stops. Scoped to
+ * animation and transition so layout, colour and opacity remain intact.
+ * ────────────────────────────────────────────────────────────────────────── */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+
+  /* The infinite decorative loops have no meaningful "final frame", so stop
+     them outright rather than freezing them mid-travel. */
+  .animate-float,
+  .animate-pulse,
+  .animate-bounce {
+    animation: none !important;
+  }
+}
