@@ -50,6 +50,7 @@ also sorts correctly:
 0014_index_remaining_foreign_keys.sql
 0015_consolidate_permissive_policies.sql               ← NOT APPLIED
 0016_restrict_anon_topic_and_lesson_reads.sql          ← NOT APPLIED
+0017_enable_realtime_publications.sql                  ← NOT APPLIED (no-op here)
 ```
 
 `ls | sort` gives true chronological order: `_` (0x5F) sorts before any
@@ -69,8 +70,9 @@ current state, but reading one in isolation can mislead:
 
 ## Not yet applied
 
-Both are committed and reviewed but deliberately **not** run against
-production.
+All three are committed and reviewed but not run against production. `0015`
+and `0016` are deliberate holds; `0017` is a no-op here that matters only when
+rebuilding into a new project.
 
 ### 0016 — anon can read students' courses (recommended: apply)
 
@@ -79,6 +81,24 @@ includes `anon`. Measured live: all 9 topics are student-generated (0 seeded)
 across 5 students, with 46 lessons. All of it is readable without signing in.
 Nothing unauthenticated needs either table — verified against every public
 surface. Same class of bug as the `profiles` leak that 0008a fixed.
+
+### 0017 — Realtime publication as code (no-op here, essential elsewhere)
+
+Realtime on a table is membership of the `supabase_realtime` publication, which
+the dashboard toggle edits directly — it is not schema, and no migration ever
+captured it. Four tables are published live (`notifications`, `complaints`,
+`complaint_history`, `saved_notes`), every one of them actively subscribed by
+app code.
+
+So rebuilding from this folder gave an identical schema with Realtime **off**:
+the notification bell, the student complaint tracker, the complaint reply
+thread and lesson-note sync would all silently stop refreshing. Found while
+planning the `ap-south-1` move (see `REGION-MIGRATION.md`), which is exactly
+the rebuild that would have hit it.
+
+Applying it to the current database changes nothing — verified by running its
+`DO` block against production, which reported all four already published and
+left the count at 4. Its value is on a *fresh* project.
 
 ### 0015 — collapse overlapping permissive policies (optional)
 
