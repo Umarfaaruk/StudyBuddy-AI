@@ -33,6 +33,11 @@ developments/
 # Scratch/test scripts
 scratch/
 
+# Playwright harness screenshot output. flows.mjs names its output directory
+# from an env var; with that unset the path becomes the literal string
+# "undefined", so a stray undefined/ of PNGs appears after a local run.
+undefined/
+
 # Codex automation artifacts
 .codex-*
 
