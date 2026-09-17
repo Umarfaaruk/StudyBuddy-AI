@@ -1,8 +1,17 @@
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { ArrowRight } from "lucide-react";
+import { useAuth } from "@/contexts/AuthContext";
 
-const FinalCTA = () => (
+/**
+ * Same auth-aware swap as HeroSection: a signed-in visitor gets one route
+ * onward instead of being asked to create the account they already have.
+ */
+const FinalCTA = () => {
+  const { user, loading } = useAuth();
+  const signedIn = !loading && !!user;
+
+  return (
   <section className="py-28 bg-gradient-to-br from-[#0F172A] via-[#0F172A] to-[#1E293B] text-white border-t border-white/[0.06] relative overflow-hidden">
     <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-transparent pointer-events-none" />
     <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-primary/5 rounded-full blur-[120px] pointer-events-none" />
@@ -17,21 +26,32 @@ const FinalCTA = () => (
       </p>
 
       <div className="flex flex-wrap justify-center gap-4">
-        <Button className="bg-cta text-white hover:bg-cta/90 font-semibold text-sm h-12 px-8 rounded-xl gap-2 shadow-sm" asChild>
-          <Link to="/signup">
-            Get Started For Free
-            <ArrowRight className="h-4 w-4" />
-          </Link>
-        </Button>
-        <Button variant="outline" className="border-white/10 text-white hover:bg-white/10 hover:text-white font-medium h-12 px-8 rounded-xl bg-transparent" asChild>
-          <Link to="/login">
-            Log In
-          </Link>
-        </Button>
+        {signedIn ? (
+          <Button className="bg-cta text-white hover:bg-cta/90 font-semibold text-sm h-12 px-8 rounded-xl gap-2 shadow-sm" asChild>
+            <Link to="/dashboard">
+              Go to Dashboard
+              <ArrowRight className="h-4 w-4" />
+            </Link>
+          </Button>
+        ) : (
+          <>
+            <Button className="bg-cta text-white hover:bg-cta/90 font-semibold text-sm h-12 px-8 rounded-xl gap-2 shadow-sm" asChild>
+              <Link to="/signup">
+                Get Started For Free
+                <ArrowRight className="h-4 w-4" />
+              </Link>
+            </Button>
+            <Button variant="outline" className="border-white/10 text-white hover:bg-white/10 hover:text-white font-medium h-12 px-8 rounded-xl bg-transparent" asChild>
+              <Link to="/login">
+                Log In
+              </Link>
+            </Button>
+          </>
+        )}
       </div>
     </div>
   </section>
-);
-
+  );
+};
 
 export default FinalCTA;
