@@ -576,3 +576,38 @@ Vercel connection, and let the new project's connection write them:
 
 Hand-editing a variable the integration owns is the thing to avoid. Change
 which project the integration points at instead.
+
+### The last step: deleting the connection does not fix the values
+
+This is the piece that took seven attempts to see, and it follows from the
+confirmation dialog's own wording:
+
+> Deleting this Vercel connection will stop syncing environment variables to
+> your Vercel project. **Existing environment variables will remain unchanged.**
+
+So the order of effects is:
+
+| action | effect on the variables |
+|---|---|
+| old connection **live** | it restores the old values over any hand edit |
+| old connection **deleted** | the old values **stay**, but nothing restores them any more |
+| new connection **added** | it does **not** clobber keys that already exist |
+
+That middle row is the trap. Deleting the connection removes the overwriter and
+leaves the stale values in place; adding the new connection then declines to
+replace them, because they are already set. The result looks like a correctly
+configured integration serving the wrong project indefinitely.
+
+**The working sequence, in full:**
+
+1. Delete the **old** project's Vercel connection.
+2. Add the **new** project's connection, naming the right Vercel project.
+3. **Then** set the values by hand — they will finally hold, because nothing is
+   restoring them any more.
+4. Confirm they hold: `vercel env pull`, wait 90 seconds, pull again. Both must
+   show the new ref.
+5. Rebuild and read the `[env]` line.
+
+Step 3 is not optional, and it is the opposite of the advice that applies while
+the old connection is still live — where hand-editing is futile. Whether to
+edit by hand depends entirely on whether a connection currently owns the key.
