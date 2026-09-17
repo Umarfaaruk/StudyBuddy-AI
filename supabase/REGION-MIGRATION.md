@@ -657,3 +657,90 @@ Together these cover a fair part of what leaked-password protection is for.
 `public_leaderboard_opt_in`, and `add_xp` must be `SECURITY DEFINER` to write
 `xp_logs` under RLS. They are identical on both projects, so they are
 pre-existing design rather than anything the migration introduced.
+
+## Auth email is broken on the Singapore project — SMTP `535`
+
+Found 2026-09-17 while diagnosing a password reset that failed. Recorded
+because the symptom the user sees points nowhere near the cause.
+
+**Symptom.** "Forgot password?" returns an error. The app showed
+"Authentication failed. Please try again." — which was itself a bug, since the
+user was not authenticating; that is fixed in `src/lib/authErrors.ts`.
+
+**Actual cause,** from the project's own auth log:
+
+```
+path: /recover     status: 500
+error: 535 "Invalid username"
+error_code: unexpected_failure
+action: user_recovery_requested
+```
+
+`535 Invalid username` is the **mail server rejecting the SMTP credentials** —
+specifically the username field, not the password. Supabase Auth cannot send,
+so it returns a 500.
+
+**Blast radius is wider than password resets.** Every auth email goes through
+the same SMTP: password recovery *and* signup confirmation. New email signups
+are therefore also broken. The 13 Google OAuth users are unaffected, since
+OAuth sends no mail — which is exactly why this went unnoticed.
+
+### Inspecting and fixing it
+
+`smtp_pass` is never returned by the API, but the rest is:
+
+```bash
+export SUPABASE_ACCESS_TOKEN="..."   # supabase.com/dashboard/account/tokens
+
+for REF in <old-ref> <new-ref>; do
+  curl -s "https://api.supabase.com/v1/projects/$REF/config/auth" \
+    -H "Authorization: Bearer $SUPABASE_ACCESS_TOKEN" \
+    | jq 'with_entries(select(.key|test("smtp|external_email")))'
+done
+```
+
+The writable fields are `smtp_admin_email`, `smtp_host`, `smtp_port`,
+`smtp_user`, `smtp_pass`, `smtp_sender_name` and `external_email_enabled`, via
+`PATCH /v1/projects/{ref}/config/auth`. Dashboard equivalent: Project Settings
+→ Authentication → SMTP Settings.
+
+This project's mail provider is **Resend** (`api/send-weekly-emails.ts` uses
+`RESEND_API_KEY`), so the SMTP password is that same API key and the username
+is whatever Resend documents at
+<https://resend.com/docs/send-with-supabase-smtp> — the page Supabase's own
+custom-SMTP guide links to. Take the username from there rather than guessing;
+guessing it is what produced the 535 in the first place.
+
+Fix it on **both** projects, or the new one inherits the same broken config at
+cutover.
+
+### Do not "fix" it by disabling custom SMTP
+
+Tempting, and worse. Per Supabase's
+[custom SMTP guide](https://supabase.com/docs/guides/auth/auth-smtp), the
+built-in server:
+
+> imposes a few important restrictions and is not meant for production use.
+> **Send messages only to pre-authorized addresses.**
+
+So turning custom SMTP off would make resets appear to work for the team while
+silently failing for every student — a quieter version of the same outage.
+
+Also note a freshly configured custom SMTP starts at a **30 messages/hour**
+rate limit, adjustable under Authentication → Rate Limits.
+
+### How to tell it is fixed
+
+Trigger a reset from the login page and re-read the auth log:
+
+```sql
+select timestamp, event_message
+from logs
+where source = 'auth_logs'
+order by timestamp desc
+limit 10;
+```
+
+A working send logs `user_recovery_requested` at `status: 200` with no `error`
+field. The 500 with `535` is unambiguous, so this needs no guesswork either
+way.
