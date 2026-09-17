@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/AuthContext";
 import { useStudentExamContext } from "@/lib/examTracks";
 import { fetchMockTests, fetchAttemptSeries } from "@/lib/mockTests";
+import { isDiagnosticAvailable } from "@/lib/diagnostic";
 
 /**
  * MOCK TEST LIST  (Phase 3.1)
@@ -28,6 +29,17 @@ const MockTestList = () => {
     queryKey: ["mock-attempts", user?.uid],
     queryFn: () => (user ? fetchAttemptSeries(user.uid) : Promise.resolve([])),
     enabled: !!user,
+  });
+
+  // Only asked when the list is empty, so the ordinary path costs nothing.
+  // Whether to OFFER the diagnostic depends on whether it actually works for
+  // this track — see the empty state below.
+  const noTests = !isLoading && !tests?.length;
+  const { data: diagnosticReady } = useQuery({
+    queryKey: ["diagnostic-available", trackId],
+    queryFn: () => (trackId ? isDiagnosticAvailable(trackId) : Promise.resolve(false)),
+    enabled: !!trackId && noTests,
+    staleTime: 1000 * 60 * 5,
   });
 
   if (examLoading || isLoading) {
@@ -100,17 +112,37 @@ const MockTestList = () => {
           <h2 className="text-sm font-semibold text-foreground">
             No mock tests for {examCtx?.track?.name ?? "your exam"} yet
           </h2>
-          <p className="text-xs text-muted-foreground max-w-sm mx-auto">
-            Full-length papers for this track are still being put together. The
-            diagnostic already works and will show you which chapters are
-            costing you the most marks.
-          </p>
-          {/* Never leave a student on a dead end. The empty state used to name
-              an admin screen they cannot open, which reads as a broken app
-              rather than a section that is not ready. */}
-          <Button onClick={() => navigate("/diagnostic")} className="h-10">
-            Take the diagnostic instead
-          </Button>
+          {/* Never leave a student on a dead end. This used to name an admin
+              screen they cannot open; then it promised the diagnostic, which
+              was worse — the only track with no papers was also the only one
+              with no questions, so every student who saw this was sent to a
+              second empty screen. Offer the diagnostic only when it can
+              actually run, and otherwise point at the one path that works for
+              any track: their own uploaded material. */}
+          {diagnosticReady === false ? (
+            <>
+              <p className="text-xs text-muted-foreground max-w-sm mx-auto">
+                Papers and practice questions for this track are still being put
+                together, so the diagnostic cannot run yet either. You can still
+                upload your own notes or textbook chapter and get lessons,
+                flashcards and quizzes generated from them.
+              </p>
+              <Button onClick={() => navigate("/materials")} className="h-10">
+                Upload your material
+              </Button>
+            </>
+          ) : (
+            <>
+              <p className="text-xs text-muted-foreground max-w-sm mx-auto">
+                Full-length papers for this track are still being put together.
+                The diagnostic already works and will show you which chapters
+                are costing you the most marks.
+              </p>
+              <Button onClick={() => navigate("/diagnostic")} className="h-10">
+                Take the diagnostic instead
+              </Button>
+            </>
+          )}
         </div>
       ) : (
         <div className="space-y-2">

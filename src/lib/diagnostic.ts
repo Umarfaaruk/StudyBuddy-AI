@@ -52,6 +52,33 @@ export interface DiagnosticPool {
  * or easier question in the chapter it wants, instead of being forced onto
  * whatever difficulty is left.
  */
+/**
+ * Can this track support a diagnostic at all?
+ *
+ * Cheap enough to call before offering one. A head-only count costs a single
+ * request and no row transfer, where fetchDiagnosticPool pulls up to
+ * `length * 12` full question rows — far too heavy merely to ask "is this
+ * feature available?".
+ *
+ * Exists because other screens need to know BEFORE sending a student to
+ * /diagnostic. The mock-test list used to offer the diagnostic as its fallback
+ * whenever a track had no papers, but the only track in that position was also
+ * the one with no questions, so the fallback led to a second dead end.
+ *
+ * Fails OPEN: on a read error we claim the diagnostic is available, so a
+ * transient failure sends the student to a screen that explains itself rather
+ * than silently hiding a feature that works.
+ */
+export async function isDiagnosticAvailable(examTrackId: string): Promise<boolean> {
+  const { count, error } = await supabase
+    .from("questions")
+    .select("id", { count: "exact", head: true })
+    .eq("exam_track_id", examTrackId)
+    .eq("status", "published");
+  if (error) return true;
+  return (count ?? 0) >= DIAGNOSTIC_MIN_QUESTIONS;
+}
+
 export async function fetchDiagnosticPool(
   examTrackId: string,
   length = DIAGNOSTIC_LENGTH
