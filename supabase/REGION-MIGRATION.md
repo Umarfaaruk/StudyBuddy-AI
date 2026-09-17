@@ -166,6 +166,18 @@ already published) and does the real work on a fresh one.
     will refuse the build with a non-ASCII error rather than ship a broken
     bundle.
 
+    **Change all of them in one go, and do not leave `SUPABASE_URL` pointing
+    at the old project.** Every serverless function resolves its target as
+    `process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL`
+    (`api/_verifyToken.js:28`, `api/grade.ts:51`, `api/public-grade.ts:35`,
+    `api/admin-delete-user.ts:20`). So if `VITE_SUPABASE_URL` is moved to
+    Mumbai while `SUPABASE_URL` still names Singapore, nothing errors — the
+    browser writes to Mumbai and `/api/grade`, `/api/public-grade` and
+    `/api/admin-delete-user` keep writing to Singapore. That is a split brain
+    that silently scatters new rows across two databases, and it is far more
+    expensive to unpick than a few minutes of downtime. The same applies to
+    the key pair.
+
 13. **you** — Redeploy on Vercel. The env vars are inlined at build time, so a
     redeploy is mandatory; changing them alone does nothing.
 14. Have the one password-only student reset their password.
@@ -277,3 +289,55 @@ DC↔Singapore). It gets better again once the cutover above is done.
 Vercel's Hobby plan allows a single chosen region; more than one needs Pro. If
 a deploy ever reports a region other than `bom1`, check that first — confirm
 with `regions` on the deployment, not from the dashboard's default.
+
+## Drift: the old project is live until the moment you cut over
+
+Phase 1 copied the data. The Singapore project has been serving users ever
+since, so anything written after the copy exists **only** in Singapore. Phase 2
+is therefore not "flip the env vars" — it is "re-sync, then flip", and the
+re-sync has to be the last thing before the flip.
+
+Checked and re-synced 2026-09-17 09:0x UTC:
+
+| check | Singapore | Mumbai | action |
+|---|---|---|---|
+| all 27 populated tables | — | — | 26 matched exactly |
+| `study_sessions` | 136 | 135 | one row copied, `md5 cf34afee39a8c1b81c1c1d5fa3b68e02` verified |
+| `auth.users` / `auth.identities` | 15 / 16 | 15 / 16 | no new signups |
+| `supabase_realtime` members | `complaint_history, complaints, notifications, saved_notes` | identical | none |
+| security advisors | 3 WARN | same 3 WARN | none — pre-existing, not migration artifacts |
+
+The row-count comparison that found it, run against both projects:
+
+```sql
+select table_name,
+       (xpath('/row/cnt/text()', xml_count))[1]::text::bigint as n
+from (
+  select table_name,
+         query_to_xml(format('select count(*) as cnt from public.%I', table_name),
+                      false, true, '') as xml_count
+  from information_schema.tables
+  where table_schema='public' and table_type='BASE TABLE'
+) t
+where (xpath('/row/cnt/text()', xml_count))[1]::text::bigint > 0
+order by table_name;
+```
+
+Re-run it immediately before step 12 and copy whatever has appeared since.
+`study_sessions`, `xp_logs`, `quiz_attempts`, `study_plans` and `notifications`
+are the tables that move on ordinary use. `study_sessions` has no triggers, so
+a plain insert is safe; check `pg_trigger` before hand-inserting into any table
+that does, or the insert will double-count XP.
+
+The window only closes when the new project is the one being written to, so do
+steps 12 and 13 back to back and keep usage off the app in between.
+
+## Known values for the target project
+
+- ref: `khxxokwbeeedekzpqxpl` · region `ap-south-1` · Postgres 17.6.1.166
+- `VITE_SUPABASE_URL`: `https://khxxokwbeeedekzpqxpl.supabase.co`
+- `VITE_SUPABASE_ANON_KEY` (publishable, ships in the bundle by design —
+  the legacy `anon` JWT and the new-style key both work):
+  `sb_publishable_pmRYL6fcCCzZyA6nbG_E5g_EEs6bBL_`
+- The service-role / secret key is deliberately **not** recorded here. Copy it
+  from the dashboard at cutover time.
