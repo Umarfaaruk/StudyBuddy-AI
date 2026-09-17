@@ -1,6 +1,3 @@
-import { Navigate } from "react-router-dom";
-import { useAuth } from "@/contexts/AuthContext";
-
 import Navbar from "@/components/landing/Navbar";
 import HeroSection from "@/components/landing/HeroSection";
 import FeaturesGrid from "@/components/landing/FeaturesGrid";
@@ -13,56 +10,41 @@ import FinalCTA from "@/components/landing/FinalCTA";
 import Footer from "@/components/landing/Footer";
 
 /**
- * A SIGNED-IN USER MUST NOT BE LEFT ON THE MARKETING PAGE
- * ======================================================
- * `/` is a public route, so nothing used to move an authenticated visitor off
- * it — they sat reading the landing copy while holding a valid session, with no
- * way forward except typing /dashboard by hand.
+ * THIS PAGE DOES NOT REDIRECT SIGNED-IN USERS — ON PURPOSE
+ * =======================================================
+ * It briefly did. A Google OAuth callback was landing on `/#` and stranding
+ * signed-in users on the marketing page, so `/` was made to send anyone with a
+ * session to /dashboard. That fixed the symptom and cost something real: the
+ * owner and any signed-in visitor could no longer view the landing page at
+ * all, which is also where the About and Features links live.
  *
- * That is not hypothetical. Google OAuth asks Supabase to return the user to
- * `${AUTH_ORIGIN}/onboarding` (see signInWithGoogle in AuthContext), but when
- * that URL is missing from the project's redirect allow-list Supabase discards
- * it and falls back to the Site URL — which is the bare domain. The callback
- * then lands on `/#`, and the user is stranded here.
+ * The redirect was the wrong layer. The cause of `/#` was a redirect URL
+ * missing from the Supabase allow-list, so Supabase discarded the requested
+ * `${AUTH_ORIGIN}/onboarding` and fell back to the project's Site URL. That is
+ * fixed in the project's Auth → URL Configuration, not here.
  *
- * Sending them to /dashboard fixes both that case and the ordinary one of
- * bookmarking the root. It deliberately does NOT try to decide between
- * onboarding and the dashboard: ProtectedRoute already owns that decision and
- * will bounce anyone with `onboarding_completed: false` to /onboarding. Adding
- * a second copy of that rule here is how the two drift apart.
+ * What remains is the genuine oddity of a signed-in visitor being shown "Sign
+ * Up Free" and "Log In". HeroSection and FinalCTA now swap those for a single
+ * "Go to Dashboard", which keeps the page readable by everyone while still
+ * offering the one action a signed-in visitor actually wants.
  *
- * WHY THE `loading` GUARD MATTERS
- * -------------------------------
- * `user` is null both when signed out and while the session is still being
- * restored. Redirecting on `!loading` only means an anonymous visitor is never
- * bounced, and — importantly for the OAuth case above — that we wait for
- * detectSessionInUrl to finish consuming the tokens from the URL fragment
- * before deciding.
- *
- * Crawlers are unaffected: they carry no session, so they get the prerendered
- * landing HTML that scripts/generate-seo.mjs emits for this route.
+ * So: if you are tempted to add a redirect here because a signed-in user
+ * "shouldn't see" this page, check the allow-list first — that is almost
+ * certainly the real bug.
  */
-const Index = () => {
-  const { user, loading } = useAuth();
-
-  if (!loading && user) {
-    return <Navigate to="/dashboard" replace />;
-  }
-
-  return (
-    <div className="min-h-screen">
-      <Navbar />
-      <HeroSection />
-      <FeaturesGrid />
-      <StudyLoop />
-      <AITutorSection />
-      <GamificationSection />
-      <ProgressSection />
-      <Testimonials />
-      <FinalCTA />
-      <Footer />
-    </div>
-  );
-};
+const Index = () => (
+  <div className="min-h-screen">
+    <Navbar />
+    <HeroSection />
+    <FeaturesGrid />
+    <StudyLoop />
+    <AITutorSection />
+    <GamificationSection />
+    <ProgressSection />
+    <Testimonials />
+    <FinalCTA />
+    <Footer />
+  </div>
+);
 
 export default Index;

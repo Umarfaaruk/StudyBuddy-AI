@@ -3,8 +3,19 @@ import { Button } from "@/components/ui/button";
 import { ArrowRight, Bot, BarChart3, Trophy, Timer } from "lucide-react";
 import { motion } from "framer-motion";
 import TextType from "@/components/ui/TextType";
+import { useAuth } from "@/contexts/AuthContext";
 
-const HeroSection = () => (
+/**
+ * `signedIn` swaps the sign-up/log-in pair for a single "Go to Dashboard".
+ * Offering "Sign Up Free" to someone who already has an account is the only
+ * genuinely wrong thing about a signed-in visitor reading this page, so fix
+ * that rather than hiding the page from them (see src/pages/Index.tsx).
+ */
+const HeroSection = () => {
+  const { user, loading } = useAuth();
+  const signedIn = !loading && !!user;
+
+  return (
   <section className="relative min-h-[100svh] md:min-h-0 overflow-hidden bg-gradient-to-br from-[#0F172A] via-[#0F172A] to-[#29ABE2]/10 text-white border-b border-white/[0.06]">
     <div className="container relative max-w-7xl mx-auto px-4 py-24 md:py-32 lg:py-40">
       <div className="grid lg:grid-cols-2 gap-16 items-center">
@@ -49,19 +60,30 @@ const HeroSection = () => (
           </p>
 
           <div className="flex flex-wrap gap-4">
-            {/* /signup, not /login — a button labelled "Sign Up Free" that
-                lands on the log-in form is the one dead end on the funnel. */}
-            <Button className="bg-cta text-white hover:bg-cta/90 font-semibold text-sm h-12 px-7 rounded-xl gap-2 shadow-sm animate-float" asChild>
-              <Link to="/signup">
-                Sign Up Free
-                <ArrowRight className="h-4 w-4" />
-              </Link>
-            </Button>
-            <Button variant="outline" className="border-white/10 text-white hover:bg-white/10 hover:text-white font-medium h-12 px-7 rounded-xl gap-2 bg-transparent" asChild>
-              <Link to="/login">
-                Log In
-              </Link>
-            </Button>
+            {signedIn ? (
+              <Button className="bg-cta text-white hover:bg-cta/90 font-semibold text-sm h-12 px-7 rounded-xl gap-2 shadow-sm animate-float" asChild>
+                <Link to="/dashboard">
+                  Go to Dashboard
+                  <ArrowRight className="h-4 w-4" />
+                </Link>
+              </Button>
+            ) : (
+              <>
+                {/* /signup, not /login — a button labelled "Sign Up Free" that
+                    lands on the log-in form is the one dead end on the funnel. */}
+                <Button className="bg-cta text-white hover:bg-cta/90 font-semibold text-sm h-12 px-7 rounded-xl gap-2 shadow-sm animate-float" asChild>
+                  <Link to="/signup">
+                    Sign Up Free
+                    <ArrowRight className="h-4 w-4" />
+                  </Link>
+                </Button>
+                <Button variant="outline" className="border-white/10 text-white hover:bg-white/10 hover:text-white font-medium h-12 px-7 rounded-xl gap-2 bg-transparent" asChild>
+                  <Link to="/login">
+                    Log In
+                  </Link>
+                </Button>
+              </>
+            )}
           </div>
 
           {/* flex-wrap + nowrap on each item so a narrow screen drops a whole
@@ -171,6 +193,7 @@ const HeroSection = () => (
       </div>
     </div>
   </section>
-);
+  );
+};
 
 export default HeroSection;
