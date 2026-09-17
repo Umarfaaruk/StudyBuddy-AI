@@ -178,14 +178,25 @@ const DiagnosticFlow = () => {
           {DIAGNOSTIC_MIN_QUESTIONS} to say anything useful about your strengths.
         </p>
         {/* The count above is honest and useful; naming the admin screen was
-            not, since a student cannot open it. */}
+            not, since a student cannot open it.
+
+            Nor is "everything else works" a safe thing to claim here: a track
+            with too few questions for a diagnostic has none for mock tests
+            either, so two of the four study surfaces are empty. Point at the
+            one that works for ANY track — the student's own uploaded material,
+            which generates its lessons, flashcards and quizzes with no question
+            bank involved. */}
         <p className="text-xs text-muted-foreground">
-          More questions are being added for this track. Everything else in your
-          account works in the meantime.
+          More questions are being added for this track. In the meantime you can
+          upload your own notes or a textbook chapter and get lessons,
+          flashcards and quizzes generated from them.
         </p>
-        <Button variant="outline" onClick={() => navigate("/dashboard")}>
-          Back to dashboard
-        </Button>
+        <div className="flex items-center justify-center gap-2">
+          <Button onClick={() => navigate("/materials")}>Upload your material</Button>
+          <Button variant="outline" onClick={() => navigate("/dashboard")}>
+            Back to dashboard
+          </Button>
+        </div>
       </div>
     );
   }
