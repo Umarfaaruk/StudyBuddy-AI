@@ -383,3 +383,74 @@ unrelated project is a real exposure, not just clutter: the service-role key
 bypasses RLS entirely, so that project's functions could read or write every
 row of this one's data. Delete those five variables from whichever project
 received them by mistake.
+
+## The region cannot be changed in place — why there are two projects
+
+Asked and worth answering in the repo, because two projects side by side in the
+dashboard looks like a mistake.
+
+Supabase's own troubleshooting page,
+[Change Project Region](https://supabase.com/docs/guides/troubleshooting/change-project-region-eWJo5Z):
+
+> Each Supabase project is provisioned on hardware in the chosen region, so it
+> is **bound to a region at the infrastructure level**. Therefore, the process
+> to change the region of a Supabase Project is to create a new project in the
+> desired region and migrate your existing project.
+
+And [Project Transfers](https://supabase.com/docs/guides/platform/project-transfer)
+closes the other door:
+
+> project transfers … **cannot be used to transfer between different regions**.
+
+There is no region setting. The second project *is* the migration — which is
+also why the Management API takes `region` only at create time and offers
+nothing to alter it later. The same page confirms the rest of Phase 2
+independently: third-party auth client id/secret pairs must be copied by hand,
+and the API URL and keys are changed via env vars on the web host.
+
+## The Vercel↔Supabase integration owns the env vars
+
+This is what actually blocked the cutover, after the wrong-project mix-up was
+sorted out. **Setting `SUPABASE_URL` or the secret key by hand does not work
+while the integration is connected** — the integration manages those variables
+and puts its own values back. `api/_verifyToken.js` already hinted at it:
+
+> The Vercel↔Supabase Marketplace integration injects `SUPABASE_SECRET_KEY`,
+> while a hand-configured project typically uses `SUPABASE_SERVICE_ROLE_KEY`.
+
+Order matters, and it is not the obvious one:
+
+1. Supabase → **old** project → Settings → Integrations → Vercel → disconnect
+   the Vercel project. This removes the managed variables.
+2. Supabase → **new** project → Settings → Integrations → Vercel → connect the
+   same Vercel project. It writes `SUPABASE_URL` and the secret key itself,
+   pointing at the new project, and keeps doing so through key rotation.
+3. Set `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` **by hand** — the
+   integration never creates those, they are this app's own names.
+4. Rebuild.
+
+Do not connect the new project before disconnecting the old one; two Supabase
+projects cannot both manage one Vercel project's variables.
+
+### Verifying it without signing in
+
+`VITE_SUPABASE_URL` is inlined into the `App-*.js` chunk at build time, and
+Vite names chunks by content hash. So a build whose only source change is a
+`.md` file **must** produce the same `App-*.js` hash unless an env var moved.
+
+That is how the failed attempt was caught: two consecutive docs-only commits
+both produced `App-DwUzG00u.js`, proving the Supabase URL had not changed —
+without needing a login, and without fighting Vercel Authentication on the
+asset URLs. The hash is in the deployment's build log.
+
+## Target project readiness, verified 2026-09-17
+
+| check | Singapore | Mumbai |
+|---|---|---|
+| indexes (name + definition, md5) | 114 · `b39be651db14f5ed5c701ab936b5d0da` | **identical** |
+| `multiple_permissive_policies` | 527 WARN | 527 WARN — pre-existing design |
+| `unused_index` | 51 INFO | 59 INFO — higher only because it has served no queries |
+| security advisors | 3 WARN | same 3 WARN |
+
+No missing indexes and no unindexed foreign keys on the target, so the cutover
+cannot make queries plan worse.
