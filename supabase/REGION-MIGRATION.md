@@ -454,3 +454,40 @@ asset URLs. The hash is in the deployment's build log.
 
 No missing indexes and no unindexed foreign keys on the target, so the cutover
 cannot make queries plan worse.
+
+## What the env vars were actually doing
+
+Four attempts at Phase 2 failed, and the dashboard showed the right values
+every time. The causes, in the order they were found:
+
+1. The variables and the redeploy were applied to a **different Vercel
+   project**. The account has several adjacently-named ones. Caught by a fresh
+   sign-in landing in the old project's `auth.sessions`.
+2. The **Vercel↔Supabase integration owned the server-side variables** and
+   restored its own values over every hand edit. See the section above.
+3. Even after the integration was repointed, `VITE_SUPABASE_URL` in the
+   **Production** environment was still the old project — proved by the build
+   probe (`scripts/generate-seo.mjs`) on its first run:
+
+   ```
+   [env] VITE_SUPABASE_URL host: dhyiuauinxbmcarfqbfl.supabase.co
+   ```
+
+   A plain edit does not reliably replace it, because a duplicate entry for the
+   same key, or an entry saved against Preview/Development instead of
+   Production, leaves the old value in place with nothing to show for it.
+
+**Remove before adding.** This is the sequence that worked, and it cannot leave
+a shadowed duplicate behind:
+
+```bash
+npx vercel@latest env ls production | grep -i supabase
+npx vercel@latest env rm  VITE_SUPABASE_URL production
+printf 'https://<new-ref>.supabase.co' | npx vercel@latest env add VITE_SUPABASE_URL production
+npx vercel@latest env rm  VITE_SUPABASE_ANON_KEY production
+printf '<publishable-key>' | npx vercel@latest env add VITE_SUPABASE_ANON_KEY production
+```
+
+Then check the next build's log for the `[env]` line rather than inspecting the
+dashboard. The dashboard was not wrong so much as not showing which
+environment, or which duplicate, actually won.
