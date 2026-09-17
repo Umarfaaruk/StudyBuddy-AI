@@ -1,4 +1,6 @@
 import { useEffect, useState, useRef, useMemo, useCallback } from 'react';
+
+import usePrefersReducedMotion from '@/hooks/usePrefersReducedMotion';
 import { motion } from 'framer-motion';
 import type { CSSProperties } from 'react';
 
@@ -31,6 +33,7 @@ export default function DecryptedText({
   clickMode = 'once',
   ...props
 }: any) {
+  const prefersReducedMotion = usePrefersReducedMotion();
   const [displayText, setDisplayText] = useState(text);
   const [isAnimating, setIsAnimating] = useState(false);
   const [revealedIndices, setRevealedIndices] = useState(new Set<number>());
@@ -294,6 +297,9 @@ export default function DecryptedText({
 
   useEffect(() => {
     if (animateOn !== 'view' && animateOn !== 'inViewHover') return;
+    // Reduced motion: the text is already shown in full, so there is nothing
+    // to reveal and no scramble to run.
+    if (prefersReducedMotion) return;
 
     const observerCallback = (entries: any[]) => {
       entries.forEach(entry => {
@@ -319,10 +325,10 @@ export default function DecryptedText({
     return () => {
       if (currentRef) observer.unobserve(currentRef);
     };
-  }, [animateOn, hasAnimated, triggerDecrypt]);
+  }, [animateOn, hasAnimated, triggerDecrypt, prefersReducedMotion]);
 
   useEffect(() => {
-    if (animateOn === 'click') {
+    if (animateOn === 'click' && !prefersReducedMotion) {
       encryptInstantly();
     } else {
       setDisplayText(text);
@@ -330,7 +336,7 @@ export default function DecryptedText({
     }
     setRevealedIndices(new Set());
     setDirection('forward');
-  }, [animateOn, text, encryptInstantly]);
+  }, [animateOn, text, encryptInstantly, prefersReducedMotion]);
 
   const animateProps =
     animateOn === 'hover' || animateOn === 'inViewHover'

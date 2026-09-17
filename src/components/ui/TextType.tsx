@@ -2,6 +2,7 @@
 import { useEffect, useRef, useState, createElement, useMemo, useCallback } from 'react';
 import { gsap } from 'gsap';
 
+import usePrefersReducedMotion from '@/hooks/usePrefersReducedMotion';
 import './TextType.css';
 
 const TextType = ({
@@ -25,6 +26,7 @@ const TextType = ({
   reverseMode = false,
   ...props
 }: any) => {
+  const prefersReducedMotion = usePrefersReducedMotion();
   const [displayedText, setDisplayedText] = useState('');
   const [currentCharIndex, setCurrentCharIndex] = useState(0);
   const [isDeleting, setIsDeleting] = useState(false);
@@ -68,6 +70,9 @@ const TextType = ({
   useEffect(() => {
     if (showCursor && cursorRef.current) {
       gsap.set(cursorRef.current, { opacity: 1 });
+      // A blinking caret is motion too, and GSAP writes inline styles that the
+      // reduced-motion CSS block cannot override. Leave it solid instead.
+      if (prefersReducedMotion) return;
       gsap.to(cursorRef.current, {
         opacity: 0,
         duration: cursorBlinkDuration,
@@ -76,10 +81,20 @@ const TextType = ({
         ease: 'power2.inOut'
       });
     }
-  }, [showCursor, cursorBlinkDuration]);
+  }, [showCursor, cursorBlinkDuration, prefersReducedMotion]);
 
   useEffect(() => {
     if (!isVisible) return;
+
+    // Reduced motion: show the sentence complete and run no timers at all.
+    // The text is the content here, so it must still be there in full — it is
+    // only the character-by-character reveal that is dropped.
+    if (prefersReducedMotion) {
+      const full = textArray[currentTextIndex];
+      setDisplayedText(reverseMode ? full.split('').reverse().join('') : full);
+      setCurrentCharIndex(full.length);
+      return;
+    }
 
     let timeout: any;
     const currentText = textArray[currentTextIndex];
@@ -132,7 +147,7 @@ const TextType = ({
   }, [
     currentCharIndex, displayedText, isDeleting, typingSpeed, deletingSpeed,
     pauseDuration, textArray, currentTextIndex, loop, initialDelay, isVisible,
-    reverseMode, variableSpeed, onSentenceComplete
+    reverseMode, variableSpeed, onSentenceComplete, prefersReducedMotion
   ]);
 
   const shouldHideCursor = hideCursorWhileTyping && (currentCharIndex < textArray[currentTextIndex].length || isDeleting);

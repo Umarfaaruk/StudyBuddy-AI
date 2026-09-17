@@ -1,42 +1,25 @@
 import { Navigate, useLocation } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { supabase } from "@/lib/supabase";
-import { useEffect } from "react";
+import { useProfile } from "@/hooks/useProfile";
 
+/**
+ * The route guard reads the profile through the shared useProfile() hook rather
+ * than issuing its own query. It used to own a separate
+ * ["profile-onboarding-check", uid] key, which meant this BLOCKING read could
+ * not be served from — or serve — the cache that the sidebar, admin gate and
+ * dashboard were filling with the very same row. See src/hooks/useProfile.ts.
+ *
+ * The explicit cache invalidation that used to live here is gone too: the hook's
+ * 30 s staleTime plus the invalidation both onboarding flows already fire on
+ * ["profile", uid] cover the post-onboarding refresh, and the old effect ran on
+ * every navigation away from /onboarding whether or not anything had changed.
+ */
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   const { user, loading } = useAuth();
   const location = useLocation();
-  const queryClient = useQueryClient();
 
-  // Invalidate profile cache when navigating away from onboarding
-  // This ensures the onboarding_completed flag is fresh after the user finishes onboarding
   const isOnboardingPage = location.pathname.startsWith("/onboarding");
-  useEffect(() => {
-    // When navigating FROM onboarding TO another page, refetch profile
-    if (!isOnboardingPage && user) {
-      queryClient.invalidateQueries({ queryKey: ["profile-onboarding-check", user.uid] });
-    }
-  }, [isOnboardingPage, user, queryClient]);
-
-  // Check if user has completed onboarding
-  const { data: profile, isLoading: profileLoading, isError } = useQuery({
-    queryKey: ["profile-onboarding-check", user?.uid],
-    queryFn: async () => {
-      if (!user) return null;
-      const { data, error } = await supabase
-        .from("profiles")
-        .select("onboarding_completed")
-        .eq("id", user.uid)
-        .maybeSingle();
-      if (error) throw error;
-      return data ?? null;
-    },
-    enabled: !!user,
-    staleTime: 1000 * 30, // Cache for 30 seconds — short enough to catch post-onboarding writes
-    retry: 1,
-    refetchOnWindowFocus: true,
-  });
+  const { data: profile, isLoading: profileLoading, isError } = useProfile();
 
   if (loading || (user && profileLoading)) {
     return (

@@ -363,3 +363,71 @@ export async function fetchAttemptSeries(userId: string): Promise<MockAttemptSum
   if (error) throw error;
   return (data ?? []) as MockAttemptSummary[];
 }
+
+/**
+ * The persisted half of a finished attempt.
+ *
+ * The results screen is normally handed everything through router state on
+ * submit, which is gone the moment the page is reloaded or reopened from
+ * history — so a student who pressed F5 on their own results saw "No result to
+ * show" even though the attempt was safely in the database. This reads it back.
+ *
+ * `mistakes` is deliberately absent. Rebuilding it needs the answer key, and
+ * question_answers is server-side only by design (migration 0004) — no browser
+ * role may select it. So the recovered view shows the score, the percentile and
+ * the topic breakdown, and the results screen says plainly that the
+ * question-by-question review belongs to the session that just finished.
+ */
+export interface RecoveredMockResult {
+  title: string;
+  score: number;
+  percentile: number | null;
+  correct: number;
+  total: number;
+  durationSeconds: number;
+  perTopic: PerTopicResult[];
+}
+
+export async function fetchLatestAttemptResult(
+  userId: string,
+  mockTestId: string
+): Promise<RecoveredMockResult | null> {
+  const { data, error } = await supabase
+    .from("mock_test_attempts")
+    .select("score, percentile, correct_count, total_questions, duration_seconds, per_topic, submitted_at")
+    .eq("user_id", userId)
+    .eq("mock_test_id", mockTestId)
+    // Only a finished attempt is a result; an abandoned one still open would
+    // otherwise render as a zero score.
+    .not("submitted_at", "is", null)
+    .order("submitted_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (error) {
+    console.error("[mockTests] could not recover attempt:", error);
+    return null;
+  }
+  if (!data) return null;
+
+  // The title lives on the test, not the attempt.
+  const { data: test } = await supabase
+    .from("mock_tests")
+    .select("title")
+    .eq("id", mockTestId)
+    .maybeSingle();
+
+  const perTopic = Array.isArray(data.per_topic) ? (data.per_topic as PerTopicResult[]) : [];
+
+  return {
+    title: test?.title ?? "Mock test",
+    score: Number(data.score ?? 0),
+    percentile: data.percentile === null || data.percentile === undefined
+      ? null
+      : Number(data.percentile),
+    correct: data.correct_count ?? 0,
+    total: data.total_questions ?? 0,
+    durationSeconds: data.duration_seconds ?? 0,
+    perTopic,
+  };
+}

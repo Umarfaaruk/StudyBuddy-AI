@@ -1,0 +1,244 @@
+# Moving the project to `ap-south-1` (Mumbai)
+
+## The short version
+
+**A Supabase project cannot change region.** It is pinned to its hardware at
+provision time. Supabase's own docs are explicit about it:
+
+> Each Supabase project is provisioned on hardware in the chosen region, so it
+> is bound to a region at the infrastructure level. Therefore, the process to
+> change the region of a Supabase Project is to create a new project in the
+> desired region and migrate your existing project.
+>
+> — [Change Project Region](https://supabase.com/docs/guides/troubleshooting/change-project-region-eWJo5Z)
+
+So "moving to `ap-south-1`" means: **stand up a second project in Mumbai,
+replay the schema, copy the data, repoint the app, retire the old one.**
+
+| | |
+|---|---|
+| Current project | `dhyiuauinxbmcarfqbfl` "Study Buddy AI" |
+| Current region | `ap-southeast-1` (Singapore) |
+| Target region | `ap-south-1` (Mumbai) |
+| Cost of the new project | **$0/month** (Free tier — verified via the API) |
+| Expected latency win | ~60–80 ms per round trip for users in India |
+
+## What this actually buys, measured
+
+Production edge logs put our users on the **Hyderabad (BOM) edge**, talking to
+a database in **Singapore**. Mumbai removes roughly **60–80 ms per round trip**.
+
+Worth being honest about the size of that prize: the login path currently makes
+a **blocking 310 ms `profile-onboarding-check` query** before anything renders
+(`src/components/ProtectedRoute.tsx`), and the dashboard reads the same profile
+row **six more times**. Fixing that waterfall is worth more than the region
+move, costs nothing in infrastructure risk, and is pure application code. Do
+both — but if only one happens, do that one.
+
+## Why this is not a one-click job
+
+### 1. Every user's data hangs off `auth.users.id`
+
+**37 tables in `public` carry a foreign key to `auth.users(id)`** — `profiles`,
+`study_sessions`, `quiz_attempts`, `xp_logs`, `complaints`, all of it.
+
+If the new project issues *fresh* UUIDs for the same people, every one of those
+rows orphans. Their streaks, XP, quiz history and study plans are all gone even
+though the rows copied fine. **The UUIDs must be carried across verbatim.** This
+is the single thing most likely to go wrong, and it fails silently.
+
+### 2. Google OAuth is how almost everyone logs in
+
+Current sign-in inventory (15 users):
+
+| | Users | Google linked | Has a password |
+|---|---|---|---|
+| admin | 2 | 2 | 1 |
+| student | 13 | 12 | 1 |
+
+**14 of 15 accounts sign in with Google.** A new project means a new
+`https://<new-ref>.supabase.co/auth/v1/callback` URL, which has to be added as
+an Authorized redirect URI in **Google Cloud Console**. That console is not
+reachable from here — it needs your Google account. Until it is added, Google
+sign-in returns `redirect_uri_mismatch` and **nobody can log in**.
+
+Good news buried in that table: **both admins have Google linked**, so admin
+access survives the cutover without depending on email delivery.
+
+### 3. Password hashes
+
+Exactly **one student** is password-only. Their bcrypt hash is deliberately not
+being copied — moving it means reading a credential hash through a chat
+transcript. That one account does a password reset instead. Confirm the new
+project can actually send mail (Auth → Emails) before relying on that; the
+built-in SMTP is rate-limited to a few messages per hour.
+
+## Who does what
+
+Steps marked **you** need a console I cannot reach.
+
+### Phase 1 — build the new project  ·  DONE 2026-09-17
+
+Target project: `khxxokwbeeedekzpqxpl` (`ap-south-1`). Schema, auth and data are
+in and verified — schema objects hash-identical, all 27 populated tables at
+matching row counts, zero orphaned `user_id` values, both storage buckets
+created, RLS policy set hash-identical to production (`6f580597…`).
+
+One gap, deliberate: `materials.extracted_text` is null on the three largest
+rows (100,000 / 35,975 / 35,975 characters of raw PDF extraction). Copying text
+that size through this channel character-perfect is not something I could
+guarantee, and a silent corruption there is worse than a null. Everything
+derived from those PDFs — topics, lessons, flashcards, quizzes, summaries, key
+topics — migrated intact. Re-uploading the three PDFs after cutover regenerates
+the extraction.
+
+The original steps, for reference:
+
+1. Create the project in `ap-south-1`, same organisation. *(I can do this.)*
+2. Replay all 27 migrations, `0001` → `0017`, in order, via `apply_migration`
+   so `supabase_migrations.schema_migrations` is populated correctly too.
+   *(I can do this.)* This also re-seeds the content that lives in migrations:
+   `exam_tracks`, `syllabus_nodes` (238), `questions` + `question_answers` (80
+   each), `mock_tests` — so none of that needs copying.
+3. Recreate the two storage buckets, `avatars` and `complaints`, both public.
+   *(I can do this.)*
+4. Copy the user data, UUIDs preserved, in foreign-key order — ~410 rows across
+   22 tables. *(I can do this.)*
+5. Re-upload the single existing avatar image. *(1 file — easiest is to just
+   re-upload it through the app after cutover.)*
+6. Verify: row counts match per table, and zero orphaned `user_id` values.
+   *(Queries in "Verification" below.)*
+
+7. Confirm Realtime is live on the four published tables. Migration `0017`
+   handles this — see the note below. *(Covered by step 2.)*
+
+There are **no Edge Functions** to move, no `pg_cron` jobs and no database
+webhooks (all verified against the live project).
+
+### Realtime was invisible drift — now fixed in `0017`
+
+Realtime on a table is publication membership, not schema, and the dashboard
+toggle edits it directly. **Nothing in migrations `0001`–`0016` touched it**, so
+replaying them into Mumbai would have produced an identical schema with
+Realtime silently **off** on `notifications`, `complaints`, `complaint_history`
+and `saved_notes` — breaking the notification bell, the student's complaint
+tracker, the complaint reply thread and lesson-note sync, with no error
+anywhere.
+
+`0017_enable_realtime_publications.sql` now puts all four under version
+control. It is a verified no-op against the current project (all four are
+already published) and does the real work on a fresh one.
+
+### Phase 2 — cutover (this is the downtime window)
+
+8. **you** — New project → Authentication → Sign In / Providers → Google: paste
+   the **same** Client ID and Client Secret the current project uses. Copy them
+   from the old project's dashboard; they are not in this repo.
+9. **you** — [Google Cloud Console](https://console.cloud.google.com/apis/credentials)
+   → your OAuth 2.0 Client → **Authorized redirect URIs** → add
+   `https://<new-ref>.supabase.co/auth/v1/callback`.
+   **Keep the old URI in place** until the cutover is proven — that is the
+   rollback path.
+10. **you** — New project → Authentication → URL Configuration → set **Site URL**
+   to the production domain and add the redirect allow-list entries the app
+   uses: `/onboarding` and `/login` (see `AUTH_ORIGIN` in
+   `src/contexts/AuthContext.tsx`).
+11. **you** — New project → Authentication → Password protection → enable
+    **leaked password protection**. It is off on the current project; this is a
+    free moment to fix that.
+12. **you** — Vercel → Settings → Environment Variables, tick Production,
+    Preview *and* Development for each:
+
+    | Variable | New value |
+    |---|---|
+    | `VITE_SUPABASE_URL` | `https://<new-ref>.supabase.co` |
+    | `VITE_SUPABASE_ANON_KEY` | new project's publishable/anon key |
+    | `SUPABASE_URL` | `https://<new-ref>.supabase.co` |
+    | `SUPABASE_SERVICE_ROLE_KEY` | new project's service-role key |
+    | `SUPABASE_SECRET_KEY` | new project's secret key, if that form is used |
+
+    Nothing else changes — the project ref is **not hardcoded anywhere** in this
+    repo (verified by grep). `GROQ_API_KEY`, `RESEND_API_KEY`, `CRON_SECRET`,
+    `SUPADATA_API_KEY` and `YOUTUBE_API_KEY` are untouched.
+
+    Reveal each key in the Supabase dashboard *before* copying it. A key copied
+    while still masked carries real bullet characters, and `vite.config.ts`
+    will refuse the build with a non-ASCII error rather than ship a broken
+    bundle.
+
+13. **you** — Redeploy on Vercel. The env vars are inlined at build time, so a
+    redeploy is mandatory; changing them alone does nothing.
+14. Have the one password-only student reset their password.
+15. Everyone else: sign out and sign in again with Google. Existing sessions do
+    not carry across — JWTs are signed with the old project's secret.
+
+### Phase 3 — after it is proven
+
+16. Watch it for a day or two. **Do not delete the old project** — it is the
+    rollback.
+17. Then: remove the old callback URI from Google Cloud Console, and pause or
+    delete the old project.
+
+## Rollback
+
+Because nothing is destructive until step 17, rollback is: put the old values
+back in Vercel and redeploy. The old project keeps running untouched
+throughout, old sessions and all. Keep the old Google redirect URI registered
+until you are past step 16 — pulling it early is what would make rollback
+painful.
+
+## Verification
+
+Run against **both** projects and diff the output.
+
+```sql
+-- 1. Row counts per table
+select relname, n_live_tup
+from pg_stat_user_tables
+where schemaname = 'public' and n_live_tup > 0
+order by relname;
+
+-- 2. Auth inventory: totals must match, and the UUIDs must be the SAME UUIDs
+select count(*) as users,
+       count(*) filter (where encrypted_password is not null
+                          and encrypted_password <> '') as with_password,
+       count(*) filter (where email_confirmed_at is not null) as confirmed
+from auth.users;
+
+select provider, count(*) from auth.identities group by provider order by 1;
+
+-- 3. Orphan check — the failure mode that matters. Must return zero rows.
+select 'profiles' as t, count(*) from public.profiles p
+  where not exists (select 1 from auth.users u where u.id = p.id)
+union all select 'study_sessions', count(*) from public.study_sessions s
+  where not exists (select 1 from auth.users u where u.id = s.user_id)
+union all select 'quiz_attempts', count(*) from public.quiz_attempts q
+  where not exists (select 1 from auth.users u where u.id = q.user_id)
+union all select 'xp_logs', count(*) from public.xp_logs x
+  where not exists (select 1 from auth.users u where u.id = x.user_id);
+
+-- 4. Migration history landed
+select count(*) from supabase_migrations.schema_migrations;
+
+-- 5. Realtime is on. Must return all four rows on the new project.
+select tablename
+from pg_publication_tables
+where pubname = 'supabase_realtime' and schemaname = 'public'
+order by tablename;
+```
+
+Then, in the app itself: log in with Google, confirm the dashboard shows the
+right streak and XP, open a mock test, and submit a complaint — that last one
+exercises RLS, storage and the admin queue in one go.
+
+## The CLI route, for reference
+
+The official path is `supabase db dump` + `psql`, documented under
+[Backup and Restore using the CLI](https://supabase.com/docs/guides/platform/migrating-within-supabase/backup-restore).
+It needs the Supabase CLI, **Docker Desktop** and `psql` installed locally.
+
+For this project it is the harder option: the schema is fully described by the
+27 migration files in this folder, the content is re-seeded by those same
+migrations, and only ~410 rows of user data actually need copying. Replaying
+migrations also leaves the new project with a clean, correct migration history
+instead of a flattened `pg_dump` schema — worth having.

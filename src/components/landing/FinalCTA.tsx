@@ -18,7 +18,7 @@ const FinalCTA = () => (
 
       <div className="flex flex-wrap justify-center gap-4">
         <Button className="bg-cta text-white hover:bg-cta/90 font-semibold text-sm h-12 px-8 rounded-xl gap-2 shadow-sm" asChild>
-          <Link to="/login">
+          <Link to="/signup">
             Get Started For Free
             <ArrowRight className="h-4 w-4" />
           </Link>

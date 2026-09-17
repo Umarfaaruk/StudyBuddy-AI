@@ -1,4 +1,8 @@
-import { useLocation, useNavigate } from "react-router-dom";
+import { useLocation, useNavigate, useParams } from "react-router-dom";
+import { useQuery } from "@tanstack/react-query";
+import { Loader2 } from "lucide-react";
+import { useAuth } from "@/contexts/AuthContext";
+import { fetchLatestAttemptResult } from "@/lib/mockTests";
 import { Trophy, Clock, TrendingUp, AlertTriangle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import MistakeReview, { type Mistake } from "@/components/MistakeReview";
@@ -46,12 +50,53 @@ const barColour = (s: number) =>
 const MockTestResults = () => {
   const location = useLocation();
   const navigate = useNavigate();
-  const state = location.state as ResultState | null;
+  const { testId } = useParams();
+  const { user } = useAuth();
+  const routerState = location.state as ResultState | null;
+
+  /**
+   * Router state carries the full result straight after submitting, but it does
+   * not survive a reload or a revisit from history — which used to leave a
+   * student staring at "No result to show" for a test they had just finished
+   * and which was already saved. When it is missing, read the attempt back from
+   * the database instead.
+   *
+   * The recovered view has no `mistakes`: rebuilding those needs the answer key
+   * in question_answers, which is server-side only by design, so the review
+   * section below hides itself and says where it went rather than rendering
+   * empty.
+   */
+  const { data: recovered, isLoading: recovering } = useQuery({
+    queryKey: ["mock-result", user?.uid, testId],
+    queryFn: () => fetchLatestAttemptResult(user!.uid, testId!),
+    enabled: !routerState && !!user && !!testId,
+    staleTime: 1000 * 60 * 5,
+  });
+
+  const state: ResultState | null = routerState ?? (recovered
+    ? { ...recovered, mistakes: [], expired: false }
+    : null);
+
+  // Recovered results are the only ones missing the question-by-question
+  // review, so the note below is shown for exactly those.
+  const isRecovered = !routerState && !!recovered;
+
+  if (!state && recovering) {
+    return (
+      <div className="max-w-lg mx-auto py-16 flex flex-col items-center gap-3">
+        <Loader2 className="h-6 w-6 animate-spin text-primary" />
+        <p className="text-sm text-muted-foreground">Loading your result…</p>
+      </div>
+    );
+  }
 
   if (!state) {
     return (
       <div className="max-w-lg mx-auto py-16 text-center space-y-4">
         <h1 className="text-xl font-bold text-foreground">No result to show</h1>
+        <p className="text-sm text-muted-foreground">
+          We couldn&rsquo;t find a finished attempt for this test on your account.
+        </p>
         <Button onClick={() => navigate("/mock")}>Back to tests</Button>
       </div>
     );
@@ -127,7 +172,15 @@ const MockTestResults = () => {
         </div>
       </section>
 
-      <MistakeReview mistakes={state.mistakes ?? []} sessionId={null} />
+      {isRecovered ? (
+        <p className="text-xs text-muted-foreground text-center">
+          Your score and topic breakdown were restored from this attempt. The
+          question-by-question review is only shown immediately after
+          submitting.
+        </p>
+      ) : (
+        <MistakeReview mistakes={state.mistakes ?? []} sessionId={null} />
+      )}
 
       {/* Milestone-triggered testimonial capture (Phase 3.5) — self-hiding. */}
       <TestimonialPrompt latestScore={state.score} />

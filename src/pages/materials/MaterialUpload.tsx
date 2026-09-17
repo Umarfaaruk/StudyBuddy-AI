@@ -7,6 +7,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
 import { supabase } from "@/lib/supabase";
+import { must } from "@/lib/dbWrite";
 import { aiComplete } from "@/lib/aiService";
 import { getAuthHeaders } from "@/lib/authHeaders";
 
@@ -252,7 +253,7 @@ const MaterialUpload = () => {
       (old: any[] | undefined) => (old || []).filter((n: any) => n.id !== id)
     );
     try {
-      await supabase.from("saved_notes").delete().eq("id", id);
+      await must(supabase.from("saved_notes").delete().eq("id", id), "delete your note");
       toast.success("Note deleted");
     } catch (error) {
       toast.error("Failed to delete note");
@@ -454,9 +455,14 @@ const MaterialUpload = () => {
       (old) => (old || []).filter(m => m.id !== id)
     );
     try {
-      await supabase.from("materials").delete().eq("id", id);
+      // must() matters most where the UI is optimistic: the row was already
+      // pulled from the cache above, so a silently-rejected delete showed
+      // "File deleted", left the file in the database, and brought it back on
+      // the next refresh. Now the catch runs and restores the true list.
+      await must(supabase.from("materials").delete().eq("id", id), "delete that file");
       toast.success("File deleted");
     } catch (error) {
+      console.error("[MaterialUpload] Delete failed:", error);
       toast.error("Failed to delete file");
       queryClient.invalidateQueries({ queryKey: ["materials", user?.uid] });
     }

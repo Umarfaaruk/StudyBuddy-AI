@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useCallback, ReactNode } from "react";
+import { createContext, useContext, useState, useCallback, ReactNode, useMemo } from "react";
 
 interface DeepFocusContextType {
   isDeepFocus: boolean;
@@ -34,8 +34,14 @@ export const DeepFocusProvider = ({ children }: { children: ReactNode }) => {
     });
   }, []);
 
+  // Memoised: an inline object literal re-renders every consumer each render.
+  const value = useMemo(
+    () => ({ isDeepFocus, enableDeepFocus, disableDeepFocus, toggleDeepFocus }),
+    [isDeepFocus, enableDeepFocus, disableDeepFocus, toggleDeepFocus]
+  );
+
   return (
-    <DeepFocusContext.Provider value={{ isDeepFocus, enableDeepFocus, disableDeepFocus, toggleDeepFocus }}>
+    <DeepFocusContext.Provider value={value}>
       {children}
     </DeepFocusContext.Provider>
   );

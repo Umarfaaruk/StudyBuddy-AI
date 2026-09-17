@@ -79,6 +79,7 @@ export interface OnboardingFlow {
 export const FLOW_LABELS: Record<FlowType, string> = {
   JEE: "JEE",
   NEET: "NEET",
+  GATE: "GATE",
   GENERAL: "General",
 };
 

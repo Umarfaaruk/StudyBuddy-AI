@@ -32,7 +32,10 @@ import type { DiagnosticQuestion } from "@/lib/diagnostic";
 type Phase = "picking" | "loading" | "testing" | "scoring" | "partial" | "full" | "empty" | "error";
 
 const FreeTest = () => {
-  const { data: tracks, isLoading: tracksLoading } = useExamTracks();
+  const {
+    data: tracks, isLoading: tracksLoading,
+    isError: tracksFailed, refetch: refetchTracks,
+  } = useExamTracks();
   const [trackId, setTrackId] = useState("");
   const [phase, setPhase] = useState<Phase>("picking");
   const [questions, setQuestions] = useState<DiagnosticQuestion[]>([]);
@@ -292,6 +295,23 @@ const FreeTest = () => {
             {[0, 1].map((i) => (
               <div key={i} className="h-[72px] rounded-xl border border-border bg-muted/40 animate-pulse" />
             ))}
+          </div>
+        ) : tracksFailed ? (
+          /* A failed fetch and an empty table are different problems and only
+             one of them is the student's to wait out. Reporting a dropped
+             connection as "no exams are available" sends someone away from a
+             working product, so say what happened and offer the retry. */
+          <div className="text-center space-y-3 py-4">
+            <div className="h-12 w-12 rounded-2xl bg-destructive/10 flex items-center justify-center mx-auto">
+              <AlertTriangle className="h-6 w-6 text-destructive" />
+            </div>
+            <p className="text-sm text-muted-foreground">
+              We couldn&rsquo;t load the exam list — that&rsquo;s usually a
+              connection hiccup.
+            </p>
+            <Button variant="outline" onClick={() => refetchTracks()}>
+              Try again
+            </Button>
           </div>
         ) : !tracks?.length ? (
           <p className="text-sm text-muted-foreground text-center">

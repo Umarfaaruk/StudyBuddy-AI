@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useLocation, Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
+import { must } from "@/lib/dbWrite";
 import { useAuth } from "@/contexts/AuthContext";
 import { aiComplete } from "@/lib/aiService";
 import { Button } from "@/components/ui/button";
@@ -115,7 +116,11 @@ ${selectedMaterial.extracted_text?.substring(0, 8000) || selectedMaterial.summar
           interval: 0,
           ease: 2.5,
         }));
-      if (rows.length > 0) await supabase.from("flashcards").insert(rows);
+      // must(): without it a rejected insert still reached
+      // "Flashcards generated!", and the deck was empty on refetch.
+      if (rows.length > 0) {
+        await must(supabase.from("flashcards").insert(rows), "save your flashcards");
+      }
       toast.success("Flashcards generated!");
       refetchCards();
     } catch (error) {
@@ -142,10 +147,12 @@ ${selectedMaterial.extracted_text?.substring(0, 8000) || selectedMaterial.summar
     const nextReview = Date.now() + newInterval * 24 * 60 * 60 * 1000;
 
     try {
-      await supabase.from("flashcards").update({
+      // Spaced-repetition scheduling is the whole point of the feature, so a
+      // failed update must not advance the card as if it had been recorded.
+      await must(supabase.from("flashcards").update({
         interval: newInterval,
         next_review: nextReview,
-      }).eq("id", card.id);
+      }).eq("id", card.id), "save your review");
       
       setIsFlipped(false);
       if (currentCardIndex < flashcards.length - 1) {

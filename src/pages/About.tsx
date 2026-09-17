@@ -10,7 +10,9 @@ const About = () => {
 
   return (
     <div className="min-h-screen bg-background text-foreground flex flex-col">
-      <Navbar />
+      {/* Light page: the wordmark and nav pill must not use their dark-surface
+          treatment, or both render white-on-light-grey. */}
+      <Navbar onDark={false} />
       
       <main className="flex-grow pt-32 pb-24">
         <div className="container max-w-5xl mx-auto px-6">

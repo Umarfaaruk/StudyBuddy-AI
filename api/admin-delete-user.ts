@@ -72,7 +72,9 @@ export default async function handler(req: any, res: any) {
     // ── Delete the Auth account → cascades to every user-owned table ──
     const { error: delErr } = await sb.auth.admin.deleteUser(uid);
     if (delErr && !/not found/i.test(delErr.message)) {
-      return res.status(500).json({ error: `Failed to delete user: ${delErr.message}` });
+      // Detail to the server log, not to the caller — see the catch below.
+      console.error("[admin-delete-user] deleteUser failed:", delErr);
+      return res.status(500).json({ error: "Could not delete that user. Please try again." });
     }
 
     // ── Best-effort Storage cleanup (avatar) ──────────────────
@@ -91,7 +93,15 @@ export default async function handler(req: any, res: any) {
       failures,
     });
   } catch (error: any) {
+    // Log the real reason, return a generic one.
+    //
+    // src/lib/userFacingErrors.ts states the rule for this project: "Never
+    // expose raw upstream provider errors, env var names, or stack traces."
+    // This handler was breaking it — getClient() throws a message that names
+    // SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY / SUPABASE_SECRET_KEY, so a
+    // misconfigured deployment handed that list of env var names straight to
+    // the caller. Useful reconnaissance, and needless.
     console.error("[admin-delete-user] Error:", error);
-    return res.status(500).json({ error: error?.message || "Internal server error" });
+    return res.status(500).json({ error: "Internal server error" });
   }
 }

@@ -13,8 +13,7 @@ import StudyBuddyAIChat from "@/components/StudyBuddyAIChat";
 import SnapEnhance from "@/components/SnapEnhance";
 import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
-import { useQuery } from "@tanstack/react-query";
-import { supabase } from "@/lib/supabase";
+import { useProfile } from "@/hooks/useProfile";
 import BrandMark from "@/components/BrandMark";
 
 /**
@@ -131,35 +130,12 @@ const AppLayout = () => {
     };
   }, [mobileMenuOpen]);
 
-  const { data: profile } = useQuery({
-    queryKey: ["profile-sidebar", user?.uid],
-    queryFn: async () => {
-      if (!user) return null;
-      const { data } = await supabase.from("profiles").select("full_name").eq("id", user.uid).maybeSingle();
-      return data ?? null;
-    },
-    enabled: !!user,
-    staleTime: 1000 * 60 * 5,
-  });
-
-  // Shares the SAME query key as AdminRoute (["admin-check", uid]) so the admin
-  // check runs once and is served from cache here instead of firing a second
-  // pair of reads for the sidebar.
-  const { data: isAdmin } = useQuery({
-    queryKey: ["admin-check", user?.uid],
-    queryFn: async () => {
-      if (!user) return false;
-      try {
-        const { data } = await supabase.from("profiles").select("role").eq("id", user.uid).maybeSingle();
-        return data?.role === "admin";
-      } catch {
-        return false;
-      }
-    },
-    enabled: !!user,
-    staleTime: 1000 * 60 * 5,
-    gcTime: 1000 * 60 * 10,
-  });
+  // Both the sidebar name and the admin flag come from the one shared profile
+  // row (see src/hooks/useProfile.ts). These used to be two more separate
+  // queries — ["profile-sidebar"] and ["admin-check"] — for a row ProtectedRoute
+  // had already fetched.
+  const { data: profile } = useProfile();
+  const isAdmin = profile?.role === "admin";
 
   const displayName = profile?.full_name || user?.displayName || "Student";
   const firstName = displayName.split(" ")[0];
@@ -167,9 +143,20 @@ const AppLayout = () => {
   const isActive = (to: string) =>
     pathname === to || (to !== "/dashboard" && pathname.startsWith(to + "/"));
 
+  /**
+   * The admin panel shares this layout, which means it also inherited the
+   * student study widgets: a floating "00:00 Stopped" timer pinned bottom-left
+   * and an AI-tutor chat bubble bottom-right, both on top of the complaint
+   * queue. Nobody triaging bug reports is running a Pomodoro or asking the
+   * tutor about projectile motion, and the bubble overlapped the content.
+   * The sidebar stays — it is how an admin gets back to the app — but these
+   * three student-only widgets sit out on /admin.
+   */
+  const isAdminRoute = pathname.startsWith("/admin");
+
   return (
     <div className="min-h-screen bg-[#0F172A] flex">
-      <GlobalTimer />
+      {!isAdminRoute && <GlobalTimer />}
 
       {/* Desktop Sidebar */}
       {!isDeepFocus && (
@@ -383,8 +370,8 @@ const AppLayout = () => {
             <PageTransition />
           </div>
         </div>
-        <StudyBuddyAIChat />
-        <SnapEnhance />
+        {!isAdminRoute && <StudyBuddyAIChat />}
+        {!isAdminRoute && <SnapEnhance />}
       </main>
     </div>
   );

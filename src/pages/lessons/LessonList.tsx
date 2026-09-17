@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/AuthContext";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
+import { must } from "@/lib/dbWrite";
 import { aiComplete } from "@/lib/aiService";
 import { toast } from "sonner";
 import { extractYouTubeVideoId } from "@/lib/youtube";
@@ -116,14 +117,26 @@ const LessonList = () => {
     if (!user) return;
     setDeletingId(topicId);
     try {
+      // All three through must(): a delete blocked by RLS resolved without
+      // error, so the course was announced as "removed successfully" and was
+      // still there after a refresh.
       // 1. Delete all lessons for this topic (cascade also covers this, but be explicit)
-      await supabase.from("lessons").delete().eq("topic_id", topicId);
+      await must(
+        supabase.from("lessons").delete().eq("topic_id", topicId),
+        "delete that course"
+      );
 
       // 2. Delete lesson_progress for this topic + user
-      await supabase.from("lesson_progress").delete().eq("user_id", user.uid).eq("topic_id", topicId);
+      await must(
+        supabase.from("lesson_progress").delete().eq("user_id", user.uid).eq("topic_id", topicId),
+        "delete that course"
+      );
 
       // 3. Delete the topic itself
-      await supabase.from("topics").delete().eq("id", topicId);
+      await must(
+        supabase.from("topics").delete().eq("id", topicId),
+        "delete that course"
+      );
 
       toast.success(`"${topicTitle}" removed successfully`);
       queryClient.invalidateQueries({ queryKey: ["topics", user.uid] });

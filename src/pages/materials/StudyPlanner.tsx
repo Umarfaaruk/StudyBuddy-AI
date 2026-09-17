@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
+import { must } from "@/lib/dbWrite";
 import { useAuth } from "@/contexts/AuthContext";
 import { aiComplete, MODEL_SMALL } from "@/lib/aiService";
 import { PLANNER_SYSTEM_PROMPT } from "@/lib/prompts";
@@ -9,6 +10,44 @@ import { Input } from "@/components/ui/input";
 import { Loader2, Calendar, RefreshCw, FileText, CheckCircle2, CalendarDays, Sparkles, Target, Clock, BookOpen, Zap, BrainCircuit } from "lucide-react";
 import { toast } from "sonner";
 import { Link } from "react-router-dom";
+
+/**
+ * Force one AI-generated task into a string.
+ *
+ * The prompt asks for `"tasks": ["Read chapter 1 (20 min)", …]` and the type
+ * below says string[], but the value comes from an LLM and LLM output shape is
+ * a request, not a guarantee. A model that answers
+ * `[{ subject, topic, minutes }]` still satisfies Array.isArray, so the rows
+ * used to be accepted, SAVED, and then thrown at React as `<li>{task}</li>` —
+ * "Objects are not valid as a React child", which the ErrorBoundary turns into
+ * a full-page "Something went wrong".
+ *
+ * The persistence is what made it serious: once a malformed plan was stored,
+ * /planner crashed on every later visit, and nothing in the UI could clear it.
+ * So this runs on the way IN (below, when a plan is generated) and on the way
+ * OUT (at render), the second of which also repairs plans already in the table.
+ */
+function taskToText(task: unknown): string {
+  if (typeof task === "string") return task;
+  if (task == null) return "";
+  if (typeof task === "number" || typeof task === "boolean") return String(task);
+  if (Array.isArray(task)) return task.map(taskToText).filter(Boolean).join(" — ");
+  if (typeof task === "object") {
+    const o = task as Record<string, unknown>;
+    // Prefer the keys a model actually tends to use for the label…
+    const label = [o.task, o.title, o.name, o.description, o.activity, o.topic]
+      .find((v) => typeof v === "string" && v.trim());
+    // …then append a duration if one came along beside it.
+    const mins = [o.minutes, o.estimated_minutes, o.duration_minutes]
+      .find((v) => typeof v === "number" && Number.isFinite(v));
+    const subject = typeof o.subject === "string" ? o.subject : "";
+    const head = (label as string) || [subject, o.topic].filter((v) => typeof v === "string" && v).join(": ");
+    if (head) return mins ? `${head} (${mins} min)` : head;
+    // Last resort: readable rather than "[object Object]" or a crash.
+    return Object.values(o).filter((v) => typeof v === "string" || typeof v === "number").join(" — ");
+  }
+  return "";
+}
 
 interface StudyPlanDay {
   day: number;
@@ -237,7 +276,16 @@ Limit the response to match the number of days (${daysDiff} days), max 14 entrie
       const sanitizedSchedule = scheduleData.schedule.map((d: any, i: number) => ({
         day: d.day ?? i + 1,
         title: d.title || `Day ${i + 1}`,
-        tasks: Array.isArray(d.tasks) && d.tasks.length > 0 ? d.tasks.slice(0, 5) : ["Review previous material", "Practice key concepts"],
+        // Coerce each ELEMENT, not just the array: Array.isArray alone let
+        // object tasks through to the database. Empty results fall back.
+        tasks: (() => {
+          const cleaned = (Array.isArray(d.tasks) ? d.tasks : [])
+            .map(taskToText)
+            .map((t: string) => t.trim())
+            .filter(Boolean)
+            .slice(0, 5);
+          return cleaned.length ? cleaned : ["Review previous material", "Practice key concepts"];
+        })(),
         estimated_minutes: Math.max(15, Math.min(d.estimated_minutes ?? maxDailyMinutes, maxDailyMinutes)),
         completed: false,
       })).sort((a: any, b: any) => a.day - b.day).slice(0, 14);
@@ -270,7 +318,10 @@ Limit the response to match the number of days (${daysDiff} days), max 14 entrie
     try {
       const newSchedule = [...activePlan.schedule];
       newSchedule[dayIndex].completed = !newSchedule[dayIndex].completed;
-      await supabase.from("study_plans").update({ schedule: newSchedule }).eq("id", activePlan.id);
+      await must(
+        supabase.from("study_plans").update({ schedule: newSchedule }).eq("id", activePlan.id),
+        "save your progress"
+      );
       refetchPlans();
     } catch (e) {
       toast.error("Failed to update progress");
@@ -358,9 +409,12 @@ Limit the response to match the number of days (${daysDiff} days), max 14 entrie
                     </span>
                   </div>
                   <ul className={`text-sm space-y-1.5 pl-5 list-disc ${dayObj.completed ? 'text-muted-foreground' : 'text-muted-foreground'}`}>
-                    {dayObj.tasks?.map((task: string, tIdx: number) => (
-                      <li key={tIdx}>{task}</li>
-                    ))}
+                    {(Array.isArray(dayObj.tasks) ? dayObj.tasks : [])
+                      .map(taskToText)
+                      .filter(Boolean)
+                      .map((task: string, tIdx: number) => (
+                        <li key={tIdx}>{task}</li>
+                      ))}
                   </ul>
                   {activePlan.topic_id && (
                     <div className="mt-4 pt-3 border-t border-border flex flex-wrap gap-2">

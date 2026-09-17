@@ -6,7 +6,7 @@
  * broke when api/grade.ts tried to import a .ts file from src/).
  */
 
-export type FlowType = "JEE" | "NEET" | "GENERAL";
+export type FlowType = "JEE" | "NEET" | "GATE" | "GENERAL";
 
 export type QuestionFieldType =
   | "single_select"

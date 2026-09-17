@@ -247,20 +247,24 @@ const OnboardingFlow = () => {
       if (prefsError) throw prefsError;
 
       toast.success("Welcome to StudyBuddy AI! 🚀");
-      // Update cache synchronously to prevent race conditions during navigation
-      const newProfileData = {
-        user_id: user.uid,
-        onboarding_completed: true,
-        learner_type: learnerType,
-        main_purpose: mainPurpose,
-        current_goal: currentGoal,
-        updated_at: new Date().toISOString(),
-      };
-      queryClient.setQueryData(["profile-onboarding-check", user.uid], newProfileData);
-      queryClient.setQueryData(["profile", user.uid], newProfileData);
 
-      // Invalidate the profile cache so ProtectedRoute sees onboarding_completed: true
-      queryClient.invalidateQueries({ queryKey: ["profile-onboarding-check", user.uid] });
+      // Flip the flag in the cache synchronously, so the redirect to /dashboard
+      // is not raced by ProtectedRoute reading a stale onboarding_completed and
+      // bouncing the user straight back here.
+      //
+      // MERGE, never replace. ["profile", uid] now holds the whole profiles row
+      // and is read by the sidebar (full_name) and the admin gate (role) as well
+      // — overwriting it with a partial object would sign an admin out of the
+      // admin panel and blank the sidebar name until the refetch landed. The
+      // fields set during onboarding live on user_preferences, not profiles, so
+      // the only profiles column to touch here is onboarding_completed.
+      queryClient.setQueryData(
+        ["profile", user.uid],
+        (prev: Record<string, unknown> | null | undefined) =>
+          prev ? { ...prev, onboarding_completed: true, updated_at: new Date().toISOString() } : prev
+      );
+
+      // Then refetch for the authoritative row.
       queryClient.invalidateQueries({ queryKey: ["profile", user.uid] });
       // The dashboard countdown reads this; without an invalidate it would show
       // "no exam set" until the 5-minute staleTime expired.

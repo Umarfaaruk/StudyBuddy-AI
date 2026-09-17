@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useState, ReactNode } from "react";
+import { createContext, useContext, useEffect, useState, useCallback, useMemo, ReactNode } from "react";
 import type { User as SupabaseUser } from "@supabase/supabase-js";
 import { supabase } from "@/lib/supabase";
 
@@ -124,7 +124,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     return () => sub.subscription.unsubscribe();
   }, []);
 
-  const signUp = async (email: string, password: string, fullName: string): Promise<AuthResult> => {
+  const signUp = useCallback(async (email: string, password: string, fullName: string): Promise<AuthResult> => {
     // The DB trigger handle_new_user() creates the profile + streak rows from
     // this metadata, so no client-side profile write is needed.
     // emailRedirectTo sends the "Confirm email" link to /onboarding: confirming
@@ -139,14 +139,14 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       },
     });
     return { error: error ?? null };
-  };
+  }, []);
 
-  const signIn = async (email: string, password: string): Promise<AuthResult> => {
+  const signIn = useCallback(async (email: string, password: string): Promise<AuthResult> => {
     const { error } = await supabase.auth.signInWithPassword({ email, password });
     return { error: error ?? null };
-  };
+  }, []);
 
-  const signInWithGoogle = async (): Promise<AuthResult> => {
+  const signInWithGoogle = useCallback(async (): Promise<AuthResult> => {
     // OAuth is a full-page redirect (not a popup). After Google returns, the
     // session is picked up by onAuthStateChange and the user lands on /onboarding.
     const { error } = await supabase.auth.signInWithOAuth({
@@ -157,16 +157,16 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       },
     });
     return { error: error ?? null };
-  };
+  }, []);
 
-  const sendPasswordReset = async (email: string): Promise<AuthResult> => {
+  const sendPasswordReset = useCallback(async (email: string): Promise<AuthResult> => {
     const { error } = await supabase.auth.resetPasswordForEmail(email, {
       redirectTo: `${AUTH_ORIGIN}/login`,
     });
     return { error: error ?? null };
-  };
+  }, []);
 
-  const signOut = async () => {
+  const signOut = useCallback(async () => {
     try {
       // Clear per-session local data and notepad drafts.
       Object.keys(localStorage).forEach((key) => {
@@ -181,10 +181,30 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       console.error("Sign out error:", error);
       throw error;
     }
-  };
+  }, []);
+
+  /**
+   * Memoised, and the five functions above are useCallback([]).
+   *
+   * React compares a context value BY REFERENCE. This was an inline object
+   * literal, so a fresh one was built on every AuthProvider render and every
+   * consumer re-rendered whether or not anything it read had changed — and
+   * useAuth() is consumed in 46 files. The functions were rebuilt each render
+   * too, so even a memoised object would have kept changing identity.
+   *
+   * The dependency list is honest rather than empty: `user` and `loading` are
+   * the only values that actually change. Each callback closes over
+   * module-level constants only (supabase, AUTH_ORIGIN, RETRY_QUEUE_KEY),
+   * never state or props, so [] is correct for them and there is no stale
+   * closure to worry about.
+   */
+  const value = useMemo(
+    () => ({ user, loading, signUp, signIn, signInWithGoogle, sendPasswordReset, signOut }),
+    [user, loading, signUp, signIn, signInWithGoogle, sendPasswordReset, signOut]
+  );
 
   return (
-    <AuthContext.Provider value={{ user, loading, signUp, signIn, signInWithGoogle, sendPasswordReset, signOut }}>
+    <AuthContext.Provider value={value}>
       {children}
     </AuthContext.Provider>
   );

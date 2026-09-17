@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
+import { must } from "@/lib/dbWrite";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
 import { useRef } from "react";
@@ -51,13 +52,25 @@ const Profile = () => {
         const { data: sessionRows } = await supabase.from("study_sessions").select("duration_seconds").eq("user_id", user.uid);
         const totalStudySeconds = (sessionRows ?? []).reduce((sum, r) => sum + (r.duration_seconds || 0), 0);
 
+        // Lessons completed. This used to be reported as `quizCount`, so the
+        // "Lessons Done" tile silently mirrored "Quizzes Taken" — a student who
+        // had taken six quizzes and finished one lesson was told they had
+        // finished six. lesson_progress.completed_lessons is a text[] of lesson
+        // ids per topic, so the real figure is the total length across rows.
+        const { data: progressRows } = await supabase
+          .from("lesson_progress").select("completed_lessons").eq("user_id", user.uid);
+        const lessonsCompleted = (progressRows ?? []).reduce(
+          (sum, r) => sum + (Array.isArray(r.completed_lessons) ? r.completed_lessons.length : 0),
+          0
+        );
+
         return {
           totalXp,
           level: Math.floor(totalXp / 200) + 1,
           levelProgress: totalXp % 200,
           streak: streak,
           quizCount: quizCount,
-          lessonsCompleted: quizCount,
+          lessonsCompleted,
           studyHours: (totalStudySeconds / 3600).toFixed(1),
           badges: [],
         };
@@ -133,14 +146,21 @@ const Profile = () => {
       const { data: publicUrl } = supabase.storage.from("avatars").getPublicUrl(path);
       const downloadURL = `${publicUrl.publicUrl}?t=${Date.now()}`;
 
-      // Save only the URL (not base64) to the profile row
-      await supabase.from("profiles").update({
-        avatar_url: downloadURL,
-        updated_at: new Date().toISOString(),
-      }).eq("id", user.uid);
+      // Save only the URL (not base64) to the profile row.
+      // Through must(): supabase-js resolves with { error } instead of
+      // throwing, so this update used to fail silently — the file reached
+      // Storage, the row kept the old URL, and the user still got
+      // "Profile picture updated!" before the picture reverted on reload.
+      await must(
+        supabase.from("profiles").update({
+          avatar_url: downloadURL,
+          updated_at: new Date().toISOString(),
+        }).eq("id", user.uid),
+        "save your profile picture"
+      );
 
+      // One key now feeds the sidebar, the admin gate and the route guard too.
       queryClient.invalidateQueries({ queryKey: ["profile", user.uid] });
-      queryClient.invalidateQueries({ queryKey: ["profile-sidebar", user.uid] });
       toast.dismiss(uploadToast);
       toast.success("Profile picture updated!");
     } catch (err) {
@@ -173,9 +193,15 @@ const Profile = () => {
       {/* Profile header card */}
       <div className="bg-white border border-gray-100 shadow-sm rounded-2xl p-6 flex flex-col sm:flex-row items-center gap-6">
         {/* Avatar — clickable for upload */}
-        <div
-          className="relative h-20 w-20 rounded-full flex-shrink-0 cursor-pointer group"
+        {/* A real <button>, not a clickable <div>: the div had tabIndex -1, no
+            role and no accessible name, so the only way to change your picture
+            was a mouse. Keyboard and screen-reader users had no control here
+            at all. */}
+        <button
+          type="button"
+          className="relative h-20 w-20 rounded-full flex-shrink-0 cursor-pointer group focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#29ABE2] focus-visible:ring-offset-2 rounded-full"
           onClick={() => avatarInputRef.current?.click()}
+          aria-label="Change profile picture"
           title="Click to change profile picture"
         >
           {profile?.avatar_url ? (
@@ -192,14 +218,16 @@ const Profile = () => {
           <div className="absolute bottom-0 right-0 h-7 w-7 rounded-full bg-card border-2 border-gray-100 flex items-center justify-center shadow-sm group-hover:border-[#29ABE2] transition-colors">
             <Camera className="h-3.5 w-3.5 text-gray-500 group-hover:text-[#29ABE2]" />
           </div>
-          <input
-            ref={avatarInputRef}
-            type="file"
-            accept="image/jpeg,image/png,image/webp"
-            className="hidden"
-            onChange={handleAvatarChange}
-          />
-        </div>
+        </button>
+        <input
+          ref={avatarInputRef}
+          type="file"
+          accept="image/jpeg,image/png,image/webp"
+          className="hidden"
+          aria-hidden="true"
+          tabIndex={-1}
+          onChange={handleAvatarChange}
+        />
 
         <div className="flex-1 text-center sm:text-left">
           {isLoading ? (
