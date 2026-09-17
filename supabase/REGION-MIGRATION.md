@@ -491,3 +491,46 @@ printf '<publishable-key>' | npx vercel@latest env add VITE_SUPABASE_ANON_KEY pr
 Then check the next build's log for the `[env]` line rather than inspecting the
 dashboard. The dashboard was not wrong so much as not showing which
 environment, or which duplicate, actually won.
+
+### Root cause: a wrong `projectId` in `.vercel/project.json`
+
+Every attempt above failed for one underlying reason. `.vercel/project.json`
+held the id of a **different** Vercel project, so `vercel env add` wrote there
+— and `vercel env ls` read back from the same wrong project and confirmed the
+values. Both commands agreed with each other and with the dashboard, and all
+three were describing a project that does not serve this site.
+
+This is worth knowing because the usual instinct — "check the variable is
+really set" — cannot detect it. The variable *is* really set, somewhere else.
+
+Two habits make it impossible to hit again:
+
+```bash
+# 1. Verify the link before trusting anything it tells you
+cat .vercel/project.json          # projectId must be prj_JEMsVsnW0xRNabpVjL6NXjEMy6jv
+
+# 2. Or bypass the link entirely — these override it
+export VERCEL_ORG_ID=team_07tXa4sVH5judOMzM5OwAHZH
+export VERCEL_PROJECT_ID=prj_JEMsVsnW0xRNabpVjL6NXjEMy6jv
+npx vercel@latest env ls production
+```
+
+Identify the project by id, never by name: several projects in this account
+have adjacent names, and the id is the only unambiguous handle.
+
+### Two things that do NOT work, both tested
+
+**Committing `.env.production` with the right values.** Vite prefers the real
+environment variable over a `.env` file, so Vercel's injected value wins:
+
+| source | value |
+|---|---|
+| committed `.env.production` | `https://fromenvprodfile.supabase.co` |
+| injected env var | `https://fromshellvar.supabase.co` |
+| **inlined into the bundle** | **`fromshellvar`** |
+
+**`env` in `vercel.json`.** It passes variables to the *functions* at runtime,
+not to the build step, so it cannot affect a `VITE_`-prefixed value that has to
+be inlined at build time.
+
+The build-time env var is the only lever. Set it on the right project.
