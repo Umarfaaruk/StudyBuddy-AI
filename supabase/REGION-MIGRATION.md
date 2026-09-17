@@ -242,3 +242,38 @@ For this project it is the harder option: the schema is fully described by the
 migrations, and only ~410 rows of user data actually need copying. Replaying
 migrations also leaves the new project with a clean, correct migration history
 instead of a flattened `pg_dump` schema — worth having.
+
+## Serverless function region (`bom1`)
+
+The database is only half of the distance problem. Vercel defaults new projects
+to `iad1` (Washington DC), and this project was left there — so every call to
+`/api/*` crossed the Atlantic and then some, twice.
+
+`vercel.json` now pins `"regions": ["bom1"]` (Mumbai) at the project level.
+
+The reason it is a blanket setting rather than a per-function one is
+`api/_verifyToken.js`: **every** authenticated endpoint calls
+`supabase.auth.getUser(token)` before doing anything else, so every one of them
+pays a Supabase round trip on its critical path regardless of what else it
+talks to.
+
+| function | also talks to | why `bom1` |
+|---|---|---|
+| `grade`, `public-grade`, `admin-delete-user`, `send-weekly-emails` | Supabase only | co-located with the database |
+| `ndli.js` | `ndl.iitkgp.ac.in`, openlibrary.org | NDLI is hosted at IIT Kharagpur, in India |
+| `youtube-transcript.ts` | supadata.ai, googleapis.com | both are globally fronted |
+| `groq.ts` | `api.groq.com` (US) | see below |
+
+`groq.ts` is the one that looks like it should stay in the US, since Groq is
+there. It should not. From `iad1` it pays the DC↔Singapore auth hop *plus* the
+user's Hyderabad↔DC hop; from `bom1` the auth hop is local and the only long
+leg is Mumbai→Groq, paid once. Measure before reverting this — but the auth
+call is what decides it, not the Groq call.
+
+Note the two are independent: `bom1` is already better than `iad1` while the
+database is still in Singapore (Mumbai↔Singapore is far shorter than
+DC↔Singapore). It gets better again once the cutover above is done.
+
+Vercel's Hobby plan allows a single chosen region; more than one needs Pro. If
+a deploy ever reports a region other than `bom1`, check that first — confirm
+with `regions` on the deployment, not from the dashboard's default.
