@@ -341,3 +341,45 @@ steps 12 and 13 back to back and keep usage off the app in between.
   `sb_publishable_pmRYL6fcCCzZyA6nbG_E5g_EEs6bBL_`
 - The service-role / secret key is deliberately **not** recorded here. Copy it
   from the dashboard at cutover time.
+
+## Cutover log — 2026-09-17
+
+Recorded because the failure mode here cost several rounds and is easy to
+repeat.
+
+**The env vars and the redeploy both went to the wrong Vercel project.** The
+account has 15 projects, several with adjacent names (`study-buddy-ai`,
+`truefit3d`, `true-fit-3d`). Everything looked like it had worked: the vars
+saved, the redeploy ran, the app kept serving. Nothing errored.
+
+Three reads showed it had not:
+
+| signal | reading |
+|---|---|
+| `study-buddy-ai` latest production deployment | unchanged at 09:05:07, built from the previous commit |
+| Mumbai `auth.sessions` | 0 — the project had never seen a login |
+| Singapore `auth.sessions` after a fresh private-window sign-in | 34 → 35 at 09:15:05 |
+
+That third row is the one that settles it, and it is the check worth keeping:
+**sign in, then look for the new session row.** A session appearing in the old
+project proves the client is still pointed there, whatever the dashboard says.
+Row counts alone cannot show this — they were identical throughout.
+
+Note `auth.sessions` never migrates. JWTs are signed per-project, so sessions
+cannot carry across and everyone re-authenticates at cutover regardless. That
+makes the session table a clean, zero-consequence probe for which project the
+app is actually talking to.
+
+Verify against the project id (`prj_JEMsVsnW0xRNabpVjL6NXjEMy6jv`), not the
+project name.
+
+Drift at the moment of the flip: all 27 populated tables identical on both
+projects, `study_sessions` 136/136.
+
+### If env vars were saved to the wrong project, remove them there
+
+A stray `SUPABASE_SERVICE_ROLE_KEY` / `SUPABASE_SECRET_KEY` left on an
+unrelated project is a real exposure, not just clutter: the service-role key
+bypasses RLS entirely, so that project's functions could read or write every
+row of this one's data. Delete those five variables from whichever project
+received them by mistake.
