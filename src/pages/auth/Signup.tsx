@@ -51,7 +51,7 @@ const Signup = () => {
 
     if (error) {
       justAuthed.current = false;
-      toast.error(getReadableAuthError(error));
+      toast.error(getReadableAuthError(error, "signup"));
       console.error("Signup error:", error);
       return;
     }
@@ -67,7 +67,7 @@ const Signup = () => {
     // on /onboarding (redirectTo), so no in-page navigation is needed here.
     const { error } = await signInWithGoogle();
     if (error) {
-      toast.error(getReadableAuthError(error));
+      toast.error(getReadableAuthError(error, "oauth"));
       setIsGoogleLoading(false);
     }
   };

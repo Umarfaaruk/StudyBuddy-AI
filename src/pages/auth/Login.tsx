@@ -46,7 +46,7 @@ const Login = () => {
     if (error) {
       justAuthed.current = false;
       setIsLoading(false);
-      toast.error(getReadableAuthError(error));
+      toast.error(getReadableAuthError(error, "login"));
       return;
     }
     // Success: the effect above navigates once the auth state updates.
@@ -60,7 +60,7 @@ const Login = () => {
     }
     const { error } = await sendPasswordReset(target);
     if (error) {
-      toast.error(getReadableAuthError(error));
+      toast.error(getReadableAuthError(error, "reset"));
       return;
     }
     toast.success(`Password reset link sent to ${target}. Check your inbox (and spam).`);
@@ -70,7 +70,7 @@ const Login = () => {
     // Full-page redirect to Google; on return the OAuth callback lands directly
     // on /onboarding (redirectTo), so no in-page navigation is needed here.
     const { error } = await signInWithGoogle();
-    if (error) toast.error(getReadableAuthError(error));
+    if (error) toast.error(getReadableAuthError(error, "oauth"));
   };
 
   return (

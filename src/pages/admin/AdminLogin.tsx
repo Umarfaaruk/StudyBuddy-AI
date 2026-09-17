@@ -46,7 +46,7 @@ const AdminLogin = () => {
 
     const { error: signInError } = await signIn(email, password);
     if (signInError) {
-      setError(getReadableAuthError(signInError));
+      setError(getReadableAuthError(signInError, "login"));
       setLoading(false);
       return;
     }
