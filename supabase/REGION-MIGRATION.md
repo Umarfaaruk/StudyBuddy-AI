@@ -611,3 +611,49 @@ configured integration serving the wrong project indefinitely.
 Step 3 is not optional, and it is the opposite of the advice that applies while
 the old connection is still live — where hand-editing is futile. Whether to
 edit by hand depends entirely on whether a connection currently owns the key.
+
+## `auth_leaked_password_protection` is not actionable on the Free plan
+
+Both projects' security advisors report this, and it will keep reporting
+regardless of what you do in the dashboard:
+
+```
+auth_leaked_password_protection  WARN
+  "Leaked password protection is currently disabled."
+```
+
+There is no toggle to find. From Supabase's
+[Password security](https://supabase.com/docs/guides/auth/password-security)
+guide:
+
+> Leaked password protection is available on the **Pro Plan and above**.
+
+Organization `ignbqohdbkbjvsejwpnd` is on the **free** plan, so the feature is
+not available. Earlier notes in this file and in the cutover steps said to
+enable it during Phase 2 — that advice was wrong and cost time looking for a
+control that does not exist. Treat this advisor as noise until the org is on
+Pro.
+
+### What is available on Free, and worth doing
+
+Authentication → Providers → Email, on both projects:
+
+- **Minimum password length.** Anything below 8 is not recommended.
+- **Required character classes** — digits, lower and uppercase, symbols.
+  Existing users keep signing in with weaker passwords; they get a
+  `WeakPasswordError` only when they next change it, so enabling this is not
+  disruptive to the current 15 accounts.
+- **Require current password when changing password.** Cheap protection against
+  a hijacked session silently taking over an account.
+
+Together these cover a fair part of what leaked-password protection is for.
+
+### The other three advisors, for completeness
+
+`anon_security_definer_function_executable` and
+`authenticated_security_definer_function_executable` flag
+`public.public_most_improved` and `public.add_xp`. Both are intentional:
+`public_most_improved` backs the public leaderboard and is gated by
+`public_leaderboard_opt_in`, and `add_xp` must be `SECURITY DEFINER` to write
+`xp_logs` under RLS. They are identical on both projects, so they are
+pre-existing design rather than anything the migration introduced.
