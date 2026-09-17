@@ -13,8 +13,7 @@ import StudyBuddyAIChat from "@/components/StudyBuddyAIChat";
 import SnapEnhance from "@/components/SnapEnhance";
 import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
-import { useQuery } from "@tanstack/react-query";
-import { supabase } from "@/lib/supabase";
+import { useProfile } from "@/hooks/useProfile";
 import BrandMark from "@/components/BrandMark";
 
 /**
@@ -131,35 +130,12 @@ const AppLayout = () => {
     };
   }, [mobileMenuOpen]);
 
-  const { data: profile } = useQuery({
-    queryKey: ["profile-sidebar", user?.uid],
-    queryFn: async () => {
-      if (!user) return null;
-      const { data } = await supabase.from("profiles").select("full_name").eq("id", user.uid).maybeSingle();
-      return data ?? null;
-    },
-    enabled: !!user,
-    staleTime: 1000 * 60 * 5,
-  });
-
-  // Shares the SAME query key as AdminRoute (["admin-check", uid]) so the admin
-  // check runs once and is served from cache here instead of firing a second
-  // pair of reads for the sidebar.
-  const { data: isAdmin } = useQuery({
-    queryKey: ["admin-check", user?.uid],
-    queryFn: async () => {
-      if (!user) return false;
-      try {
-        const { data } = await supabase.from("profiles").select("role").eq("id", user.uid).maybeSingle();
-        return data?.role === "admin";
-      } catch {
-        return false;
-      }
-    },
-    enabled: !!user,
-    staleTime: 1000 * 60 * 5,
-    gcTime: 1000 * 60 * 10,
-  });
+  // Both the sidebar name and the admin flag come from the one shared profile
+  // row (see src/hooks/useProfile.ts). These used to be two more separate
+  // queries — ["profile-sidebar"] and ["admin-check"] — for a row ProtectedRoute
+  // had already fetched.
+  const { data: profile } = useProfile();
+  const isAdmin = profile?.role === "admin";
 
   const displayName = profile?.full_name || user?.displayName || "Student";
   const firstName = displayName.split(" ")[0];

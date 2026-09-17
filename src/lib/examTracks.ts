@@ -19,6 +19,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/contexts/AuthContext";
+import { useProfile } from "@/hooks/useProfile";
 
 export type SyllabusLevel = "subject" | "chapter" | "topic";
 export type Difficulty = "easy" | "medium" | "hard";
@@ -169,37 +170,36 @@ export function daysUntil(isoDate: string | null | undefined): number | null {
  */
 export function useStudentExamContext() {
   const { user } = useAuth();
+  // exam_track_id and target_exam_date live on the profiles row the rest of the
+  // app has already loaded, so take them from the shared cache and only fetch
+  // the exam_tracks lookup here. See src/hooks/useProfile.ts.
+  const { data: profile, isLoading: profileLoading } = useProfile();
+  const examTrackId = profile?.exam_track_id ?? null;
+  const targetExamDate = profile?.target_exam_date ?? null;
 
   return useQuery({
-    queryKey: ["student-exam-context", user?.uid],
+    // The track id is part of the key so switching exams refetches the track.
+    queryKey: ["student-exam-context", user?.uid, examTrackId, targetExamDate],
     queryFn: async (): Promise<StudentExamContext> => {
       const empty: StudentExamContext = {
         examTrackId: null, targetExamDate: null, track: null, daysRemaining: null,
       };
-      if (!user) return empty;
-
-      const { data: profile, error } = await supabase
-        .from("profiles")
-        .select("exam_track_id, target_exam_date")
-        .eq("id", user.uid)
-        .maybeSingle();
-      if (error) throw error;
-      if (!profile?.exam_track_id) return empty;
+      if (!user || !examTrackId) return empty;
 
       const { data: track } = await supabase
         .from("exam_tracks")
         .select("*")
-        .eq("id", profile.exam_track_id)
+        .eq("id", examTrackId)
         .maybeSingle();
 
       return {
-        examTrackId: profile.exam_track_id,
-        targetExamDate: profile.target_exam_date,
+        examTrackId,
+        targetExamDate,
         track: track ?? null,
-        daysRemaining: daysUntil(profile.target_exam_date),
+        daysRemaining: daysUntil(targetExamDate),
       };
     },
-    enabled: !!user,
+    enabled: !!user && !profileLoading,
     staleTime: 1000 * 60 * 5,
   });
 }

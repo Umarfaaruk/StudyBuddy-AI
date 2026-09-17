@@ -1,4 +1,5 @@
 import { useAuth } from "@/contexts/AuthContext";
+import { useProfile } from "@/hooks/useProfile";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { computeAvgQuizScore } from "@/lib/userStats";
@@ -82,16 +83,11 @@ const emptyAnalytics = () => ({
 export const useDashboardData = () => {
   const { user } = useAuth();
 
-  /* ── 1 read: profile ─────────────────────────────────────── */
-  const { data: profile } = useQuery({
-    queryKey: ["profile", user?.uid],
-    queryFn: async () => {
-      if (!user) return null;
-      const { data } = await supabase.from("profiles").select("*").eq("id", user.uid).maybeSingle();
-      return data ?? null;
-    },
-    enabled: !!user,
-  });
+  /* ── 0 extra reads: profile comes from the shared cache ───
+   * Same ["profile", uid] key as before, now owned by useProfile() so the
+   * route guard, sidebar and admin gate share this single fetch rather than
+   * each making their own. See src/hooks/useProfile.ts. */
+  const { data: profile } = useProfile();
 
   /* ── 1 read: streak ──────────────────────────────────────── */
   const { data: streak } = useQuery({

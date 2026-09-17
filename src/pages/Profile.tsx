@@ -159,8 +159,8 @@ const Profile = () => {
         "save your profile picture"
       );
 
+      // One key now feeds the sidebar, the admin gate and the route guard too.
       queryClient.invalidateQueries({ queryKey: ["profile", user.uid] });
-      queryClient.invalidateQueries({ queryKey: ["profile-sidebar", user.uid] });
       toast.dismiss(uploadToast);
       toast.success("Profile picture updated!");
     } catch (err) {

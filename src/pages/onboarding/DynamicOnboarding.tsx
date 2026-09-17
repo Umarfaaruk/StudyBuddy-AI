@@ -160,8 +160,19 @@ const DynamicOnboarding = () => {
         return;
       }
 
+      // Flip the flag in the cache BEFORE navigating. invalidateQueries alone
+      // keeps serving the previous row while the refetch is in flight, so
+      // ProtectedRoute would read onboarding_completed: false and bounce the
+      // user straight back here for the length of one round trip.
+      // Merge, never replace — this key holds the whole profiles row, including
+      // the role the admin gate reads and the name the sidebar shows.
+      queryClient.setQueryData(
+        ["profile", user.uid],
+        (prev: Record<string, unknown> | null | undefined) =>
+          prev ? { ...prev, onboarding_completed: true, updated_at: new Date().toISOString() } : prev
+      );
+
       // The dashboard, countdown and diagnostic all read these immediately.
-      queryClient.invalidateQueries({ queryKey: ["profile-onboarding-check", user.uid] });
       queryClient.invalidateQueries({ queryKey: ["profile", user.uid] });
       queryClient.invalidateQueries({ queryKey: ["student-exam-context", user.uid] });
 

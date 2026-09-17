@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
+import { useProfile } from "@/hooks/useProfile";
 import { supabase } from "@/lib/supabase";
 import { MessageSquare, Star, Send, Loader2, X } from "lucide-react";
 import { toast } from "sonner";
@@ -19,6 +20,9 @@ const FEEDBACK_INTERVAL_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
  */
 const FeedbackEnforcer = () => {
   const { user } = useAuth();
+  // Account age comes from the shared profile row rather than a fifth fetch of
+  // it — see src/hooks/useProfile.ts.
+  const { data: profile, isLoading: profileLoading } = useProfile();
   const [showModal, setShowModal] = useState(false);
   const [checking, setChecking] = useState(true);
   const [rating, setRating] = useState(0);
@@ -31,6 +35,8 @@ const FeedbackEnforcer = () => {
       setChecking(false);
       return;
     }
+    // Wait for the cached profile rather than fetching created_at separately.
+    if (profileLoading) return;
 
     const checkFeedbackStatus = async () => {
       try {
@@ -71,13 +77,8 @@ const FeedbackEnforcer = () => {
         }
 
         // No recent feedback — check if user account is at least 7 days old
-        const { data: profileRow } = await supabase
-          .from("profiles")
-          .select("created_at")
-          .eq("id", user.uid)
-          .maybeSingle();
-        if (profileRow?.created_at) {
-          const accountAge = Date.now() - new Date(profileRow.created_at).getTime();
+        if (profile?.created_at) {
+          const accountAge = Date.now() - new Date(profile.created_at).getTime();
           if (accountAge < FEEDBACK_INTERVAL_MS) {
             setChecking(false);
             return;
@@ -95,7 +96,7 @@ const FeedbackEnforcer = () => {
     };
 
     checkFeedbackStatus();
-  }, [user]);
+  }, [user, profile, profileLoading]);
 
   // Closing without submitting snoozes the prompt for a week (records the
   // timestamp the same way a submission would) so it doesn't nag every session.
