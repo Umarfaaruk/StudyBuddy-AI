@@ -219,6 +219,38 @@ function topicBody(t) {
 
 console.log("\n[seo] generating static pages…");
 
+/**
+ * WHICH SUPABASE PROJECT DID THIS BUILD COMPILE AGAINST?
+ *
+ * `VITE_SUPABASE_URL` is inlined into the bundle at build time, so a wrong or
+ * stale value produces a perfectly healthy build that talks to the wrong
+ * database — and nothing in the deploy output says so. Diagnosing that from
+ * outside is genuinely hard: the built asset URLs sit behind Vercel
+ * Authentication, and the project ref is only visible by reading the bundle.
+ *
+ * During the ap-south-1 move, three separate attempts appeared to succeed and
+ * had in fact compiled against the old project. Printing the host here is the
+ * cheapest possible answer: it lands in the deployment's build log, which is
+ * readable without credentials or a sign-in.
+ *
+ * Only the HOST is logged. It is public — it already ships inside the JS
+ * bundle and in every request the browser makes. No key is ever logged.
+ *
+ * Reading this LOCALLY: loadEnv() lets .env / .env.local override process.env,
+ * so a local run reports whatever .env.local holds, not your shell. That does
+ * not affect the build log — both files are gitignored (only .env.example is
+ * tracked), so on Vercel there is nothing to shadow process.env and this line
+ * reports exactly what Vite inlined.
+ */
+console.log(
+  `  [env] VITE_SUPABASE_URL host: ${
+    SUPABASE_URL
+      ? (() => { try { return new URL(SUPABASE_URL).host; } catch { return `(unparseable: ${SUPABASE_URL.slice(0, 40)})`; } })()
+      : "(not set)"
+  }`
+);
+console.log(`  [env] VITE_SUPABASE_ANON_KEY: ${SUPABASE_KEY ? "set" : "(not set)"}`);
+
 if (!existsSync(DIST)) {
   console.error("[seo] dist/ not found — run the build first.");
   process.exit(1);
