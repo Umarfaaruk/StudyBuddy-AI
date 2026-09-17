@@ -534,3 +534,45 @@ not to the build step, so it cannot affect a `VITE_`-prefixed value that has to
 be inlined at build time.
 
 The build-time env var is the only lever. Set it on the right project.
+
+### The integration manages `VITE_SUPABASE_URL` too — not just the server vars
+
+An earlier note in this file said the integration "never creates" the `VITE_`
+variables because they are the app's own names. **That was wrong.** The Supabase
+Vercel integration detects the framework and writes framework-prefixed public
+variables — `VITE_*` for Vite, `NEXT_PUBLIC_*` for Next. So it owns
+`VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` as well.
+
+That is what made this so slippery: a hand edit appears to succeed, `vercel env
+pull` confirms it, and then the connection re-syncs and puts the old value
+back. Six attempts were all overwritten this way.
+
+**The diagnostic that proves it** — set the value, then read it back twice:
+
+```bash
+printf 'https://<new-ref>.supabase.co' | npx vercel@latest env add VITE_SUPABASE_URL production
+npx vercel@latest env pull --environment=production /tmp/a.env && grep VITE_SUPABASE_URL /tmp/a.env
+sleep 90
+npx vercel@latest env pull --environment=production /tmp/b.env && grep VITE_SUPABASE_URL /tmp/b.env
+```
+
+New value then old value means something is re-writing it, and the `add` is not
+at fault. The tell was *which* value kept coming back: not empty, not the new
+ref, but specifically the old project — so something was actively restoring it,
+rather than the write failing.
+
+**The fix is therefore not to set variables at all.** Remove the old project's
+Vercel connection, and let the new project's connection write them:
+
+1. Supabase → **old** project → Settings → Integrations → Vercel → delete the
+   connection to the Vercel project. Confirm the list is then empty for it. The
+   confirmation dialog warns that existing variables "remain unchanged", so the
+   stale values linger until something replaces them.
+2. Supabase → **new** project → Settings → Integrations → Vercel → confirm a
+   connection exists and names the right Vercel project. Check the name
+   carefully; several projects in this account have adjacent names.
+3. Do not hand-edit afterwards. The new connection syncs the values itself;
+   verify with `vercel env pull`, then rebuild and read the `[env]` line.
+
+Hand-editing a variable the integration owns is the thing to avoid. Change
+which project the integration points at instead.
