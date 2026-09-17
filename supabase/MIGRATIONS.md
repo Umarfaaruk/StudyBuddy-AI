@@ -48,9 +48,9 @@ also sorts correctly:
 0012a_fix_onboarding_flow_type_check.sql               ← recovered
 0013_quiz_attempt_score_bounds.sql
 0014_index_remaining_foreign_keys.sql
-0015_consolidate_permissive_policies.sql               ← NOT APPLIED
-0016_restrict_anon_topic_and_lesson_reads.sql          ← NOT APPLIED
-0017_enable_realtime_publications.sql                  ← NOT APPLIED (no-op here)
+0015_consolidate_permissive_policies.sql               ← NOT APPLIED (held)
+0016_restrict_anon_topic_and_lesson_reads.sql
+0017_enable_realtime_publications.sql
 ```
 
 `ls | sort` gives true chronological order: `_` (0x5F) sorts before any
@@ -70,11 +70,10 @@ current state, but reading one in isolation can mislead:
 
 ## Not yet applied
 
-All three are committed and reviewed but not run against production. `0015`
-and `0016` are deliberate holds; `0017` is a no-op here that matters only when
-rebuilding into a new project.
+Only `0015` is still held. `0016` and `0017` were applied on 2026-09-17 and are
+described below for the record.
 
-### 0016 — anon can read students' courses (recommended: apply)
+### 0016 — anon could read students' courses  ·  APPLIED 2026-09-17
 
 `topics_read` and `lessons_read` are `USING (true)` to `{public}`, which
 includes `anon`. Measured live: all 9 topics are student-generated (0 seeded)
@@ -82,7 +81,18 @@ across 5 students, with 46 lessons. All of it is readable without signing in.
 Nothing unauthenticated needs either table — verified against every public
 surface. Same class of bug as the `profiles` leak that 0008a fixed.
 
-### 0017 — Realtime publication as code (no-op here, essential elsewhere)
+**Result, measured by querying as each role after applying:**
+
+| role | topics | lessons | exam_tracks | published questions |
+|---|---|---|---|---|
+| `anon` before | 9 | 46 | 4 | 80 |
+| `anon` after | **0** | **0** | 4 | 80 |
+| `authenticated` | 9 | 46 | 4 | 80 |
+
+The public free test and topic pages read `exam_tracks` and `questions`, which
+are untouched, so nothing anonymous broke.
+
+### 0017 — Realtime publication as code  ·  APPLIED 2026-09-17 (no-op)
 
 Realtime on a table is membership of the `supabase_realtime` publication, which
 the dashboard toggle edits directly — it is not schema, and no migration ever
@@ -96,11 +106,11 @@ thread and lesson-note sync would all silently stop refreshing. Found while
 planning the `ap-south-1` move (see `REGION-MIGRATION.md`), which is exactly
 the rebuild that would have hit it.
 
-Applying it to the current database changes nothing — verified by running its
-`DO` block against production, which reported all four already published and
-left the count at 4. Its value is on a *fresh* project.
+Applying it changed nothing, as expected — all four tables were already
+published and the count stayed at 4. Its value is on a *fresh* project, where
+it is the difference between Realtime working and silently not.
 
-### 0015 — collapse overlapping permissive policies (optional)
+### 0015 — collapse overlapping permissive policies  ·  STILL HELD
 
 Removes the ~527 `multiple_permissive_policies` advisor warnings by merging
 `admin_all[ALL]` with each `own_*` policy into one policy per command.

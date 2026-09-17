@@ -1,7 +1,7 @@
 -- ============================================================================
 -- 0016 — stop anon reading students' own courses and lessons
 -- ============================================================================
---                            *** NOT YET APPLIED ***
+--                     *** APPLIED to production 2026-09-17 ***
 -- Held back only because the RLS batch was deferred; unlike 0015 this one has
 -- real value today. See MIGRATIONS.md.
 -- ============================================================================

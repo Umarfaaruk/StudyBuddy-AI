@@ -77,7 +77,22 @@ built-in SMTP is rate-limited to a few messages per hour.
 
 Steps marked **you** need a console I cannot reach.
 
-### Phase 1 — build the new project (no impact on the live app)
+### Phase 1 — build the new project  ·  DONE 2026-09-17
+
+Target project: `khxxokwbeeedekzpqxpl` (`ap-south-1`). Schema, auth and data are
+in and verified — schema objects hash-identical, all 27 populated tables at
+matching row counts, zero orphaned `user_id` values, both storage buckets
+created, RLS policy set hash-identical to production (`6f580597…`).
+
+One gap, deliberate: `materials.extracted_text` is null on the three largest
+rows (100,000 / 35,975 / 35,975 characters of raw PDF extraction). Copying text
+that size through this channel character-perfect is not something I could
+guarantee, and a silent corruption there is worse than a null. Everything
+derived from those PDFs — topics, lessons, flashcards, quizzes, summaries, key
+topics — migrated intact. Re-uploading the three PDFs after cutover regenerates
+the extraction.
+
+The original steps, for reference:
 
 1. Create the project in `ap-south-1`, same organisation. *(I can do this.)*
 2. Replay all 27 migrations, `0001` → `0017`, in order, via `apply_migration`

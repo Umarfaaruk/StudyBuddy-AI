@@ -1,7 +1,7 @@
 -- ============================================================================
 -- 0017 — put the Realtime publication under version control
 -- ============================================================================
--- NOT YET APPLIED to the live database. It is a no-op there: all four tables
+-- APPLIED to production 2026-09-17. It was a no-op there: all four tables
 -- are already in `supabase_realtime`. It exists so a rebuild from this folder
 -- matches, which is exactly what a region move is.
 --
