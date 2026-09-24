@@ -1,0 +1,95 @@
+# KEEPS THE SUPABASE PROJECTS FROM AUTO-PAUSING
+# =============================================
+# Supabase pauses Free-plan projects after ~7 days of low activity, and warned
+# that BOTH projects were scheduled to pause. If the production one pauses the
+# whole app goes down — every page that reads the database, and login — until
+# someone notices and clicks Resume in the dashboard. Nothing auto-resumes.
+#
+# Supabase's bar is "a few user requests to the database each day over the
+# previous week"
+# (https://supabase.com/docs/guides/platform/free-project-pausing), so this
+# makes one genuine SELECT per project per day through PostgREST.
+#
+# THIS IS A STOPGAP, NOT A FIX. It stops the pause; it does not create usage.
+# See supabase/REGION-MIGRATION.md for the traffic numbers that prompted it.
+#
+# WHY GITHUB ACTIONS AND NOT A VERCEL CRON
+# ----------------------------------------
+# A Vercel function would resolve its target from SUPABASE_URL, and *which*
+# project that variable resolves to is the exact thing still unresolved with
+# Vercel support (see supabase/REGION-MIGRATION.md). A keepalive that might
+# silently keep the wrong project alive is worse than no keepalive at all.
+# Here both refs are written out literally, so there is nothing to resolve.
+#
+# WHY THE KEYS ARE IN THE FILE
+# ----------------------------
+# These are *publishable* keys. They already ship to every visitor inside
+# dist/assets/index-*.js — that is what publishable means. They grant only what
+# RLS grants the `anon` role. The service-role / secret keys are a completely
+# different thing and must NEVER appear in this file.
+name: Supabase keepalive
+
+on:
+  schedule:
+    # Daily at 06:17 UTC (11:47 IST). Deliberately not on the hour: jobs
+    # scheduled at :00 are delayed the most, when every repo's cron fires.
+    - cron: "17 6 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    strategy:
+      # One project failing must not hide the state of the other.
+      fail-fast: false
+      matrix:
+        include:
+          - name: production (Singapore)
+            ref: dhyiuauinxbmcarfqbfl
+            key: sb_publishable_lyAwIEFTEupwA_M8Op8vxg_Y8FZk18E
+          - name: Mumbai (migration target)
+            ref: khxxokwbeeedekzpqxpl
+            key: sb_publishable_pmRYL6fcCCzZyA6nbG_E5g_EEs6bBL_
+    name: ${{ matrix.name }}
+    steps:
+      - name: Query exam_tracks
+        env:
+          REF: ${{ matrix.ref }}
+          KEY: ${{ matrix.key }}
+        run: |
+          set -euo pipefail
+
+          # exam_tracks is readable by `anon` under RLS (verified: 4 rows on
+          # both projects) and holds no student data — the cheapest real query
+          # available without a session. An unauthenticated ping would 401
+          # inside PostgREST without ever reaching Postgres, and so would not
+          # register as activity at all.
+          code=$(curl -sS --max-time 30 --retry 3 --retry-delay 5 \
+            -o body.json -w '%{http_code}' \
+            -H "apikey: ${KEY}" \
+            -H "Authorization: Bearer ${KEY}" \
+            "https://${REF}.supabase.co/rest/v1/exam_tracks?select=id&limit=1")
+
+          echo "HTTP ${code}"
+          echo "body: $(head -c 300 body.json)"
+
+          # FAIL LOUDLY. A keepalive that quietly 401s after a key rotation is
+          # indistinguishable from having none, and the next pause email would
+          # be the first anyone hears of it. A red X in the Actions tab is the
+          # entire point of this job.
+          if [ "${code}" != "200" ]; then
+            echo "::error::${REF} returned HTTP ${code} — this project is NOT being kept alive."
+            exit 1
+          fi
+
+          # A 200 with an empty array means the request never actually read a
+          # row (RLS changed, table emptied). That keeps nothing alive either.
+          if [ "$(jq 'length' body.json)" -lt 1 ]; then
+            echo "::error::${REF} returned 200 but no rows — the query is not reading data."
+            exit 1
+          fi
+
+          echo "${REF} is awake."
