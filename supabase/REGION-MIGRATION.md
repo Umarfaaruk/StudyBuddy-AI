@@ -744,3 +744,87 @@ limit 10;
 A working send logs `user_recovery_requested` at `status: 200` with no `error`
 field. The 500 with `535` is unambiguous, so this needs no guesswork either
 way.
+
+---
+
+## Auto-pause: both projects got a warning
+
+On 2026-09-24 Supabase emailed a pause warning for **`dhyiuauinxbmcarfqbfl`
+(Study Buddy AI, Singapore)** — the *live production* database. An identical
+warning had already arrived for `khxxokwbeeedekzpqxpl` (Mumbai). Neither was
+paused at the time; `list_projects` showed both `ACTIVE_HEALTHY`.
+
+### The warning is accurate
+
+Production log volume over the 24 hours to 2026-09-24T03:16Z:
+
+| log source | rows | window |
+|---|---|---|
+| `pgbouncer_logs` | 11,588 | 03:17 → 03:16 |
+| `postgres_logs` | 10 | 15:51 → 03:07 |
+| `postgrest_logs` | **2** | 05:01 → 20:36 |
+| `auth_logs`, `edge_logs`, `storage_logs`, `realtime_logs` | **0** | — |
+
+Two REST requests in a day and not a single sign-in. The `pgbouncer_logs`
+volume looks reassuring and is not — that is pooler connection chatter, not
+user queries. Supabase's
+[Project Pausing](https://supabase.com/docs/guides/platform/free-project-pausing)
+guide sets the bar at *"a few user requests to the database each day over the
+previous week"*, and the app is nowhere near it.
+
+So this is a **usage** signal, not a platform quirk. Worth saying plainly
+because it is easy to read the email as something to be worked around.
+
+### What a pause actually costs
+
+- Every page that reads the database stops working, and so does login.
+- Data is safe. The project can be resumed from the dashboard with one click,
+  for **90 days**. After that the data is download-only.
+- Nothing auto-resumes. The app stays down until a human notices.
+
+### Buying time immediately
+
+Opening
+<https://supabase.com/dashboard/project/dhyiuauinxbmcarfqbfl> and clicking
+around counts as activity and resets the clock — Supabase documents a dashboard
+visit as one of the two ways to prevent a pending pause. Do the same for the
+Mumbai project. This is a stopgap measured in days, not a fix.
+
+### The durable options
+
+1. **A daily keepalive** — one real `SELECT` per project per day through
+   PostgREST. Details below.
+2. **Upgrade to Pro.** Paid projects are never paused for inactivity. It also
+   unlocks the leaked-password protection this runbook records as unactionable
+   on the free plan.
+3. **Accept it** and resume manually when it happens. Viable only while there
+   are no real users to disappoint.
+
+### If adding a keepalive, build it like this
+
+- **Hit PostgREST, not the database internals.** A `pg_cron` job inside the
+  project is self-generated traffic and is unlikely to count; Supabase measures
+  *user* requests. `GET /rest/v1/exam_tracks?select=id&limit=1` with the
+  publishable key is the cheapest genuine query available — `exam_tracks` is
+  readable by `anon` under RLS (verified: 4 rows, `set local role anon` returns
+  `jee-main`) and holds no student data.
+- **An unauthenticated ping is not enough.** It 401s inside PostgREST without
+  ever reaching Postgres, so it would not register as activity.
+- **Name both project refs literally.** Do *not* resolve the target from
+  `SUPABASE_URL`. Which project that variable resolves to is the open question
+  documented earlier in this runbook, and a keepalive that silently keeps the
+  *wrong* project alive is worse than none.
+- **Fail loudly.** Assert HTTP 200 *and* a non-empty result array. A keepalive
+  that quietly 401s after a key rotation is indistinguishable from having none,
+  and the next pause email would be the first anyone hears of it.
+- **Publishable keys only.** They already ship to every visitor inside
+  `dist/assets/index-*.js`; that is what publishable means. The service-role /
+  secret keys must never appear in a scheduled job's config.
+- **Schedule off the hour** (e.g. `17 6 * * *`). Jobs scheduled at `:00` are
+  delayed the most.
+
+### Remove it at cutover
+
+Once the Singapore project is retired, delete its half of the keepalive. An
+orphaned cron pinging a dead ref is the kind of thing nobody later dares to
+touch — the same trap the wrong-`projectId` episode already cost days to.
