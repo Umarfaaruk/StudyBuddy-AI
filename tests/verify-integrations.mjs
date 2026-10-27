@@ -156,6 +156,17 @@ async function checkGroq() {
           ? `all ${allowed.length} allowlisted models available`
           : `RETIRED: ${dead.join(", ")} — every AI feature using them returns 404`);
 
+      // Knowing WHICH models died is only half the job: the allowlist still has
+      // to be rewritten, and the valid names are already sitting in this
+      // response. Printing them turns "the tutor is broken" into a copy-paste
+      // fix instead of a trip to the provider's docs, which is where the last
+      // outage lost its time.
+      if (dead.length) {
+        console.log("\n  Groq is currently serving these models — pick replacements from here:");
+        for (const id of [...live].sort()) console.log(`    ${id}`);
+        console.log("");
+      }
+
       const defMatch = src.match(/DEFAULT_MODEL\s*=\s*"([^"]+)"/);
       if (defMatch) {
         record("Groq default model available",
