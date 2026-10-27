@@ -3,7 +3,7 @@
  * ======================================
  *
  * Centralized AI service using the Groq API (OpenAI-compatible).
- * Uses the groq/compound-mini model for fast, high-quality responses.
+ * Uses llama-3.3-70b-versatile for quality and llama-3.1-8b-instant for speed.
  *
  * API endpoint: /api/groq (server-side proxy to Groq)
  * Auth: Bearer token via server-only GROQ_API_KEY
@@ -26,10 +26,12 @@ const GROQ_PROXY_URL = "/api/groq";
  *   MODEL_SMALL — 8B instant, 3× faster + lower rate-limit pressure.
  *                 Use for: quiz JSON generation, study planner JSON, doc analysis.
  */
-// Both retired by Groq and replaced. Must stay inside ALLOWED_MODELS in
-// api/groq.ts, which rejects anything else with a 400.
-export const MODEL_LARGE = "groq/compound-mini";
-export const MODEL_SMALL = "qwen/qwen3.8-27b";
+// MUST stay inside ALLOWED_MODELS in api/groq.ts, which rejects anything else
+// with a 400 — and the names here are what the browser actually asks for, so
+// updating the allowlist alone fixes nothing. Both constants were pointing at
+// retired models when the tutor went down; check both together.
+export const MODEL_LARGE = "llama-3.3-70b-versatile";
+export const MODEL_SMALL = "llama-3.1-8b-instant";
 
 const MAX_RETRIES = 3;
 const BASE_DELAY_MS = 2000; // 2 seconds initial backoff
