@@ -19,6 +19,7 @@
     "test:onboarding": "node tests/unit/onboarding.test.mjs",
     "test": "npm run test:unit && npm run test:onboarding",
     "verify": "node tests/verify-integrations.mjs",
+    "verify:models": "node tests/verify-integrations.mjs --only groq",
     "build:only": "vite build --config vite.config.ts",
     "seo": "node scripts/generate-seo.mjs",
     "strip-sourcemaps": "node scripts/strip-sourcemaps.mjs",
