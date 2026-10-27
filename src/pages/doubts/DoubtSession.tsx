@@ -5,6 +5,7 @@ import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/contexts/AuthContext";
 import { Skeleton } from "@/components/ui/skeleton";
 import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 
 const DoubtSession = () => {
   const { id } = useParams();
@@ -75,7 +76,7 @@ const DoubtSession = () => {
               <p className="text-sm text-foreground font-medium">{msg.message_text}</p>
             ) : (
               <div className="prose prose-sm max-w-none dark:prose-invert">
-                <ReactMarkdown>{msg.message_text}</ReactMarkdown>
+                <ReactMarkdown remarkPlugins={[remarkGfm]}>{msg.message_text}</ReactMarkdown>
               </div>
             )}
           </div>

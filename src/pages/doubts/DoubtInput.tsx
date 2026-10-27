@@ -9,6 +9,7 @@ import { supabase } from "@/lib/supabase";
 import { aiStream, aiVisionComplete, ChatMessage } from "@/lib/aiService";
 import { compressImage } from "@/lib/imageUtils";
 import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 
 const MAX_FILE_SIZE = 10 * 1024 * 1024;
 const ALLOWED_IMAGE_TYPES = ["image/jpeg", "image/png", "image/webp", "image/gif"];
@@ -413,7 +414,7 @@ const DoubtInput = () => {
                 ) : msg.content ? (
                   <div className="relative group">
                     <div className="prose prose-sm max-w-none [&>*:first-child]:mt-0 [&>*:last-child]:mb-0">
-                      <ReactMarkdown>{msg.content}</ReactMarkdown>
+                      <ReactMarkdown remarkPlugins={[remarkGfm]}>{msg.content}</ReactMarkdown>
                     </div>
                     <button
                       onClick={() => handleCopy(msg.content, idx)}

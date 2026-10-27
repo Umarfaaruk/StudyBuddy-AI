@@ -8,6 +8,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { aiVisionComplete, ChatMessage } from "@/lib/aiService";
 import { compressImage } from "@/lib/imageUtils";
 import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 
 const CameraQnA = () => {
   const location = useLocation();
@@ -175,7 +176,7 @@ const CameraQnA = () => {
                 AI Answer
               </h3>
               <div className="prose prose-sm dark:prose-invert max-w-none prose-p:leading-relaxed">
-                <ReactMarkdown>{answer}</ReactMarkdown>
+                <ReactMarkdown remarkPlugins={[remarkGfm]}>{answer}</ReactMarkdown>
               </div>
             </div>
           )}

@@ -3,6 +3,7 @@ import { Bot, X, Send, Loader2, Sparkles, GripVertical } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { aiComplete } from "@/lib/aiService";
 import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 import { supabase } from "@/lib/supabase";
 import { useDraggable } from "@/hooks/useDraggable";
 
@@ -292,7 +293,7 @@ const StudyBuddyAIChat = () => {
                   >
                     {msg.role === "assistant" ? (
                       <div className="prose prose-xs max-w-none [&>*:first-child]:mt-0 [&>*:last-child]:mb-0 [&_a]:text-[#29ABE2] [&_a]:underline">
-                        <ReactMarkdown>{msg.content}</ReactMarkdown>
+                        <ReactMarkdown remarkPlugins={[remarkGfm]}>{msg.content}</ReactMarkdown>
                       </div>
                     ) : (
                       <span className="whitespace-pre-wrap">{msg.content}</span>

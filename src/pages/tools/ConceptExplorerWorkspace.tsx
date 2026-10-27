@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { aiComplete } from "@/lib/aiService";
 import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 
 export const ConceptExplorerWorkspace = () => {
   const [concept, setConcept] = useState("");
@@ -182,7 +183,7 @@ Format your output using gorgeous markdown with bullet points, numbered lists, a
                 </button>
               </div>
               <div className="prose prose-sm dark:prose-invert max-w-none text-xs text-foreground/90 leading-relaxed font-sans font-normal">
-                <ReactMarkdown>{generatorResult}</ReactMarkdown>
+                <ReactMarkdown remarkPlugins={[remarkGfm]}>{generatorResult}</ReactMarkdown>
               </div>
             </div>
           ) : (

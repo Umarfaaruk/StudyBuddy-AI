@@ -6,6 +6,7 @@ import { ArrowLeft, FileText, Send, Sparkles, Loader2, AlertTriangle, Copy, Chec
 import { useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
 import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 import { supabase } from "@/lib/supabase";
 import { aiStream } from "@/lib/aiService";
 
@@ -316,6 +317,7 @@ Always provide structured, comprehensive responses that help the student deeply 
               {msg.role === "assistant" ? (
                 <div className="prose prose-sm max-w-none dark:prose-invert [&_a]:text-accent [&_a]:underline [&_code]:bg-slate-700 [&_code]:px-2 [&_code]:py-1 [&_code]:rounded [&_pre]:bg-slate-900 [&_pre]:text-slate-100">
                   <ReactMarkdown
+                    remarkPlugins={[remarkGfm]}
                     components={{
                       h1: ({ ...props }) => <h2 className="text-base font-bold mt-3 mb-2" {...props} />,
                       h2: ({ ...props }) => <h3 className="text-sm font-bold mt-2 mb-1" {...props} />,

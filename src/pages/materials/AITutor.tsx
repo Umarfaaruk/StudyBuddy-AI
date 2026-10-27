@@ -4,6 +4,7 @@ import { Bot, Send, Sparkles, Loader2, Copy, Check, Square, Trash2, FileText, X,
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
 import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 import { aiStream, aiComplete } from "@/lib/aiService";
 import { TUTOR_SYSTEM_PROMPT, getDocSystemPrompt, DOC_ANALYSIS_SYSTEM_PROMPT, getExamTutorPrompt } from "@/lib/prompts";
 import { useStudentExamContext } from "@/lib/examTracks";
@@ -760,7 +761,7 @@ const AITutor = ({ hideHeader = false }: { hideHeader?: boolean } = {}) => {
                     ) : msg.content ? (
                       <div className="relative group pr-4">
                         <div className="prose prose-sm max-w-none text-gray-800 leading-relaxed [&>*:first-child]:mt-0 [&>*:last-child]:mb-0">
-                          <ReactMarkdown>{msg.content}</ReactMarkdown>
+                          <ReactMarkdown remarkPlugins={[remarkGfm]}>{msg.content}</ReactMarkdown>
                         </div>
                         <button
                           onClick={() => handleCopy(msg.content, idx)}
