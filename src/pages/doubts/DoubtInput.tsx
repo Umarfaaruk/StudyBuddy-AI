@@ -297,7 +297,10 @@ const DoubtInput = () => {
         const updated = [...prev];
         updated[updated.length - 1] = {
           role: "assistant",
-          content: `⚠️ Error: ${e.message}. Please try again.`,
+          // toUserFacingAIError already ends its messages with guidance such as
+          // "Please try again." Appending another sentence produced the
+          // doubled "Please try again.. Please try again." users were shown.
+          content: `⚠️ ${e.message}`,
         };
         return updated;
       });

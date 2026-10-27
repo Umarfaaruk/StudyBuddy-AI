@@ -88,6 +88,36 @@ function sanitizeUpstreamError(status: number): string {
   return "AI request failed. Please try again.";
 }
 
+/**
+ * WHY THIS LOGS BUT THE CLIENT RESPONSE DOES NOT
+ * ==============================================
+ * sanitizeUpstreamError deliberately gives the browser a vague message: the
+ * provider's raw error can name models, quotas and account details that have no
+ * business reaching an end user.
+ *
+ * The cost of that was paid in production. The AI tutor started failing with a
+ * generic "Something went wrong", and because the only non-OK path returned the
+ * sanitised string and logged NOTHING, the runtime logs showed healthy-looking
+ * requests and no error at all. A 400 for a retired model, a 401 for a revoked
+ * key and a 404 for a bad path were indistinguishable from outside.
+ *
+ * So: say nothing useful to the client, say everything to stderr. The body is
+ * truncated because provider errors can be long, and this is a log line, not an
+ * archive.
+ */
+async function logUpstreamFailure(upstream: any, model: string, streamed: boolean) {
+  let detail = "";
+  try {
+    detail = (await upstream.text()).slice(0, 500);
+  } catch {
+    detail = "(body unreadable)";
+  }
+  console.error(
+    `[groq] upstream rejected: status=${upstream.status} ${upstream.statusText || ""} ` +
+      `model=${model} stream=${streamed} body=${detail}`
+  );
+}
+
 export default async function handler(req: any, res: any) {
   if (req.method !== "POST") {
     res.setHeader("Allow", "POST");
@@ -173,6 +203,7 @@ export default async function handler(req: any, res: any) {
 
     if (stream) {
       if (!upstream.ok || !upstream.body) {
+        await logUpstreamFailure(upstream, requestedModel, true);
         return res.status(upstream.status).json({ error: sanitizeUpstreamError(upstream.status) });
       }
 
@@ -191,14 +222,17 @@ export default async function handler(req: any, res: any) {
       return;
     }
 
+    // Checked BEFORE .json(): reading the body consumes it, and the error text
+    // is the only thing that explains the failure.
+    if (!upstream.ok) {
+      await logUpstreamFailure(upstream, requestedModel, false);
+      return res.status(upstream.status).json({ error: sanitizeUpstreamError(upstream.status) });
+    }
+
     const data: any = await upstream.json().catch(async () => {
       const text = await upstream.text();
       return { error: { message: text || "Invalid upstream response" } };
     });
-
-    if (!upstream.ok) {
-      return res.status(upstream.status).json({ error: sanitizeUpstreamError(upstream.status) });
-    }
 
     return res.status(200).json(data);
   } catch (error: any) {
