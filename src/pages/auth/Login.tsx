@@ -14,7 +14,11 @@ const Login = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const { signIn, signInWithGoogle, sendPasswordReset, user } = useAuth();
-  const [email, setEmail] = useState("");
+  // Prefilled when the signup page bounces someone here because their email is
+  // already registered. Retyping the address they just entered is pure friction.
+  const [email, setEmail] = useState(
+    () => (location.state as { email?: string } | null)?.email ?? ""
+  );
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);

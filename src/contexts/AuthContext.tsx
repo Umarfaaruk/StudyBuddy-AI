@@ -48,6 +48,16 @@ export interface AppUser {
 
 interface AuthResult {
   error: Error | null;
+  /**
+   * Signup only. True when the email already belongs to an account.
+   *
+   * Supabase deliberately does NOT error in this case — returning "that email
+   * is taken" to an unauthenticated caller turns the signup form into an
+   * account-existence oracle. It returns a success-shaped response instead, so
+   * `error` is null and the caller cannot tell the difference without looking
+   * harder. See signUp() for how it is detected.
+   */
+  alreadyRegistered?: boolean;
 }
 
 interface AuthContextType {
@@ -130,7 +140,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     // emailRedirectTo sends the "Confirm email" link to /onboarding: confirming
     // establishes the session (detectSessionInUrl) and drops the new user
     // straight into onboarding, which then routes them to the dashboard.
-    const { error } = await supabase.auth.signUp({
+    const { data, error } = await supabase.auth.signUp({
       email,
       password,
       options: {
@@ -138,7 +148,25 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         emailRedirectTo: `${AUTH_ORIGIN}/onboarding`,
       },
     });
-    return { error: error ?? null };
+
+    // DETECTING AN EMAIL THAT IS ALREADY REGISTERED
+    // =============================================
+    // Signing up with an existing address does NOT error. Supabase logs it as
+    // `user_repeated_signup`, sends no mail, changes nothing, and hands back a
+    // success-shaped response so the form cannot be used to probe which
+    // addresses have accounts.
+    //
+    // The one tell is `identities`: for a genuinely new user it contains the
+    // freshly created identity, and for a repeated signup it is an empty
+    // array. That is the documented signal, and it is the only one available
+    // on the client.
+    //
+    // Without this check the UI cheerfully says "Account created! …confirm via
+    // the email we sent" when nothing was created and no email was sent, which
+    // leaves someone waiting indefinitely for a message that is never coming.
+    const alreadyRegistered = !error && data?.user?.identities?.length === 0;
+
+    return { error: error ?? null, alreadyRegistered };
   }, []);
 
   const signIn = useCallback(async (email: string, password: string): Promise<AuthResult> => {

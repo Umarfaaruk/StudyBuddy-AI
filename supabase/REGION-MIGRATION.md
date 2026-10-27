@@ -828,3 +828,71 @@ Mumbai project. This is a stopgap measured in days, not a fix.
 Once the Singapore project is retired, delete its half of the keepalive. An
 orphaned cron pinging a dead ref is the kind of thing nobody later dares to
 touch — the same trap the wrong-`projectId` episode already cost days to.
+
+---
+
+## Post-cutover state, 2026-10-27
+
+The cutover is **live and working**. Verified by fetching the deployed bundle
+through Vercel's API (this container's egress blocks `vercel.app` and
+`supabase.co`, so a plain curl cannot see it):
+
+```js
+const h = "https://khxxokwbeeedekzpqxpl.supabase.co".trim(),
+      d = "eyJhbGci…ImtoeHhva3diZWVlZGVrenBxeHBs…".trim()
+```
+
+Mumbai URL, valid Mumbai anon JWT, `isSupabaseConfigured === true`. The entry
+chunk loads `App-B7mEPYSV.js`, the same hash a local `npm run build` reproduces.
+
+### The keepalive works
+
+35 scheduled runs, every day since 2026-09-24, **all green**, most recently
+2026-10-27 12:09 UTC. Both projects are still `ACTIVE_HEALTHY` a month after
+both received pause warnings. The design decision to name both refs literally
+rather than resolve `SUPABASE_URL` is what makes this verifiable.
+
+### What auth actually does on Mumbai, and why
+
+Read from `auth_logs`, not inferred:
+
+| symptom | log line | cause |
+|---|---|---|
+| Google sign-in fails | `"error":"provider is not enabled"`, `validation_failed`, 400 on `/authorize` | **Google provider is not enabled** in Mumbai → Authentication → Providers |
+| Password sign-in fails | `400: Invalid login credentials`, `invalid_credentials` | the account has **no `encrypted_password` on Mumbai** — hashes were deliberately never copied |
+| Earlier 500s (since cleared) | `Scan error on column index 3, name "confirmation_token": converting NULL to string is unsupported`, `unexpected_failure` | migrated `auth.users` rows had NULL in GoTrue's token columns, which its Go scanner cannot read. Now 0 NULLs across all six token columns |
+
+The `confirmation_token` NULL class of bug is worth remembering: any future
+`auth.users` migration must write **empty strings, not NULL**, to
+`confirmation_token`, `recovery_token`, `email_change_token_new`,
+`email_change_token_current`, `phone_change_token` and
+`reauthentication_token`. It presents as an intermittent 500 on login, which
+looks nothing like a data problem.
+
+### Remaining config gaps (not code)
+
+- **Google provider disabled on Mumbai.** 13 of 16 users sign in with Google,
+  so this is the blocker. Enable it with the same client ID/secret already
+  working for Singapore.
+- **No `SUPABASE_SERVICE_ROLE_KEY` / `SUPABASE_SECRET_KEY` on the Vercel
+  project at all** (6 env vars total, neither present). `api/send-weekly-emails.ts`
+  throws `Missing SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY`, so the Monday cron
+  has been failing. It fails closed, which is the right behaviour, but it has
+  never sent.
+- One 11.7 KB avatar never migrated. Storage bytes live in S3, so SQL cannot
+  move it; re-upload from Settings.
+
+### Do not enable canonical-domain redirects
+
+The app is served on three aliases and `AUTH_ORIGIN` follows
+`window.location.origin`, so each origin needs allow-listing. The tempting fix
+is `VITE_ENFORCE_CANONICAL_DOMAIN=true`, and `src/lib/canonicalDomain.ts`
+documents why that is a loaded gun without a custom domain actually serving the
+app. Worse here: sessions live in `localStorage`, which is per-origin, so
+bouncing a signed-in user between aliases would silently log them out. Leave it
+off until there is a real custom domain.
+
+### Codebase health at this date
+
+`tsc --noEmit` clean · `eslint src` clean · 65/65 unit tests pass ·
+`npm run build` succeeds and reproduces the deployed chunk hash.
