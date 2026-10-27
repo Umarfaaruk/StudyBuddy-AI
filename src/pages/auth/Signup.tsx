@@ -46,7 +46,7 @@ const Signup = () => {
     }
     setIsLoading(true);
     justAuthed.current = true;
-    const { error } = await signUp(email, password, name);
+    const { error, alreadyRegistered } = await signUp(email, password, name);
     setIsLoading(false);
 
     if (error) {
@@ -55,6 +55,17 @@ const Signup = () => {
       console.error("Signup error:", error);
       return;
     }
+
+    // Supabase reports a repeated signup as a success and sends no email, so
+    // the generic "check your inbox" below would be a lie — and an unfalsifiable
+    // one, since the message never arrives. Point them at logging in instead.
+    if (alreadyRegistered) {
+      justAuthed.current = false;
+      toast.info("An account with this email already exists. Try logging in — or reset your password if you've forgotten it.");
+      navigate("/login", { state: { email } });
+      return;
+    }
+
     // If email confirmation is OFF, the session is created and the effect above
     // redirects to onboarding. If it's ON, there's no session yet — tell the
     // user to confirm via email (the confirm link returns them to /login).
