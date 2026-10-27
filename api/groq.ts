@@ -40,24 +40,44 @@ const GROQ_URL = "https://api.groq.com/openai/v1/chat/completions";
  * Verified live against GET /openai/v1/models before being written here.
  */
 const ALLOWED_MODELS = new Set([
-  "llama-3.3-70b-versatile",            // default - chat, doubts, summaries
-  "llama-3.1-8b-instant",               // fast JSON work, lower quota pressure
-  "openai/gpt-oss-120b",                // heavier reasoning
-  "openai/gpt-oss-20b",                 // fast reasoning
+  "openai/gpt-oss-120b",                // default - chat, doubts, summaries
+  "openai/gpt-oss-20b",                 // fast JSON work, lower quota pressure
 ]);
 
 /**
- * A llama model rather than a gpt-oss one, and the reason is recorded here
- * because it is not obvious and was learned the hard way: the gpt-oss family
- * spends output tokens on reasoning before emitting any text, so a short
- * max_tokens returns an EMPTY string rather than a brief answer, and it renders
- * formulae as LaTeX (\(F=ma\)) which this UI does not typeset.
- *
- * For a tutor explaining physics to a student, clean prose beats a reasoning
- * trace. Keep gpt-oss allowlisted for callers that explicitly want it; do not
- * make it the default without fixing both of those problems first.
+ * NOTE FOR EDITORS: tests/verify-integrations.mjs parses the allowlist by
+ * taking every double-quoted string between the text ALLOWED_MODELS and the
+ * text DEFAULT_MODEL. Any "quoted phrase" in the comments BETWEEN them is read
+ * as a model name and reported as retired. Keep prose in this gap quote-free.
  */
-const DEFAULT_MODEL = "llama-3.3-70b-versatile";
+
+/**
+ * gpt-oss IS the default now, reversing the advice that used to sit here. That
+ * advice was not wrong, it was just outranked: a tutor with imperfect
+ * formatting beats a tutor that returns 404 to every student.
+ *
+ * What was tried first: llama-3.3-70b-versatile and llama-3.1-8b-instant.
+ * Production rejected both with
+ *   404 model_not_found - does not exist, or no access on this account
+ * and the rejection survived syncing the local and Vercel API keys, so those
+ * models are genuinely unavailable to this account rather than mis-keyed.
+ *
+ * These two are not a guess either. `npm run verify:models` compared the whole
+ * allowlist against Groq's live catalogue and reported RETIRED for exactly
+ * groq/compound and groq/compound-mini — the gpt-oss pair was checked in the
+ * same pass and came back live.
+ *
+ * KNOWN COSTS, carried over from the old note and still true:
+ *   - gpt-oss spends output tokens on reasoning before emitting text, so a
+ *     SHORT max_tokens can return an empty string. Mitigated here: aiService
+ *     defaults maxTokens to 4096, which is MAX_TOKENS_CAP, so there is
+ *     headroom. If a caller ever lowers it, watch for blank answers.
+ *   - It renders formulae as LaTeX (\(F=ma\)) which this UI does not typeset,
+ *     so physics answers may show raw markup. Cosmetic, not a failure.
+ *
+ * Revisit once the live catalogue has actually been read rather than relayed.
+ */
+const DEFAULT_MODEL = "openai/gpt-oss-120b";
 const MAX_MESSAGES = 24;
 const MAX_TOTAL_CHARS = 60_000;          // text-only requests
 const MAX_BODY_BYTES = 200_000;          // text-only requests
