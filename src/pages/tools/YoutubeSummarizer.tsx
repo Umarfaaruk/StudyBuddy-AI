@@ -27,6 +27,7 @@ import { toUserFacingAIError } from "@/lib/userFacingErrors";
 import { getAuthHeaders } from "@/lib/authHeaders";
 import { extractYouTubeVideoId } from "@/lib/youtube";
 import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 
 /* ─── Types ─────────────────────────────────────────────── */
 type Segment = { start: number; text: string };
@@ -366,6 +367,7 @@ function TimestampMarkdown({
   return (
     <div className="prose prose-sm max-w-none prose-slate prose-p:text-accent prose-p:leading-relaxed prose-strong:text-foreground prose-li:text-accent prose-li:my-1.5">
       <ReactMarkdown
+        remarkPlugins={[remarkGfm]}
         components={{
           a: ({ href, children }) => {
             if (href?.startsWith("#t=")) {

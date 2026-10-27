@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/lib/supabase";
 import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 import { aiStream } from "@/lib/aiService";
 import { getAuthHeaders } from "@/lib/authHeaders";
 import { getDoubtSystemPrompt } from "@/lib/prompts";
@@ -245,7 +246,7 @@ const AISolution = () => {
         ) : answer ? (
           <>
             <div className="prose prose-sm max-w-none dark:prose-invert">
-              <ReactMarkdown>{answer}</ReactMarkdown>
+              <ReactMarkdown remarkPlugins={[remarkGfm]}>{answer}</ReactMarkdown>
             </div>
             <GroundingCitations labels={citations} />
           </>
