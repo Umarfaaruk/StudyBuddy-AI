@@ -3,7 +3,7 @@
  * ======================================
  *
  * Centralized AI service using the Groq API (OpenAI-compatible).
- * Uses llama-3.3-70b-versatile for quality and llama-3.1-8b-instant for speed.
+ * Uses openai/gpt-oss-120b for quality and openai/gpt-oss-20b for speed.
  *
  * API endpoint: /api/groq (server-side proxy to Groq)
  * Auth: Bearer token via server-only GROQ_API_KEY
@@ -30,8 +30,8 @@ const GROQ_PROXY_URL = "/api/groq";
 // with a 400 — and the names here are what the browser actually asks for, so
 // updating the allowlist alone fixes nothing. Both constants were pointing at
 // retired models when the tutor went down; check both together.
-export const MODEL_LARGE = "llama-3.3-70b-versatile";
-export const MODEL_SMALL = "llama-3.1-8b-instant";
+export const MODEL_LARGE = "openai/gpt-oss-120b";
+export const MODEL_SMALL = "openai/gpt-oss-20b";
 
 const MAX_RETRIES = 3;
 const BASE_DELAY_MS = 2000; // 2 seconds initial backoff
