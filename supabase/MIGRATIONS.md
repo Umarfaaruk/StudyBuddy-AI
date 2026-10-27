@@ -51,6 +51,7 @@ also sorts correctly:
 0015_consolidate_permissive_policies.sql               ← NOT APPLIED (held)
 0016_restrict_anon_topic_and_lesson_reads.sql
 0017_enable_realtime_publications.sql
+0018_seed_neet_questions.sql
 ```
 
 `ls | sort` gives true chronological order: `_` (0x5F) sorts before any
@@ -70,8 +71,33 @@ current state, but reading one in isolation can mislead:
 
 ## Not yet applied
 
-Only `0015` is still held. `0016` and `0017` were applied on 2026-09-17 and are
-described below for the record.
+Only `0015` is still held. `0016` and `0017` were applied on 2026-09-17, and
+`0018` on 2026-10-27; all three are described below for the record.
+
+### 0018 — NEET shipped with zero questions  ·  APPLIED 2026-10-27 (Mumbai)
+
+NEET was the only track with an empty bank: JEE Main had 40 published
+questions and each GATE paper 20, while NEET had **0**. A student who chose it
+completed signup and onboarding and then met an empty diagnostic and an empty
+practice list — worse than not offering the track, because the signup cost was
+already paid.
+
+Adds 40 original NCERT-level questions, 10 each to Physics, Chemistry, Botany
+and Zoology, mirroring the real paper's 25/25/50 weighting. Each sits on a
+different chapter, so the diagnostic samples across 40 chapters.
+
+Applied to the Mumbai project only — Singapore is being retired and now serves
+no traffic. If a rollback to Singapore ever happens, NEET goes empty again;
+replay this file there first.
+
+Verified after applying: 40 rows, every one with an answer row, every
+`correct_answer` matching an existing option id, four distinct options each, no
+unmapped chapter, all `status = 'published'` and readable by `anon` under RLS.
+
+**This is a floor, not a finished bank.** `DIAGNOSTIC_LENGTH` is 20, so two
+diagnostics exhaust it. The questions are `is_pyq = false` with no year or
+session — they are not licensed NTA past papers and must not be presented as
+such.
 
 ### 0016 — anon could read students' courses  ·  APPLIED 2026-09-17
 
