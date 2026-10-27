@@ -2,8 +2,9 @@
  * SUPABASE ACCESS-TOKEN VERIFICATION (shared by public read endpoints)
  * ====================================================================
  * Verifies a Supabase access token on groq / youtube-transcript / ndli using a
- * server-side Supabase client (service role) — `auth.getUser(token)` validates
- * the JWT against the project and returns the user.
+ * server-side Supabase client — `auth.getUser(token)` validates the JWT against
+ * the project and returns the user. See getConfig for why the anon key is a
+ * sufficient credential for that check.
  *
  * RELIABILITY POSTURE:
  *   These endpoints expose no private user data — auth here only protects our
@@ -16,18 +17,37 @@
 import { createClient } from "@supabase/supabase-js";
 
 /**
- * Resolve server credentials, accepting both naming conventions.
+ * Resolve credentials for the verification client.
  *
- * The Vercel↔Supabase Marketplace integration injects SUPABASE_SECRET_KEY,
- * while a hand-configured project typically uses SUPABASE_SERVICE_ROLE_KEY.
- * They are the same secret. Accepting either means the integration works the
- * moment it is connected, with no manual variable to remember — and a missed
- * one here silently disables auth (see requireAuth's fail-open path).
+ * THE ANON KEY IS ENOUGH HERE, AND THAT MATTERS.
+ * ==============================================
+ * The only thing this module does with the client is `auth.getUser(token)`,
+ * which asks Supabase to validate a JWT the caller already supplied. That needs
+ * no elevated privilege: the token is the credential being checked. Service
+ * role exists to bypass RLS and perform admin operations, and this file does
+ * neither.
+ *
+ * Falling back to the anon key is not a weakening, it is what closed a real
+ * hole. Production ran for a long time with no service-role key set, so
+ * requireAuth took its fail-open path on EVERY request and /api/groq was
+ * callable by anyone with no session at all — a free, unauthenticated route to
+ * the project's AI quota. The anon key was sitting right there in the same
+ * environment the whole time.
+ *
+ * Order is deliberate: a service-role key is still preferred when present, so
+ * nothing changes for a correctly configured deployment or for the Vercel↔
+ * Supabase integration (which injects SUPABASE_SECRET_KEY). The anon key is the
+ * last resort that keeps the guard ARMED instead of open.
+ *
+ * Note this does not remove the need for a service-role key elsewhere:
+ * api/send-weekly-emails.ts reads other users' rows and genuinely requires it.
  */
 export function getConfig() {
   const url = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL;
   const key =
-    process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SECRET_KEY;
+    process.env.SUPABASE_SERVICE_ROLE_KEY ||
+    process.env.SUPABASE_SECRET_KEY ||
+    process.env.VITE_SUPABASE_ANON_KEY;
   return { url, key };
 }
 
@@ -71,9 +91,10 @@ export async function requireAuth(req, res) {
   // Server misconfiguration must not break every user — fail OPEN with a warning.
   if (!url || !key) {
     console.warn(
-      "[auth] No SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY (or SUPABASE_SECRET_KEY) " +
-      "configured — skipping token verification. ANTI-ABUSE PROTECTION IS OFF and " +
-      "this endpoint is open to anonymous callers. Set them in Vercel env."
+      "[auth] No Supabase URL or key at all (tried SUPABASE_URL/VITE_SUPABASE_URL and " +
+      "SUPABASE_SERVICE_ROLE_KEY/SUPABASE_SECRET_KEY/VITE_SUPABASE_ANON_KEY) — " +
+      "skipping token verification. ANTI-ABUSE PROTECTION IS OFF and this endpoint " +
+      "is open to anonymous callers. Set them in Vercel env."
     );
     return { uid: "unverified", unverified: true };
   }
