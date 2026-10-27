@@ -4,7 +4,7 @@
  * =====================================
  * This is the only publicly reachable AI endpoint, so it enforces:
  *
- *  1. MODEL ALLOWLIST — only the three models the app actually uses can be
+ *  1. MODEL ALLOWLIST — only the models the app actually uses can be
  *     requested. Prevents anyone from using our API key against arbitrary
  *     (more expensive / higher-quota) models.
  *  2. PAYLOAD CAPS — max 24 messages, 60 000 total chars, 200 KB raw body.
@@ -23,33 +23,41 @@ const GROQ_URL = "https://api.groq.com/openai/v1/chat/completions";
 /**
  * Only models the app uses. Anything else is rejected with 400.
  *
- * The previous entries - llama-3.3-70b-versatile, llama-3.1-8b-instant and
- * llama-4-scout - were ALL retired by Groq and now return 404. Every AI feature
- * in the app was dead: the tutor, doubt solving, quiz generation, the planner
- * and Camera Q&A. Nothing surfaced it, because the failure looked to a user
- * like a generic "AI request failed" and no check compared this list against
- * what Groq actually serves.
+ * THIS LIST GOES STALE. That is not hypothetical — it has now happened twice:
+ *
+ *   1. llama-3.3-70b-versatile, llama-3.1-8b-instant and llama-4-scout were
+ *      retired, killing every AI feature. Replaced with the compound models.
+ *   2. groq/compound and groq/compound-mini were then retired in turn, killing
+ *      them all again. Confirmed by `npm run verify:models`.
+ *
+ * Both times the symptom was a generic "AI request failed" with nothing in the
+ * logs, because a retired model returns a normal HTTP error and the key keeps
+ * working. Both times it was found by a person, not a check.
+ *
+ * The Daily checks workflow now runs the model comparison every morning, so a
+ * third retirement should arrive as a red build rather than a broken tutor.
  *
  * Verified live against GET /openai/v1/models before being written here.
- * `npm run verify` now fails when an allowlisted model disappears, so the next
- * retirement is caught rather than discovered by a student.
  */
 const ALLOWED_MODELS = new Set([
-  "groq/compound",                      // chat, doubts, summaries
-  "groq/compound-mini",                 // default - clean prose, 131k context
+  "llama-3.3-70b-versatile",            // default - chat, doubts, summaries
+  "llama-3.1-8b-instant",               // fast JSON work, lower quota pressure
   "openai/gpt-oss-120b",                // heavier reasoning
-  "openai/gpt-oss-20b",                 // fast JSON work
-  "qwen/qwen3.8-27b",                   // fastest of the set
-  "qwen/qwen3.6-27b",
+  "openai/gpt-oss-20b",                 // fast reasoning
 ]);
 
 /**
- * compound-mini rather than a gpt-oss model: the gpt-oss family spends output
- * tokens on reasoning before emitting any text, so a short max_tokens returns
- * an EMPTY string rather than a brief answer, and it renders formulae as LaTeX
- * (\(F=ma\)) which this UI does not typeset.
+ * A llama model rather than a gpt-oss one, and the reason is recorded here
+ * because it is not obvious and was learned the hard way: the gpt-oss family
+ * spends output tokens on reasoning before emitting any text, so a short
+ * max_tokens returns an EMPTY string rather than a brief answer, and it renders
+ * formulae as LaTeX (\(F=ma\)) which this UI does not typeset.
+ *
+ * For a tutor explaining physics to a student, clean prose beats a reasoning
+ * trace. Keep gpt-oss allowlisted for callers that explicitly want it; do not
+ * make it the default without fixing both of those problems first.
  */
-const DEFAULT_MODEL = "groq/compound-mini";
+const DEFAULT_MODEL = "llama-3.3-70b-versatile";
 const MAX_MESSAGES = 24;
 const MAX_TOTAL_CHARS = 60_000;          // text-only requests
 const MAX_BODY_BYTES = 200_000;          // text-only requests
