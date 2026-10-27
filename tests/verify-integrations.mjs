@@ -49,6 +49,22 @@ const argBase = (() => {
 })();
 const BASE = argBase || "http://localhost:5000";
 
+/**
+ * `--only groq` (comma-separated) runs a subset.
+ *
+ * This exists for CI. The onboarding checks need the app actually running at
+ * BASE, which a scheduled workflow has no cheap way to provide, and a job that
+ * fails for that reason every single day trains everyone to ignore it. The
+ * model check needs nothing but an API key, so it can run on a schedule and
+ * stay meaningful.
+ */
+const only = (() => {
+  const i = process.argv.indexOf("--only");
+  if (i === -1) return null;
+  return (process.argv[i + 1] || "").split(",").map((x) => x.trim()).filter(Boolean);
+})();
+const wants = (name) => !only || only.includes(name);
+
 const results = [];
 const record = (name, status, detail, required = true) =>
   results.push({ name, status, detail, required });
@@ -217,11 +233,16 @@ async function checkOnboarding() {
 /* ── Run ──────────────────────────────────────────────────────────────────── */
 console.log(`\nVerifying integrations against ${BASE}\n`);
 
-await checkSupabase();
-await checkGroq();
-await checkResend();
-checkOptionalKeys();
-await checkOnboarding();
+if (wants("supabase")) await checkSupabase();
+if (wants("groq")) await checkGroq();
+if (wants("resend")) await checkResend();
+if (wants("keys")) checkOptionalKeys();
+if (wants("onboarding")) await checkOnboarding();
+
+if (results.length === 0) {
+  console.error(`No checks matched --only ${only?.join(",")}. Valid: supabase, groq, resend, keys, onboarding.`);
+  process.exit(2);
+}
 
 const pad = Math.max(...results.map((r) => r.name.length));
 let hardFailures = 0;
