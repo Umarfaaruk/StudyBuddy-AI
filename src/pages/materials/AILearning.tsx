@@ -293,7 +293,7 @@ Always provide structured, comprehensive responses that help the student deeply 
 
       <div className="flex items-center gap-3 bg-card border border-border rounded-xl p-4">
         <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center flex-shrink-0">
-          <FileText className="h-5 w-5 text-primary" />
+          <FileText className="h-5 w-5 text-primary-text" />
         </div>
         <div className="flex-1">
           <h1 className="text-lg font-bold text-foreground">{material.file_name}</h1>

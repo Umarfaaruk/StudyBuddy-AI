@@ -53,7 +53,7 @@ function emailHtml(name: string, weeklyXp: number, totalXp: number, streak: numb
   return `<!doctype html><html><body style="margin:0;background:#f3f4f6;font-family:Inter,Arial,sans-serif;">
   <div style="max-width:560px;margin:0 auto;padding:24px;">
     <div style="background:#fff;border-radius:18px;overflow:hidden;box-shadow:0 8px 30px -12px rgba(0,0,0,.15);">
-      <div style="background:linear-gradient(135deg,#29ABE2,#1E96CC);padding:28px 28px 22px;color:#fff;">
+      <div style="background:linear-gradient(135deg,#4F46E5,#1E96CC);padding:28px 28px 22px;color:#fff;">
         <div style="font-size:13px;letter-spacing:.08em;text-transform:uppercase;opacity:.85;">StudyBuddy AI · Weekly Recap</div>
         <h1 style="margin:6px 0 0;font-size:24px;">Nice work this week, ${name}! 🎉</h1>
       </div>
@@ -76,7 +76,7 @@ function emailHtml(name: string, weeklyXp: number, totalXp: number, streak: numb
           <div>⚡ Study sessions / activities this week: <b style="color:#0f172a;">${awards}</b></div>
         </div>
         <div style="text-align:center;margin-top:26px;">
-          <a href="${APP_URL}/dashboard" style="display:inline-block;background:#29ABE2;color:#fff;text-decoration:none;font-weight:700;font-size:14px;padding:12px 26px;border-radius:12px;">Keep your streak going →</a>
+          <a href="${APP_URL}/dashboard" style="display:inline-block;background:#4F46E5;color:#fff;text-decoration:none;font-weight:700;font-size:14px;padding:12px 26px;border-radius:12px;">Keep your streak going →</a>
         </div>
       </div>
       <div style="padding:16px 28px;background:#f8fafc;color:#94a3b8;font-size:11px;text-align:center;">

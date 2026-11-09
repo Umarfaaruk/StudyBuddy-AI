@@ -65,7 +65,7 @@ const LegalLayout = ({ title, intro, children }: Props) => {
 
   return (
     <div className="min-h-screen bg-background text-foreground flex flex-col">
-      <Navbar />
+      <Navbar onDark={false} />
 
       <main className="flex-grow pt-28 pb-24">
         <article className="container max-w-3xl mx-auto px-6 space-y-10">
@@ -80,7 +80,7 @@ const LegalLayout = ({ title, intro, children }: Props) => {
           <footer className="pt-6 border-t border-border">
             <p className="text-xs text-muted-foreground">
               Questions about this document? Contact{" "}
-              <a href={`mailto:${CONTACT_EMAIL}`} className="text-primary hover:underline">
+              <a href={`mailto:${CONTACT_EMAIL}`} className="text-primary-text hover:underline">
                 {CONTACT_EMAIL}
               </a>
               .

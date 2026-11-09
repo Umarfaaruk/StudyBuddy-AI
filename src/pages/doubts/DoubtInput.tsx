@@ -344,7 +344,7 @@ const DoubtInput = () => {
         <div className="flex items-center gap-2">
           <Link
             to="/tools"
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-primary hover:bg-primary/5 transition-colors"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-primary-text hover:bg-primary/5 transition-colors"
           >
             <Bot className="h-3.5 w-3.5" />
             AI Tutor

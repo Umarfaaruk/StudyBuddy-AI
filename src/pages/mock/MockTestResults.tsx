@@ -42,7 +42,7 @@ interface ResultState {
 const SHAREABLE_SCORE = 70;
 
 const scoreColour = (s: number) =>
-  s < 35 ? "text-destructive" : s < 60 ? "text-cta" : s < 80 ? "text-foreground" : "text-success";
+  s < 35 ? "text-destructive" : s < 60 ? "text-cta-text" : s < 80 ? "text-foreground" : "text-success";
 
 const barColour = (s: number) =>
   s < 35 ? "bg-destructive" : s < 60 ? "bg-cta" : s < 80 ? "bg-primary" : "bg-success";
@@ -84,7 +84,7 @@ const MockTestResults = () => {
   if (!state && recovering) {
     return (
       <div className="max-w-lg mx-auto py-16 flex flex-col items-center gap-3">
-        <Loader2 className="h-6 w-6 animate-spin text-primary" />
+        <Loader2 className="h-6 w-6 animate-spin text-primary-text" />
         <p className="text-sm text-muted-foreground">Loading your result…</p>
       </div>
     );
@@ -110,7 +110,7 @@ const MockTestResults = () => {
     <div className="max-w-3xl mx-auto py-8 space-y-8">
       <div className="text-center space-y-3">
         <div className="h-14 w-14 rounded-2xl bg-primary/10 flex items-center justify-center mx-auto">
-          <Trophy className="h-7 w-7 text-primary" />
+          <Trophy className="h-7 w-7 text-primary-text" />
         </div>
         <h1 className="font-display text-2xl font-bold text-foreground">{state.title}</h1>
         <div className={`text-4xl font-bold tabular-nums ${scoreColour(state.score)}`}>
@@ -125,7 +125,7 @@ const MockTestResults = () => {
         </p>
 
         {state.expired && (
-          <p className="text-xs text-cta inline-flex items-center gap-1.5 justify-center">
+          <p className="text-xs text-cta-text inline-flex items-center gap-1.5 justify-center">
             <AlertTriangle className="h-3.5 w-3.5" />
             Time ran out — your answers so far were submitted automatically.
           </p>

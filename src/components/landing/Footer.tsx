@@ -41,7 +41,7 @@ const footerLinks: Record<string, { label: string; to: string }[]> = {
 };
 
 const Footer = () => (
-  <footer className="bg-[#0B0F19] text-white border-t border-white/[0.06] relative overflow-hidden">
+  <footer className="on-dark bg-[#0B0F19] text-white border-t border-white/[0.06] relative overflow-hidden">
     {/* Background Paths decoration */}
     <div className="absolute inset-0 opacity-20 pointer-events-none">
       <BackgroundPaths />
@@ -91,7 +91,7 @@ const Footer = () => (
       </div>
 
       <div className="border-t border-white/[0.06] mt-12 pt-8 text-center">
-        <p className="text-xs text-slate-500">
+        <p className="text-xs text-slate-400">
           © 2026 StudyBuddy AI. All rights reserved.
         </p>
       </div>

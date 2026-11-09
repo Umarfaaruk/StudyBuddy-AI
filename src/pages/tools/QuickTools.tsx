@@ -21,7 +21,7 @@ const QuickTools = () => {
       <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4">
         <div className="flex items-start gap-4 min-w-0">
           <div className="h-12 w-12 rounded-2xl bg-primary/10 flex items-center justify-center shrink-0 ring-1 ring-primary/10">
-            <Bot className="h-6 w-6 text-primary" />
+            <Bot className="h-6 w-6 text-primary-text" />
           </div>
           <div className="min-w-0">
             <h1 className="font-display text-2xl md:text-3xl font-bold text-foreground tracking-tight">
@@ -49,7 +49,7 @@ const QuickTools = () => {
                   : "text-muted-foreground hover:text-foreground"
               }`}
             >
-              <Icon className={`h-4 w-4 ${isActive ? "text-primary" : ""}`} />
+              <Icon className={`h-4 w-4 ${isActive ? "text-primary-text" : ""}`} />
               <span className="hidden sm:inline">{tab.label}</span>
               <span className="sm:hidden">{tab.label.split(" ")[0]}</span>
             </button>

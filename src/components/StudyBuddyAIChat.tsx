@@ -196,7 +196,7 @@ const StudyBuddyAIChat = () => {
               ? { left: fab.position.x, top: fab.position.y, right: "auto", bottom: "auto", cursor: fab.isDragging ? "grabbing" : "grab", touchAction: "none" }
               : { touchAction: "none" }
           }
-          className={`fixed z-50 h-14 w-14 rounded-full bg-[#29ABE2] text-white shadow-xl shadow-[#29ABE2]/25 flex items-center justify-center hover:scale-110 hover:shadow-2xl transition-all duration-300 group cursor-grab active:cursor-grabbing ${
+          className={`fixed z-50 h-14 w-14 rounded-full bg-primary text-white shadow-xl shadow-primary/25 flex items-center justify-center hover:scale-110 hover:shadow-2xl transition-all duration-300 group cursor-grab active:cursor-grabbing ${
             fab.position ? "" : "bottom-6 right-6 md:bottom-8 md:right-8"
           }`}
           aria-label="Open StudyBuddy AI chat (drag to move)"
@@ -204,7 +204,7 @@ const StudyBuddyAIChat = () => {
         >
           <Bot className="h-6 w-6 group-hover:rotate-12 transition-transform duration-300" />
           {/* Pulse ring */}
-          <span className="absolute inset-0 rounded-full bg-[#29ABE2]/30 animate-ping opacity-30 pointer-events-none" />
+          <span className="absolute inset-0 rounded-full bg-primary/30 animate-ping opacity-30 pointer-events-none" />
         </button>
       )}
 
@@ -212,7 +212,7 @@ const StudyBuddyAIChat = () => {
       {isOpen && (
         <div
           ref={panelRef}
-          className={`fixed z-50 w-[360px] max-w-[calc(100vw-32px)] bg-white rounded-2xl shadow-2xl shadow-gray-300/50 border border-gray-100 flex flex-col overflow-hidden ${
+          className={`fixed z-50 w-[360px] max-w-[calc(100vw-32px)] bg-card rounded-2xl shadow-2xl shadow-gray-300/50 border border-gray-100 flex flex-col overflow-hidden ${
             position ? "" : "bottom-6 right-6 md:bottom-8 md:right-8 animate-in fade-in slide-in-from-bottom-4 zoom-in-95 duration-300"
           }`}
           style={
@@ -222,7 +222,7 @@ const StudyBuddyAIChat = () => {
           }
         >
           {/* Header — doubles as the drag handle (move it anywhere, like the timer) */}
-          <div className="flex items-center justify-between px-4 py-3 bg-gradient-to-r from-[#29ABE2] to-[#29ABE2] text-white flex-shrink-0">
+          <div className="flex items-center justify-between px-4 py-3 bg-gradient-to-r from-primary to-primary text-white flex-shrink-0">
             <div
               className="flex items-center gap-2 min-w-0 flex-1 cursor-grab active:cursor-grabbing select-none"
               onMouseDown={handleDragStart}
@@ -251,8 +251,8 @@ const StudyBuddyAIChat = () => {
             {messages.length === 0 ? (
               <div className="space-y-4 py-4">
                 <div className="text-center">
-                  <div className="h-12 w-12 rounded-2xl bg-[#29ABE2]/10 flex items-center justify-center mx-auto mb-3">
-                    <Sparkles className="h-6 w-6 text-[#29ABE2]" />
+                  <div className="h-12 w-12 rounded-2xl bg-primary/10 flex items-center justify-center mx-auto mb-3">
+                    <Sparkles className="h-6 w-6 text-primary-text" />
                   </div>
                   <p className="text-sm font-semibold text-gray-900">Hi! How can I help you? 👋</p>
                   <p className="text-xs text-gray-400 mt-1">Ask questions, navigate the platform, or share feedback</p>
@@ -269,7 +269,7 @@ const StudyBuddyAIChat = () => {
                           handleSendWithPrompt(action.prompt);
                         }, 50);
                       }}
-                      className="text-left px-3 py-2.5 rounded-xl bg-gray-50 hover:bg-[#29ABE2]/5 border border-gray-100 hover:border-[#29ABE2]/20 transition-all text-xs font-medium text-gray-600 hover:text-[#29ABE2]"
+                      className="text-left px-3 py-2.5 rounded-xl bg-gray-50 hover:bg-primary/5 border border-gray-100 hover:border-primary/20 transition-all text-xs font-medium text-gray-600 hover:text-primary-text"
                     >
                       {action.label}
                     </button>
@@ -280,19 +280,19 @@ const StudyBuddyAIChat = () => {
               messages.map((msg, idx) => (
                 <div key={idx} className={`flex ${msg.role === "user" ? "justify-end" : "gap-2"}`}>
                   {msg.role === "assistant" && (
-                    <div className="h-6 w-6 rounded-md bg-[#29ABE2]/10 flex items-center justify-center flex-shrink-0 mt-0.5">
-                      <Bot className="h-3 w-3 text-[#29ABE2]" />
+                    <div className="h-6 w-6 rounded-md bg-primary/10 flex items-center justify-center flex-shrink-0 mt-0.5">
+                      <Bot className="h-3 w-3 text-primary-text" />
                     </div>
                   )}
                   <div
                     className={`max-w-[80%] rounded-xl px-3 py-2 text-xs leading-relaxed ${
                       msg.role === "user"
-                        ? "bg-[#29ABE2] text-white"
+                        ? "bg-primary text-white"
                         : "bg-gray-50 text-gray-700 border border-gray-100"
                     }`}
                   >
                     {msg.role === "assistant" ? (
-                      <div className="prose prose-xs max-w-none [&>*:first-child]:mt-0 [&>*:last-child]:mb-0 [&_a]:text-[#29ABE2] [&_a]:underline">
+                      <div className="prose prose-xs max-w-none [&>*:first-child]:mt-0 [&>*:last-child]:mb-0 [&_a]:text-primary-text [&_a]:underline">
                         <ReactMarkdown remarkPlugins={[remarkGfm]}>{msg.content}</ReactMarkdown>
                       </div>
                     ) : (
@@ -304,11 +304,11 @@ const StudyBuddyAIChat = () => {
             )}
             {isLoading && (
               <div className="flex gap-2">
-                <div className="h-6 w-6 rounded-md bg-[#29ABE2]/10 flex items-center justify-center flex-shrink-0">
-                  <Bot className="h-3 w-3 text-[#29ABE2]" />
+                <div className="h-6 w-6 rounded-md bg-primary/10 flex items-center justify-center flex-shrink-0">
+                  <Bot className="h-3 w-3 text-primary-text" />
                 </div>
                 <div className="bg-gray-50 rounded-xl px-3 py-2 border border-gray-100 flex items-center gap-2">
-                  <Loader2 className="h-3 w-3 animate-spin text-[#29ABE2]" />
+                  <Loader2 className="h-3 w-3 animate-spin text-primary-text" />
                   <span className="text-[10px] text-gray-400">Thinking...</span>
                 </div>
               </div>
@@ -332,12 +332,12 @@ const StudyBuddyAIChat = () => {
                   }
                 }}
                 disabled={isLoading}
-                className="flex-1 h-9 px-3 text-xs bg-white border border-gray-200 rounded-lg outline-none focus:border-[#29ABE2]/40 focus:ring-2 focus:ring-[#29ABE2]/10 text-gray-900 transition-all"
+                className="flex-1 h-9 px-3 text-xs bg-card border border-gray-200 rounded-lg outline-none focus:border-primary/40 focus:ring-2 focus:ring-primary/10 text-gray-900 transition-all"
               />
               <button
                 onClick={handleSend}
                 disabled={!input.trim() || isLoading}
-                className="h-9 w-9 rounded-lg bg-[#29ABE2] text-white flex items-center justify-center hover:bg-[#29ABE2] disabled:opacity-40 disabled:cursor-not-allowed transition-all flex-shrink-0"
+                className="h-9 w-9 rounded-lg bg-primary text-white flex items-center justify-center hover:bg-primary disabled:opacity-40 disabled:cursor-not-allowed transition-all flex-shrink-0"
               >
                 <Send className="h-3.5 w-3.5" />
               </button>

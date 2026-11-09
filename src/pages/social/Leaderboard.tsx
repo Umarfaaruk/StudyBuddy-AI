@@ -46,10 +46,10 @@ const ProfileModal = ({
     <div className="fixed inset-0 z-[70] flex items-center justify-center p-4" onClick={onClose}>
       <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" aria-hidden="true" />
       <div
-        className="relative w-full max-w-sm bg-white rounded-2xl shadow-2xl overflow-hidden"
+        className="relative w-full max-w-sm bg-card rounded-2xl shadow-2xl overflow-hidden"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="bg-gradient-to-br from-[#29ABE2] to-[#29ABE2] px-6 pt-7 pb-10 text-center relative">
+        <div className="bg-gradient-to-br from-primary to-primary px-6 pt-7 pb-10 text-center relative">
           <button onClick={onClose} className="absolute top-3 right-3 h-8 w-8 rounded-lg bg-white/15 hover:bg-white/25 flex items-center justify-center text-white" aria-label="Close">
             <X className="h-4 w-4" />
           </button>
@@ -59,14 +59,14 @@ const ProfileModal = ({
         </div>
         <div className="px-6 pb-6 -mt-5">
           {isLoading ? (
-            <div className="flex justify-center py-6"><Loader2 className="h-5 w-5 animate-spin text-[#29ABE2]" /></div>
+            <div className="flex justify-center py-6"><Loader2 className="h-5 w-5 animate-spin text-primary-text" /></div>
           ) : (
             <>
               <h3 className="text-center text-lg font-bold text-gray-900 mt-6">{name}</h3>
               {data?.profile?.email && <p className="text-center text-xs text-gray-400 truncate">{data.profile.email}</p>}
               <div className="grid grid-cols-2 gap-3 mt-5">
                 <div className="bg-gray-50 rounded-xl p-3 text-center">
-                  <div className="flex items-center justify-center gap-1 text-[#29ABE2]"><Zap className="h-4 w-4" /><span className="text-lg font-extrabold">{(data?.profile?.total_xp ?? 0).toLocaleString()}</span></div>
+                  <div className="flex items-center justify-center gap-1 text-primary-text"><Zap className="h-4 w-4" /><span className="text-lg font-extrabold">{(data?.profile?.total_xp ?? 0).toLocaleString()}</span></div>
                   <p className="text-[10px] text-gray-400 uppercase tracking-wide mt-0.5">Total XP</p>
                 </div>
                 <div className="bg-gray-50 rounded-xl p-3 text-center">
@@ -77,13 +77,13 @@ const ProfileModal = ({
               {currentUid !== uid && (
                 <div className="mt-5">
                   {fs.status === "friends" ? (
-                    <div className="w-full inline-flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-xl text-sm font-semibold bg-[#29ABE2]/10 text-[#29ABE2]"><UserCheck className="h-4 w-4" /> You're friends</div>
+                    <div className="w-full inline-flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-xl text-sm font-semibold bg-primary/10 text-primary-text"><UserCheck className="h-4 w-4" /> You're friends</div>
                   ) : fs.status === "pending_sent" ? (
                     <div className="w-full inline-flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-xl text-sm font-semibold bg-gray-100 text-gray-400"><Clock className="h-4 w-4" /> Request sent</div>
                   ) : fs.status === "pending_received" ? (
                     <button onClick={() => { onAccept(fs.recordId!, uid); onClose(); }} className="w-full inline-flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-xl text-sm font-semibold bg-green-500 text-white hover:bg-green-600 transition-all"><Check className="h-4 w-4" /> Accept friend request</button>
                   ) : (
-                    <button onClick={() => { onAddFriend(uid); }} className="w-full inline-flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-xl text-sm font-semibold bg-[#29ABE2] text-white hover:bg-[#29ABE2] transition-all"><UserPlus className="h-4 w-4" /> Send friend request</button>
+                    <button onClick={() => { onAddFriend(uid); }} className="w-full inline-flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-xl text-sm font-semibold bg-primary text-white hover:bg-primary transition-all"><UserPlus className="h-4 w-4" /> Send friend request</button>
                   )}
                 </div>
               )}
@@ -289,7 +289,7 @@ const Leaderboard = () => {
               onClick={() => setTimeFilter(f.key)}
               className={`px-5 py-2 rounded-full text-sm font-semibold transition-all duration-200 ${
                 timeFilter === f.key
-                  ? "bg-[#29ABE2] text-white shadow-lg shadow-[#29ABE2]/25"
+                  ? "bg-primary text-white shadow-lg shadow-primary/25"
                   : "text-gray-500 hover:text-gray-700 hover:bg-gray-200/60"
               }`}
             >
@@ -304,7 +304,7 @@ const Leaderboard = () => {
             onClick={() => setTab("global")}
             className={`px-5 py-2 rounded-full text-sm font-semibold transition-all duration-200 flex items-center gap-1.5 ${
               tab === "global"
-                ? "bg-white text-gray-900 shadow-md"
+                ? "bg-card text-gray-900 shadow-md"
                 : "text-gray-500 hover:text-gray-700"
             }`}
           >
@@ -315,7 +315,7 @@ const Leaderboard = () => {
             onClick={() => setTab("friends")}
             className={`px-5 py-2 rounded-full text-sm font-semibold transition-all duration-200 flex items-center gap-1.5 ${
               tab === "friends"
-                ? "bg-white text-gray-900 shadow-md"
+                ? "bg-card text-gray-900 shadow-md"
                 : "text-gray-500 hover:text-gray-700"
             }`}
           >
@@ -326,7 +326,7 @@ const Leaderboard = () => {
       </div>
 
       {/* ───── Find & add friends (#4) ───── */}
-      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-3 md:p-4">
+      <div className="bg-card rounded-2xl border border-gray-100 shadow-sm p-3 md:p-4">
         <div className="flex gap-2">
           <div className="relative flex-1 min-w-0">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
@@ -338,7 +338,7 @@ const Leaderboard = () => {
               className="pl-9"
             />
           </div>
-          <Button onClick={handleSearch} disabled={searching} className="bg-[#29ABE2] hover:bg-[#29ABE2] text-white gap-1.5 shrink-0">
+          <Button onClick={handleSearch} disabled={searching} className="bg-primary hover:bg-primary text-white gap-1.5 shrink-0">
             {searching ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
             <span className="hidden sm:inline">Search</span>
           </Button>
@@ -365,13 +365,13 @@ const Leaderboard = () => {
                     <UserIcon className="h-4 w-4" />
                   </button>
                   {fs.status === "friends" ? (
-                    <span className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[11px] font-semibold bg-[#29ABE2]/10 text-[#29ABE2] shrink-0"><UserCheck className="h-3 w-3" /> Friends</span>
+                    <span className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[11px] font-semibold bg-primary/10 text-primary-text shrink-0"><UserCheck className="h-3 w-3" /> Friends</span>
                   ) : fs.status === "pending_sent" ? (
                     <span className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[11px] font-semibold bg-gray-100 text-gray-400 shrink-0"><Clock className="h-3 w-3" /> Sent</span>
                   ) : fs.status === "pending_received" ? (
                     <button onClick={() => handleAccept(fs.recordId!, p.uid)} className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[11px] font-semibold bg-green-500 text-white hover:bg-green-600 shrink-0"><Check className="h-3 w-3" /> Accept</button>
                   ) : (
-                    <button onClick={() => handleAddFriend(p.uid)} className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[11px] font-semibold bg-[#29ABE2] text-white hover:bg-[#29ABE2] shrink-0"><UserPlus className="h-3 w-3" /> Add</button>
+                    <button onClick={() => handleAddFriend(p.uid)} className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[11px] font-semibold bg-primary text-white hover:bg-primary shrink-0"><UserPlus className="h-3 w-3" /> Add</button>
                   )}
                 </div>
               );
@@ -381,7 +381,7 @@ const Leaderboard = () => {
 
         {/* Active-users summary for the selected window (#6) */}
         <div className="mt-3 pt-3 border-t border-gray-100 flex items-center gap-2 text-xs text-gray-500">
-          <Users className="h-3.5 w-3.5 text-[#29ABE2]" />
+          <Users className="h-3.5 w-3.5 text-primary-text" />
           {timeFilter === "today" ? (
             <span><b className="text-gray-700">{activeCount}</b> student{activeCount === 1 ? "" : "s"} active today</span>
           ) : timeFilter === "week" ? (
@@ -398,7 +398,7 @@ const Leaderboard = () => {
 
           {/* ───── Podium Section ───── */}
           {top3.length >= 3 && (
-            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 pt-10 pb-8">
+            <div className="bg-card rounded-2xl shadow-sm border border-gray-100 p-6 pt-10 pb-8">
               <div className="flex items-end justify-center gap-4 md:gap-6">
                 {podiumOrder.map((u) => {
                   if (!u) return null;
@@ -458,7 +458,7 @@ const Leaderboard = () => {
           )}
 
           {/* ───── Ranked List (4+) ───── */}
-          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+          <div className="bg-card rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
             {/* Header */}
             <div className="grid grid-cols-[28px_minmax(0,1fr)_auto_auto] lg:grid-cols-[50px_minmax(0,1fr)_140px_100px] gap-2 md:gap-4 px-3 md:px-5 py-3 bg-gray-50/80 border-b border-gray-100">
               <span className="text-[11px] font-bold text-gray-400 uppercase tracking-wider">Rank</span>
@@ -480,13 +480,13 @@ const Leaderboard = () => {
                     key={`row-${u.name}-${u.rank}`}
                     className={`grid grid-cols-[28px_minmax(0,1fr)_auto_auto] lg:grid-cols-[50px_minmax(0,1fr)_140px_100px] gap-2 md:gap-4 items-center px-3 md:px-5 py-3.5 transition-all duration-200 group ${
                       u.isYou
-                        ? "bg-[#29ABE2]/5 border-l-4 border-l-[#29ABE2]"
+                        ? "bg-primary/5 border-l-4 border-l-primary"
                         : "hover:bg-gray-50/80 border-l-4 border-l-transparent"
                     }`}
                   >
                     {/* Rank */}
                     <div className="flex items-center">
-                      <span className={`text-sm font-extrabold ${u.rank <= 3 ? "text-[#29ABE2]" : "text-gray-400"}`}>
+                      <span className={`text-sm font-extrabold ${u.rank <= 3 ? "text-primary-text" : "text-gray-400"}`}>
                         #{u.rank}
                       </span>
                     </div>
@@ -495,7 +495,7 @@ const Leaderboard = () => {
                     <div className="flex items-center gap-3">
                       <div className={`h-9 w-9 rounded-full flex items-center justify-center text-xs font-bold shrink-0 transition-transform duration-200 group-hover:scale-110 ${
                         u.isYou
-                          ? "bg-gradient-to-br from-[#29ABE2] to-[#29ABE2] text-white shadow-md shadow-[#29ABE2]/25"
+                          ? "bg-gradient-to-br from-primary to-primary text-white shadow-md shadow-primary/25"
                           : "bg-gray-100 text-gray-600"
                       }`}>
                         {u.avatar}
@@ -505,14 +505,14 @@ const Leaderboard = () => {
                           {u.isYou ? "You" : u.name}
                         </span>
                         {u.isYou && (
-                          <span className="text-[10px] text-[#29ABE2] font-medium">Your position</span>
+                          <span className="text-[10px] text-primary-text font-medium">Your position</span>
                         )}
                       </div>
                     </div>
 
                     {/* XP */}
                     <div className="text-right">
-                      <span className={`text-sm font-bold ${u.isYou ? "text-[#29ABE2]" : "text-gray-700"}`}>
+                      <span className={`text-sm font-bold ${u.isYou ? "text-primary-text" : "text-gray-700"}`}>
                         {u.xp.toLocaleString()}
                       </span>
                       <span className="text-xs text-gray-400 ml-1">XP</span>
@@ -535,7 +535,7 @@ const Leaderboard = () => {
                             const fs = friendStatusFor(friendRecords, user?.uid || "", u.uid);
                             if (fs.status === "friends")
                               return (
-                                <span className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[11px] font-semibold bg-[#29ABE2]/10 text-[#29ABE2]">
+                                <span className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[11px] font-semibold bg-primary/10 text-primary-text">
                                   <UserCheck className="h-3 w-3" /> Friends
                                 </span>
                               );
@@ -557,7 +557,7 @@ const Leaderboard = () => {
                             return (
                               <button
                                 onClick={() => handleAddFriend(u.uid)}
-                                className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[11px] font-semibold bg-[#29ABE2] text-white hover:bg-[#29ABE2] shadow-sm transition-all"
+                                className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[11px] font-semibold bg-primary text-white hover:bg-primary shadow-sm transition-all"
                               >
                                 <UserPlus className="h-3 w-3" /> Add
                               </button>
@@ -577,7 +577,7 @@ const Leaderboard = () => {
         <div className="space-y-5 min-w-0">
 
           {/* Academy Completion */}
-          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 flex flex-col items-center">
+          <div className="bg-card rounded-2xl shadow-sm border border-gray-100 p-6 flex flex-col items-center">
             <h4 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-4 self-start">Academy Completion</h4>
             <div className="relative w-32 h-32">
               <svg className="w-full h-full -rotate-90" viewBox="0 0 120 120">
@@ -596,8 +596,8 @@ const Leaderboard = () => {
                 />
                 <defs>
                   <linearGradient id="progressGradient" x1="0%" y1="0%" x2="100%" y2="0%">
-                    <stop offset="0%" stopColor="#29ABE2" />
-                    <stop offset="100%" stopColor="#29ABE2" />
+                    <stop offset="0%" stopColor="hsl(var(--primary))" />
+                    <stop offset="100%" stopColor="hsl(var(--primary))" />
                   </linearGradient>
                 </defs>
               </svg>
@@ -612,7 +612,7 @@ const Leaderboard = () => {
           </div>
 
           {/* Apex Architect Award */}
-          <div className="bg-gradient-to-br from-[#29ABE2] to-[#29ABE2] rounded-2xl shadow-lg shadow-[#29ABE2]/25 p-6 text-white relative overflow-hidden">
+          <div className="bg-gradient-to-br from-primary to-primary rounded-2xl shadow-lg shadow-primary/25 p-6 text-white relative overflow-hidden">
             {/* Decorative background circles */}
             <div className="absolute -top-6 -right-6 w-24 h-24 rounded-full bg-white/10" />
             <div className="absolute -bottom-8 -left-8 w-32 h-32 rounded-full bg-white/5" />
@@ -624,7 +624,7 @@ const Leaderboard = () => {
                 </div>
                 <div>
                   <h4 className="font-bold text-sm">Apex Architect</h4>
-                  <p className="text-[10px] text-[#29ABE2]">Top Achievement</p>
+                  <p className="text-[10px] text-primary-text">Top Achievement</p>
                 </div>
               </div>
 
@@ -633,7 +633,7 @@ const Leaderboard = () => {
                 <div className="flex items-center gap-3">
                   <span className="text-2xl">🏆</span>
                   <div className="text-center">
-                    <p className="text-xs font-semibold text-[#29ABE2]">Rank #{myRank}</p>
+                    <p className="text-xs font-semibold text-primary-text">Rank #{myRank}</p>
                     <p className="text-lg font-black">{xp.toLocaleString()} XP</p>
                   </div>
                   <span className="text-2xl">🏆</span>
@@ -642,7 +642,7 @@ const Leaderboard = () => {
 
               <div className="flex items-center gap-2 mt-3 pt-3 border-t border-white/20">
                 <Flame className="h-4 w-4 text-orange-300" />
-                <span className="text-xs font-semibold text-[#29ABE2]">
+                <span className="text-xs font-semibold text-primary-text">
                   {streak?.current_streak ?? 0} day streak
                 </span>
                 <Star className="h-3 w-3 text-yellow-300 ml-auto" />
@@ -653,10 +653,10 @@ const Leaderboard = () => {
           </div>
 
           {/* Your Stats card */}
-          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5 space-y-3">
+          <div className="bg-card rounded-2xl shadow-sm border border-gray-100 p-5 space-y-3">
             <div className="flex items-center gap-2 mb-1">
-              <div className="h-7 w-7 rounded-lg bg-[#29ABE2]/10 flex items-center justify-center">
-                <Zap className="h-3.5 w-3.5 text-[#29ABE2]" />
+              <div className="h-7 w-7 rounded-lg bg-primary/10 flex items-center justify-center">
+                <Zap className="h-3.5 w-3.5 text-primary-text" />
               </div>
               <h4 className="font-bold text-gray-900 text-sm">Your Stats</h4>
             </div>
@@ -668,7 +668,7 @@ const Leaderboard = () => {
               <div className="h-px bg-gray-100" />
               <div className="flex items-center justify-between">
                 <span className="text-xs text-gray-500">Current Rank</span>
-                <span className="text-sm font-bold text-[#29ABE2]">#{myRank}</span>
+                <span className="text-sm font-bold text-primary-text">#{myRank}</span>
               </div>
               <div className="h-px bg-gray-100" />
               <div className="flex items-center justify-between">

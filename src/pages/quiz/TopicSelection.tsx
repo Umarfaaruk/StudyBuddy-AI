@@ -61,7 +61,7 @@ const PracticeArena = () => {
       </div>
 
       {/* Difficulty Selector */}
-      <div className="bg-white border border-gray-200 rounded-2xl p-5 md:p-6 flex items-center justify-between gap-4 flex-wrap shadow-sm">
+      <div className="bg-card border border-gray-200 rounded-2xl p-5 md:p-6 flex items-center justify-between gap-4 flex-wrap shadow-sm">
         <div>
           <h3 className="text-sm font-bold text-gray-900">Quiz Difficulty</h3>
           <p className="text-xs text-gray-400 mt-0.5">Adjust the complexity of the quiz questions</p>
@@ -73,8 +73,8 @@ const PracticeArena = () => {
               onClick={() => setDifficulty(lvl)}
               className={`px-5 py-2 rounded-full text-xs font-bold border-2 transition-all duration-200 ${
                 difficulty === lvl
-                  ? "bg-[#29ABE2] text-white border-[#29ABE2] shadow-md shadow-[#29ABE2]/20"
-                  : "bg-white text-gray-500 border-gray-200 hover:border-[#29ABE2]/40 hover:text-[#29ABE2]"
+                  ? "bg-primary text-white border-primary shadow-md shadow-primary/20"
+                  : "bg-card text-gray-500 border-gray-200 hover:border-primary/40 hover:text-primary-text"
               }`}
             >
               {lvl}
@@ -90,7 +90,7 @@ const PracticeArena = () => {
         <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-5">
           {materialsLoading ? (
             Array.from({ length: 3 }).map((_, i) => (
-              <div key={i} className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+              <div key={i} className="bg-card rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
                 <Skeleton className="h-44 w-full rounded-none" />
                 <div className="p-4 space-y-3">
                   <Skeleton className="h-4 w-3/4" />
@@ -106,13 +106,13 @@ const PracticeArena = () => {
             materials?.map((m) => (
               <div
                 key={m.id}
-                className="bg-white rounded-2xl border border-gray-100 shadow-sm hover:shadow-lg hover:border-[#29ABE2]/30 transition-all duration-300 overflow-hidden flex flex-col group"
+                className="bg-card rounded-2xl border border-gray-100 shadow-sm hover:shadow-lg hover:border-primary/30 transition-all duration-300 overflow-hidden flex flex-col group"
               >
                 {/* Thumbnail Area */}
                 <div className="relative h-44 bg-gradient-to-br from-gray-100 to-gray-50 flex items-center justify-center overflow-hidden">
-                  <FileText className="h-12 w-12 text-gray-300 group-hover:text-[#29ABE2]/30 transition-colors duration-300" />
+                  <FileText className="h-12 w-12 text-gray-300 group-hover:text-primary-text/30 transition-colors duration-300" />
                   {/* PDF Badge */}
-                  <span className="absolute top-3 left-3 bg-[#29ABE2]/90 text-white text-[10px] font-bold px-2 py-0.5 rounded-md uppercase tracking-wide">
+                  <span className="absolute top-3 left-3 bg-primary/90 text-white text-[10px] font-bold px-2 py-0.5 rounded-md uppercase tracking-wide">
                     PDF Document
                   </span>
                 </div>
@@ -137,7 +137,7 @@ const PracticeArena = () => {
                     >
                       <Button
                         size="sm"
-                        className="w-full bg-[#29ABE2] hover:bg-[#29ABE2] text-white text-xs font-bold gap-1.5 rounded-lg shadow-sm shadow-[#29ABE2]/20 transition-all duration-200"
+                        className="w-full bg-primary hover:bg-primary text-white text-xs font-bold gap-1.5 rounded-lg shadow-sm shadow-primary/20 transition-all duration-200"
                       >
                         <Gamepad2 className="h-3.5 w-3.5" /> Quiz
                       </Button>
@@ -150,7 +150,7 @@ const PracticeArena = () => {
                       <Button
                         size="sm"
                         variant="outline"
-                        className="w-full text-xs font-bold gap-1.5 rounded-lg border-gray-200 text-gray-600 hover:border-[#29ABE2]/40 hover:text-[#29ABE2] transition-all duration-200"
+                        className="w-full text-xs font-bold gap-1.5 rounded-lg border-gray-200 text-gray-600 hover:border-primary/40 hover:text-primary-text transition-all duration-200"
                       >
                         <BrainCircuit className="h-3.5 w-3.5" /> Flashcards
                       </Button>
@@ -161,13 +161,13 @@ const PracticeArena = () => {
             ))
           ) : (
             <div className="col-span-full text-center py-16 bg-gray-50/60 rounded-2xl border-2 border-dashed border-gray-200">
-              <div className="h-14 w-14 rounded-2xl bg-[#29ABE2]/10 flex items-center justify-center mx-auto mb-4">
-                <FileText className="h-7 w-7 text-[#29ABE2]/50" />
+              <div className="h-14 w-14 rounded-2xl bg-primary/10 flex items-center justify-center mx-auto mb-4">
+                <FileText className="h-7 w-7 text-primary-text/50" />
               </div>
               <p className="text-sm text-gray-500 mb-1 font-medium">No materials uploaded yet</p>
               <p className="text-xs text-gray-400 mb-5">Upload a PDF or text to start practicing!</p>
               <Link to="/materials">
-                <Button size="sm" className="bg-[#29ABE2] hover:bg-[#29ABE2] text-white font-bold rounded-lg px-6 shadow-sm shadow-[#29ABE2]/20">
+                <Button size="sm" className="bg-primary hover:bg-primary text-white font-bold rounded-lg px-6 shadow-sm shadow-primary/20">
                   Upload Material
                 </Button>
               </Link>
@@ -194,11 +194,11 @@ const PracticeArena = () => {
               return (
                 <div
                   key={a.id}
-                  className="bg-white border border-gray-100 rounded-xl p-4 flex items-center justify-between gap-4 shadow-sm hover:shadow-md transition-shadow"
+                  className="bg-card border border-gray-100 rounded-xl p-4 flex items-center justify-between gap-4 shadow-sm hover:shadow-md transition-shadow"
                 >
                   <div className="flex items-center gap-3 min-w-0">
-                    <div className="h-10 w-10 rounded-xl bg-[#29ABE2]/10 flex items-center justify-center shrink-0">
-                      <Trophy className="h-5 w-5 text-[#29ABE2]" />
+                    <div className="h-10 w-10 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
+                      <Trophy className="h-5 w-5 text-primary-text" />
                     </div>
                     <div className="min-w-0">
                       <h3 className="text-sm font-semibold text-gray-900 truncate">{a.topic_title || "Quiz"}</h3>
@@ -210,7 +210,7 @@ const PracticeArena = () => {
                   </div>
                   <div className="flex items-center gap-3 shrink-0">
                     {a.xp_awarded > 0 && (
-                      <span className="text-[10px] font-bold text-[#29ABE2] bg-[#29ABE2]/10 px-2 py-0.5 rounded-full">
+                      <span className="text-[10px] font-bold text-primary-text bg-primary/10 px-2 py-0.5 rounded-full">
                         +{a.xp_awarded} XP
                       </span>
                     )}
@@ -222,8 +222,8 @@ const PracticeArena = () => {
           </div>
         ) : (
           <div className="text-center py-12 bg-gray-50/60 rounded-2xl border-2 border-dashed border-gray-200">
-            <div className="h-14 w-14 rounded-2xl bg-[#29ABE2]/10 flex items-center justify-center mx-auto mb-4">
-              <Trophy className="h-7 w-7 text-[#29ABE2]/50" />
+            <div className="h-14 w-14 rounded-2xl bg-primary/10 flex items-center justify-center mx-auto mb-4">
+              <Trophy className="h-7 w-7 text-primary-text/50" />
             </div>
             <p className="text-sm text-gray-500 mb-1 font-medium">No quizzes yet</p>
             <p className="text-xs text-gray-400">Take a quiz from your materials above to build your history.</p>

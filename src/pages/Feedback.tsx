@@ -102,7 +102,7 @@ const Feedback = () => {
     <div className="container max-w-2xl py-8 px-4 md:py-12 animate-in fade-in slide-in-from-bottom-4 duration-500">
       <div className="mb-8 space-y-2">
         <h1 className="text-3xl font-bold tracking-tight flex items-center gap-2">
-          <MessageSquare className="h-8 w-8 text-primary" />
+          <MessageSquare className="h-8 w-8 text-primary-text" />
           We Value Your Feedback
         </h1>
         <p className="text-muted-foreground">
@@ -110,7 +110,7 @@ const Feedback = () => {
         </p>
       </div>
 
-      <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 border-border/50 shadow-sm">
+      <div className="bg-card rounded-2xl shadow-sm border border-gray-100 p-6 border-border/50 shadow-sm">
         <div className="mb-4" >
           <h3 className="font-bold text-gray-900 text-lg" >Submit Feedback</h3>
           <p className="text-xs text-gray-400 mt-0.5" >

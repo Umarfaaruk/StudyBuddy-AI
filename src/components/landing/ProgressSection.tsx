@@ -67,7 +67,7 @@ const ProgressSection = () => (
                 </div>
                 <div className="h-2 bg-muted rounded-full overflow-hidden">
                   <div
-                    className="h-full bg-gradient-to-r from-accent to-highlight rounded-full transition-all"
+                    className="h-full bg-gradient-to-r from-primary to-cta rounded-full transition-all"
                     style={{ width: `${s.pct}%` }}
                   />
                 </div>

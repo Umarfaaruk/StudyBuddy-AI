@@ -50,7 +50,7 @@ const DeploymentHealthNotice = () => {
       role="status"
       className="rounded-lg border border-cta/30 bg-cta/5 px-4 py-3 flex items-start gap-3"
     >
-      <AlertTriangle className="h-4 w-4 text-cta flex-shrink-0 mt-0.5" />
+      <AlertTriangle className="h-4 w-4 text-cta-text flex-shrink-0 mt-0.5" />
       <div className="min-w-0 flex-1">
         <p className="text-sm font-medium text-foreground">
           {degraded.length === 1

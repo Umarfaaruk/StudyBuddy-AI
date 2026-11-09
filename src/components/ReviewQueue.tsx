@@ -49,14 +49,14 @@ const ReviewQueue = () => {
     <div className="rounded-2xl border border-border bg-card overflow-hidden">
       <div className="px-4 py-3 border-b border-border flex items-center justify-between gap-3">
         <div className="flex items-center gap-2 min-w-0">
-          <RotateCcw className="h-4 w-4 text-primary flex-shrink-0" />
+          <RotateCcw className="h-4 w-4 text-primary-text flex-shrink-0" />
           <h2 className="text-sm font-bold text-foreground">
             Due for review
             <span className="ml-1.5 font-normal text-muted-foreground">({due.length})</span>
           </h2>
         </div>
         {overdueCount > 0 && (
-          <span className="text-xs font-medium text-cta flex-shrink-0">
+          <span className="text-xs font-medium text-cta-text flex-shrink-0">
             {overdueCount} overdue
           </span>
         )}
@@ -75,13 +75,13 @@ const ReviewQueue = () => {
                 {/* Repeated lapses are the signal worth surfacing — this concept
                     keeps slipping, so it deserves more than another quick pass. */}
                 {item.lapses > 1 && (
-                  <span className="text-cta"> · forgotten {item.lapses}×</span>
+                  <span className="text-cta-text"> · forgotten {item.lapses}×</span>
                 )}
               </div>
             </div>
             <Link
               to={`/practice/${item.syllabusNodeId}`}
-              className="text-xs font-medium text-primary hover:underline flex-shrink-0"
+              className="text-xs font-medium text-primary-text hover:underline flex-shrink-0"
             >
               Review
             </Link>
@@ -91,7 +91,7 @@ const ReviewQueue = () => {
 
       <Link
         to="/progress"
-        className="px-4 py-3 border-t border-border flex items-center justify-between text-xs font-medium text-primary hover:bg-muted/40 transition-colors"
+        className="px-4 py-3 border-t border-border flex items-center justify-between text-xs font-medium text-primary-text hover:bg-muted/40 transition-colors"
       >
         See all scheduled reviews
         <ArrowRight className="h-3.5 w-3.5" />

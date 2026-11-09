@@ -498,22 +498,22 @@ const AITutor = ({ hideHeader = false }: { hideHeader?: boolean } = {}) => {
   };
 
   return (
-    <div className={`flex flex-col w-full overflow-hidden bg-white ${hideHeader ? "h-[480px] rounded-xl" : "h-[calc(100vh-80px)]"}`}>
+    <div className={`flex flex-col w-full overflow-hidden bg-card ${hideHeader ? "h-[480px] rounded-xl" : "h-[calc(100vh-80px)]"}`}>
       {/* Premium Revamped Header */}
       {!hideHeader && (
-        <div className="relative overflow-hidden bg-gradient-to-r from-[#29ABE2] via-[#29ABE2] to-[#29ABE2] text-white px-6 py-6 shadow-sm shrink-0">
+        <div className="relative overflow-hidden bg-gradient-to-r from-primary via-primary to-primary text-white px-6 py-6 shadow-sm shrink-0">
           <div className="absolute top-0 right-0 w-64 h-64 bg-white/5 rounded-full -translate-y-16 translate-x-16" />
           <div className="absolute bottom-0 left-0 w-32 h-32 bg-white/5 rounded-full translate-y-8 -translate-x-8" />
           
           <div className="relative flex flex-col md:flex-row md:items-center justify-between gap-4">
             <div className="space-y-1.5">
-              <div className="inline-flex items-center gap-1.5 bg-white/10 px-2.5 py-1 rounded-full text-[10px] font-semibold uppercase tracking-wider text-[#29ABE2] backdrop-blur-sm">
+              <div className="inline-flex items-center gap-1.5 bg-white/10 px-2.5 py-1 rounded-full text-[10px] font-semibold uppercase tracking-wider text-primary-text backdrop-blur-sm">
                 <Sparkles className="h-3 w-3" /> AI Study Assistant
               </div>
               <h1 className="text-2xl md:text-3xl font-extrabold tracking-tight flex items-center gap-2">
                 AI Study Tutor
               </h1>
-              <p className="text-[#29ABE2]/90 text-xs md:text-sm max-w-xl">
+              <p className="text-primary-text/90 text-xs md:text-sm max-w-xl">
                 {selectedMaterial
                   ? `Ask questions about "${selectedMaterial.file_name}" to unlock concepts, summarize details, or clarify doubts.`
                   : "Upload study materials or select a file to receive personalized tutoring based on your content."}
@@ -548,8 +548,8 @@ const AITutor = ({ hideHeader = false }: { hideHeader?: boolean } = {}) => {
               }}
               className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium transition-all ${
                 selectedMaterialId === m.id
-                  ? "bg-[#29ABE2] text-white shadow-sm"
-                  : "bg-white border border-gray-200 text-gray-600 hover:border-[#29ABE2]/30 hover:bg-[#29ABE2]/5"
+                  ? "bg-primary text-white shadow-sm"
+                  : "bg-card border border-gray-200 text-gray-600 hover:border-primary/30 hover:bg-primary/5"
               }`}
             >
               <FileText className="h-3 w-3 shrink-0" />
@@ -562,7 +562,7 @@ const AITutor = ({ hideHeader = false }: { hideHeader?: boolean } = {}) => {
       {/* Main Split Layout */}
       <div className="flex-1 flex flex-col lg:flex-row overflow-hidden w-full">
         {/* Left: Chat Container */}
-        <div className="flex-1 flex flex-col h-full min-w-0 border-r border-gray-150 bg-white">
+        <div className="flex-1 flex flex-col h-full min-w-0 border-r border-gray-150 bg-card">
           {/* File Selector & Upload Bar — only when the user opens the file panel */}
           {showFiles && (
           <div className="px-6 py-3 border-b border-gray-150 bg-gray-50/50 shrink-0">
@@ -582,7 +582,7 @@ const AITutor = ({ hideHeader = false }: { hideHeader?: boolean } = {}) => {
                     }
                   }}
                 >
-                  <SelectTrigger className="w-full h-9 text-sm bg-white border-gray-200">
+                  <SelectTrigger className="w-full h-9 text-sm bg-card border-gray-200">
                     <SelectValue placeholder="Select a file to ask questions about it" />
                   </SelectTrigger>
                   <SelectContent>
@@ -621,7 +621,7 @@ const AITutor = ({ hideHeader = false }: { hideHeader?: boolean } = {}) => {
                 size="sm"
                 onClick={() => fileInputRef.current?.click()}
                 disabled={uploading}
-                className="h-9 gap-1.5 text-xs flex-shrink-0 border-gray-200 bg-white"
+                className="h-9 gap-1.5 text-xs flex-shrink-0 border-gray-200 bg-card"
               >
                 {uploading ? (
                   <Loader2 className="h-3.5 w-3.5 animate-spin" />
@@ -652,8 +652,8 @@ const AITutor = ({ hideHeader = false }: { hideHeader?: boolean } = {}) => {
               <div className="flex flex-col items-center justify-center min-h-full space-y-6 py-8">
                 {selectedMaterial ? (
                   <div className="text-center space-y-4 max-w-md mx-auto">
-                    <div className="h-16 w-16 rounded-2xl bg-[#29ABE2]/10 flex items-center justify-center mx-auto shadow-sm">
-                      <Bot className="h-8 w-8 text-[#29ABE2]" />
+                    <div className="h-16 w-16 rounded-2xl bg-primary/10 flex items-center justify-center mx-auto shadow-sm">
+                      <Bot className="h-8 w-8 text-primary-text" />
                     </div>
                     <div className="space-y-1.5">
                       <h2 className="text-xl font-bold text-gray-900">{selectedMaterial.file_name}</h2>
@@ -667,7 +667,7 @@ const AITutor = ({ hideHeader = false }: { hideHeader?: boolean } = {}) => {
                         <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Key Topics Detected:</p>
                         <div className="flex flex-wrap gap-1.5 justify-center">
                           {selectedMaterial.key_topics.slice(0, 4).map((topic, idx) => (
-                            <span key={idx} className="px-2.5 py-1 rounded-full bg-[#29ABE2]/5 border border-[#29ABE2]/10 text-[11px] font-medium text-[#29ABE2]">
+                            <span key={idx} className="px-2.5 py-1 rounded-full bg-primary/5 border border-primary/10 text-[11px] font-medium text-primary-text">
                               {topic}
                             </span>
                           ))}
@@ -678,7 +678,7 @@ const AITutor = ({ hideHeader = false }: { hideHeader?: boolean } = {}) => {
                 ) : (
                   <div className="text-center space-y-6 w-full max-w-lg mx-auto px-4">
                     <div className="space-y-2">
-                      <div className="h-16 w-16 rounded-2xl bg-gradient-to-br from-[#29ABE2] to-[#29ABE2] flex items-center justify-center mx-auto shadow-md">
+                      <div className="h-16 w-16 rounded-2xl bg-gradient-to-br from-primary to-primary flex items-center justify-center mx-auto shadow-md">
                         <Bot className="h-8 w-8 text-white animate-pulse" />
                       </div>
                       <h2 className="text-xl font-extrabold text-gray-900 tracking-tight">
@@ -703,7 +703,7 @@ const AITutor = ({ hideHeader = false }: { hideHeader?: boolean } = {}) => {
                             setQuestion(q);
                             setTimeout(() => inputRef.current?.focus(), 50);
                           }}
-                          className="text-left px-4 py-3.5 rounded-2xl bg-white border border-gray-100 hover:border-[#29ABE2] hover:bg-[#29ABE2]/10 hover:shadow-sm transition-all text-xs font-semibold text-gray-600 hover:text-[#29ABE2]"
+                          className="text-left px-4 py-3.5 rounded-2xl bg-card border border-gray-100 hover:border-primary hover:bg-primary/10 hover:shadow-sm transition-all text-xs font-semibold text-gray-600 hover:text-primary-text"
                         >
                           {q}
                         </button>
@@ -712,10 +712,10 @@ const AITutor = ({ hideHeader = false }: { hideHeader?: boolean } = {}) => {
 
                     {/* Compact Drag and Drop Upload Zone */}
                     <div
-                      className={`w-full rounded-2xl border-2 border-dashed p-5 text-center transition-all duration-200 cursor-pointer bg-white/50 ${
+                      className={`w-full rounded-2xl border-2 border-dashed p-5 text-center transition-all duration-200 cursor-pointer bg-card/50 ${
                         isDragOver
-                          ? "border-[#29ABE2] bg-[#29ABE2]/50 scale-[1.01]"
-                          : "border-gray-200 hover:border-[#29ABE2]/60 hover:bg-white"
+                          ? "border-primary bg-primary/50 scale-[1.01]"
+                          : "border-gray-200 hover:border-primary/60 hover:bg-card"
                       }`}
                       onClick={() => fileInputRef.current?.click()}
                       onDragOver={(e) => {
@@ -726,7 +726,7 @@ const AITutor = ({ hideHeader = false }: { hideHeader?: boolean } = {}) => {
                       onDrop={handleDrop}
                     >
                       <div className="flex items-center justify-center gap-3">
-                        <div className="h-9 w-9 rounded-xl bg-[#29ABE2] flex items-center justify-center text-white shrink-0">
+                        <div className="h-9 w-9 rounded-xl bg-primary flex items-center justify-center text-white shrink-0">
                           <Upload className="h-5 w-5" />
                         </div>
                         <div className="text-left">
@@ -745,15 +745,15 @@ const AITutor = ({ hideHeader = false }: { hideHeader?: boolean } = {}) => {
               messages.map((msg, idx) => (
                 <div key={idx} className={`flex gap-3 ${msg.role === "user" ? "justify-end" : ""}`}>
                   {msg.role === "assistant" && (
-                    <div className="h-8 w-8 rounded-lg bg-[#29ABE2]/10 flex items-center justify-center flex-shrink-0 mt-1 shadow-sm">
-                      <Sparkles className="h-4 w-4 text-[#29ABE2]" />
+                    <div className="h-8 w-8 rounded-lg bg-primary/10 flex items-center justify-center flex-shrink-0 mt-1 shadow-sm">
+                      <Sparkles className="h-4 w-4 text-primary-text" />
                     </div>
                   )}
                   <div
                     className={`max-w-[85%] rounded-xl px-4 py-3 text-sm ${
                       msg.role === "user"
-                        ? "bg-[#29ABE2] text-white shadow-sm"
-                        : "bg-white border border-gray-100 shadow-[0_1px_2px_rgba(0,0,0,0.02)] text-gray-800"
+                        ? "bg-primary text-white shadow-sm"
+                        : "bg-card border border-gray-100 shadow-[0_1px_2px_rgba(0,0,0,0.02)] text-gray-800"
                     }`}
                   >
                     {msg.role === "user" ? (
@@ -779,7 +779,7 @@ const AITutor = ({ hideHeader = false }: { hideHeader?: boolean } = {}) => {
                       </div>
                     ) : streaming && idx === messages.length - 1 ? (
                       <div className="flex items-center gap-2 text-gray-400">
-                        <Loader2 className="h-4 w-4 animate-spin text-[#29ABE2]" /> Synthesizing answer...
+                        <Loader2 className="h-4 w-4 animate-spin text-primary-text" /> Synthesizing answer...
                       </div>
                     ) : null}
                   </div>
@@ -791,7 +791,7 @@ const AITutor = ({ hideHeader = false }: { hideHeader?: boolean } = {}) => {
 
           {/* Input Panel */}
           <div className="px-6 py-4 border-t border-gray-150 bg-gray-50 shrink-0">
-            <div className="flex items-center gap-2 bg-white border border-gray-200 focus-within:ring-2 focus-within:ring-[#29ABE2] focus-within:border-transparent rounded-xl pl-4 pr-1.5 py-1.5 transition-all shadow-sm">
+            <div className="flex items-center gap-2 bg-card border border-gray-200 focus-within:ring-2 focus-within:ring-primary focus-within:border-transparent rounded-xl pl-4 pr-1.5 py-1.5 transition-all shadow-sm">
               <input
                 ref={inputRef}
                 placeholder={
@@ -821,7 +821,7 @@ const AITutor = ({ hideHeader = false }: { hideHeader?: boolean } = {}) => {
                   onClick={() => setShowFiles((v) => !v)}
                   className={`h-8 w-8 p-0 rounded-lg transition-all ${
                     showFiles || selectedMaterial
-                      ? "text-[#29ABE2] bg-[#29ABE2]/10 hover:bg-[#29ABE2]/15"
+                      ? "text-primary-text bg-primary/10 hover:bg-primary/15"
                       : "text-gray-400 hover:text-gray-600 hover:bg-gray-100"
                   }`}
                   title={selectedMaterial ? `Asking about "${selectedMaterial.file_name}" — manage files` : "Ask about a file"}
@@ -865,7 +865,7 @@ const AITutor = ({ hideHeader = false }: { hideHeader?: boolean } = {}) => {
                   <Button
                     onClick={handleSend}
                     disabled={!question.trim()}
-                    className="h-8 w-8 p-0 bg-[#29ABE2] text-white hover:bg-[#29ABE2] rounded-lg shadow-sm"
+                    className="h-8 w-8 p-0 bg-primary text-white hover:bg-primary rounded-lg shadow-sm"
                   >
                     <Send className="h-3.5 w-3.5" />
                   </Button>
@@ -886,9 +886,9 @@ const AITutor = ({ hideHeader = false }: { hideHeader?: boolean } = {}) => {
         <div className="w-full lg:w-[340px] h-full bg-gray-50/70 overflow-y-auto p-6 space-y-6 shrink-0 border-t lg:border-t-0 border-gray-150">
           {/* Suggested Questions Section */}
           {selectedMaterial && selectedMaterial.key_topics.length > 0 ? (
-            <div className="bg-white border border-gray-150 rounded-2xl p-4 shadow-sm space-y-3">
+            <div className="bg-card border border-gray-150 rounded-2xl p-4 shadow-sm space-y-3">
               <h4 className="text-xs font-bold text-gray-400 uppercase tracking-wider flex items-center gap-1.5">
-                <MessageCircleQuestion className="h-3.5 w-3.5 text-[#29ABE2]" /> Suggested Questions
+                <MessageCircleQuestion className="h-3.5 w-3.5 text-primary-text" /> Suggested Questions
               </h4>
               <div className="flex flex-col gap-2">
                 {selectedMaterial.key_topics.slice(0, 3).map((topic, idx) => {
@@ -905,7 +905,7 @@ const AITutor = ({ hideHeader = false }: { hideHeader?: boolean } = {}) => {
                         setQuestion(q);
                         inputRef.current?.focus();
                       }}
-                      className="text-left text-xs text-gray-600 hover:text-[#29ABE2] hover:bg-[#29ABE2]/50 p-2.5 rounded-xl border border-gray-100 hover:border-[#29ABE2]/40 transition-all font-medium"
+                      className="text-left text-xs text-gray-600 hover:text-primary-text hover:bg-primary/50 p-2.5 rounded-xl border border-gray-100 hover:border-primary/40 transition-all font-medium"
                     >
                       {q}
                     </button>
@@ -914,9 +914,9 @@ const AITutor = ({ hideHeader = false }: { hideHeader?: boolean } = {}) => {
               </div>
             </div>
           ) : (
-            <div className="bg-white border border-gray-150 rounded-2xl p-4 shadow-sm space-y-3">
+            <div className="bg-card border border-gray-150 rounded-2xl p-4 shadow-sm space-y-3">
               <h4 className="text-xs font-bold text-gray-400 uppercase tracking-wider flex items-center gap-1.5">
-                <MessageCircleQuestion className="h-3.5 w-3.5 text-[#29ABE2]" /> General Doubts
+                <MessageCircleQuestion className="h-3.5 w-3.5 text-primary-text" /> General Doubts
               </h4>
               <div className="flex flex-col gap-2">
                 {[
@@ -930,7 +930,7 @@ const AITutor = ({ hideHeader = false }: { hideHeader?: boolean } = {}) => {
                       setQuestion(item.q);
                       inputRef.current?.focus();
                     }}
-                    className="text-left text-xs text-gray-600 hover:text-[#29ABE2] hover:bg-[#29ABE2]/50 p-2.5 rounded-xl border border-gray-100 hover:border-[#29ABE2]/40 transition-all font-medium"
+                    className="text-left text-xs text-gray-600 hover:text-primary-text hover:bg-primary/50 p-2.5 rounded-xl border border-gray-100 hover:border-primary/40 transition-all font-medium"
                   >
                     {item.label}
                   </button>

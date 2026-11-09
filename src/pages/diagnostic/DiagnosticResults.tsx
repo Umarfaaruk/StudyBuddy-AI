@@ -34,7 +34,7 @@ interface ResultState {
 }
 
 const scoreColour = (score: number) =>
-  score < 25 ? "text-destructive" : score < 50 ? "text-cta" : score < 75 ? "text-foreground" : "text-success";
+  score < 25 ? "text-destructive" : score < 50 ? "text-cta-text" : score < 75 ? "text-foreground" : "text-success";
 
 const barColour = (score: number) =>
   score < 25 ? "bg-destructive" : score < 50 ? "bg-cta" : score < 75 ? "bg-primary" : "bg-success";
@@ -158,7 +158,7 @@ const DiagnosticResults = () => {
       {weakest.length > 0 && (
         <section className="rounded-2xl border border-cta/30 bg-cta/5 p-5 space-y-2">
           <h2 className="text-sm font-semibold text-foreground flex items-center gap-2">
-            <TrendingUp className="h-4 w-4 text-cta" />
+            <TrendingUp className="h-4 w-4 text-cta-text" />
             {weakest.length} topic{weakest.length === 1 ? "" : "s"} need attention first
           </h2>
           <p className="text-sm text-muted-foreground">
@@ -210,7 +210,7 @@ const DiagnosticResults = () => {
               ))}
             </div>
             {plan.items.length > 8 && (
-              <Link to="/planner" className="text-sm text-primary hover:underline inline-block">
+              <Link to="/planner" className="text-sm text-primary-text hover:underline inline-block">
                 View the full {plan.items.length}-day plan →
               </Link>
             )}

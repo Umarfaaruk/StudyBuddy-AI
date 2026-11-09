@@ -18,7 +18,7 @@ const About = () => {
         <div className="container max-w-5xl mx-auto px-6">
           <div className="text-center mb-16">
             <h1 className="text-4xl md:text-6xl font-bold mb-6 tracking-tight">
-              About <span className="text-primary">StudyBuddy AI</span>
+              About <span className="text-primary-text">StudyBuddy AI</span>
             </h1>
             <p className="text-lg md:text-xl text-muted-foreground leading-relaxed max-w-3xl mx-auto">
               We're revolutionizing the way students learn, practice, and succeed through completely personalized AI-driven education.
@@ -28,7 +28,7 @@ const About = () => {
           <div className="grid md:grid-cols-2 gap-12 mt-20">
             <div className="bg-card border border-border rounded-3xl p-8 hover:shadow-lg hover:border-primary/30 transition-all duration-300">
               <div className="h-14 w-14 rounded-2xl bg-secondary flex items-center justify-center mb-6">
-                <Target className="h-7 w-7 text-primary" />
+                <Target className="h-7 w-7 text-primary-text" />
               </div>
               <h2 className="text-2xl font-bold mb-4">Our Mission</h2>
               <p className="text-muted-foreground leading-relaxed">
@@ -38,7 +38,7 @@ const About = () => {
 
             <div className="bg-card border border-border rounded-3xl p-8 hover:shadow-lg hover:border-primary/30 transition-all duration-300">
               <div className="h-14 w-14 rounded-2xl bg-secondary flex items-center justify-center mb-6">
-                <Lightbulb className="h-7 w-7 text-primary" />
+                <Lightbulb className="h-7 w-7 text-primary-text" />
               </div>
               <h2 className="text-2xl font-bold mb-4">Our Vision</h2>
               <p className="text-muted-foreground leading-relaxed">

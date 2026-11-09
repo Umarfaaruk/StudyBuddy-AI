@@ -299,7 +299,7 @@ const Settings = () => {
                 onClick={() => setActiveTab(tab.key)}
                 className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
                   activeTab === tab.key
-                    ? "text-primary bg-primary/10 font-semibold"
+                    ? "text-primary-text bg-primary/10 font-semibold"
                     : "text-muted-foreground hover:text-foreground hover:bg-muted"
                 }`}
               >
@@ -333,7 +333,7 @@ const Settings = () => {
             <p className="text-xs opacity-80">Unlimited AI tutors & detailed progress analytics.</p>
             <Button
               size="sm"
-              className="w-full bg-white text-primary hover:bg-white/95 font-semibold text-xs mt-2"
+              className="w-full bg-card text-primary-text hover:bg-card/95 font-semibold text-xs mt-2"
               onClick={() => toast.info("You're on StudyBuddy Pro — all features are currently free. Billing management is coming soon.")}
             >
               Manage Billing
@@ -446,7 +446,7 @@ const Settings = () => {
                 <h3 className="font-bold text-foreground pb-4 border-b border-border">AI Tutor Preferences</h3>
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3">
-                    <Bot className="h-5 w-5 text-primary" />
+                    <Bot className="h-5 w-5 text-primary-text" />
                     <div>
                       <div className="text-sm font-medium text-foreground">Socratic Method</div>
                       <div className="text-xs text-muted-foreground">AI will guide you with questions instead of giving answers directly.</div>
@@ -472,7 +472,7 @@ const Settings = () => {
                         onClick={() => setTutorTone(tone)}
                         className={`px-4 py-2.5 rounded-lg text-sm font-medium border transition-colors capitalize ${
                           tutorTone === tone
-                            ? "border-primary bg-primary/10 text-primary font-semibold"
+                            ? "border-primary bg-primary/10 text-primary-text font-semibold"
                             : "border-border text-muted-foreground hover:border-primary/30"
                         }`}
                       >
@@ -609,7 +609,7 @@ const Settings = () => {
       {isReportModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setIsReportModalOpen(false)} />
-          <div className="relative w-full max-w-lg bg-[#0F172A] border border-white/10 rounded-2xl shadow-2xl p-6 max-h-[90vh] overflow-y-auto scrollbar-thin animate-in fade-in zoom-in-95 duration-200 text-left">
+          <div className="on-dark relative w-full max-w-lg bg-[#0F172A] border border-white/10 rounded-2xl shadow-2xl p-6 max-h-[90vh] overflow-y-auto scrollbar-thin animate-in fade-in zoom-in-95 duration-200 text-left">
             <button
               onClick={() => setIsReportModalOpen(false)}
               className="absolute top-4 right-4 text-white/40 hover:text-white p-1 rounded-lg hover:bg-white/5 transition-all"

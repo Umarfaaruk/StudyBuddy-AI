@@ -329,7 +329,7 @@ Limit the response to match the number of days (${daysDiff} days), max 14 entrie
   };
 
   if (materialsLoading || plansLoading) {
-    return <div className="p-8 flex justify-center"><Loader2 className="animate-spin h-8 w-8 text-primary" /></div>;
+    return <div className="p-8 flex justify-center"><Loader2 className="animate-spin h-8 w-8 text-primary-text" /></div>;
   }
 
   return (
@@ -337,7 +337,7 @@ Limit the response to match the number of days (${daysDiff} days), max 14 entrie
       {/* Header */}
       <div className="flex items-center gap-3">
         <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center">
-          <CalendarDays className="h-5 w-5 text-primary" />
+          <CalendarDays className="h-5 w-5 text-primary-text" />
         </div>
         <div>
           <h1 className="text-2xl font-bold text-foreground">Study Planner</h1>
@@ -352,7 +352,7 @@ Limit the response to match the number of days (${daysDiff} days), max 14 entrie
           <div className="bg-primary/5 border border-primary/20 rounded-xl p-5 space-y-3">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
-                <Sparkles className="h-5 w-5 text-primary" />
+                <Sparkles className="h-5 w-5 text-primary-text" />
                 <span className="font-bold text-foreground">Active Study Plan</span>
               </div>
               <div className="flex items-center gap-2">
@@ -369,7 +369,7 @@ Limit the response to match the number of days (${daysDiff} days), max 14 entrie
             <div className="space-y-1.5">
               <div className="flex justify-between text-xs text-muted-foreground">
                 <span>Progress</span>
-                <span className="font-semibold text-primary">{completedDays}/{totalDays} days completed</span>
+                <span className="font-semibold text-primary-text">{completedDays}/{totalDays} days completed</span>
               </div>
               <div className="h-2.5 bg-muted rounded-full overflow-hidden">
                 <div className="h-full bg-primary rounded-full transition-all duration-500"
@@ -397,7 +397,7 @@ Limit the response to match the number of days (${daysDiff} days), max 14 entrie
                 }`}>
                   <div className="flex items-center gap-2 mb-2">
                     <span className={`text-xs font-bold uppercase tracking-wider px-2 py-0.5 rounded ${
-                      dayObj.completed ? 'bg-primary/20 text-primary' : 'bg-muted text-muted-foreground'
+                      dayObj.completed ? 'bg-primary/20 text-primary-text' : 'bg-muted text-muted-foreground'
                     }`}>
                       Day {dayObj.day || index + 1}
                     </span>
@@ -420,7 +420,7 @@ Limit the response to match the number of days (${daysDiff} days), max 14 entrie
                     <div className="mt-4 pt-3 border-t border-border flex flex-wrap gap-2">
                       <Link
                         to={`/lessons/${activePlan.topic_id}`}
-                        className="inline-flex items-center gap-1.5 text-xs font-semibold text-primary hover:text-primary/80 bg-primary/10 hover:bg-primary/20 px-3 py-1.5 rounded-lg transition-all"
+                        className="inline-flex items-center gap-1.5 text-xs font-semibold text-primary-text hover:text-primary-text/80 bg-primary/10 hover:bg-primary/20 px-3 py-1.5 rounded-lg transition-all"
                       >
                         <BookOpen className="h-3.5 w-3.5" /> Study Day Lesson
                       </Link>
@@ -428,7 +428,7 @@ Limit the response to match the number of days (${daysDiff} days), max 14 entrie
                         <Link
                           to="/materials/flashcards"
                           state={{ preselectedMaterial: { id: activePlan.material_id, file_name: activePlan.file_name } }}
-                          className="inline-flex items-center gap-1.5 text-xs font-semibold text-cta hover:text-cta/80 bg-cta/10 hover:bg-cta/20 px-3 py-1.5 rounded-lg transition-all"
+                          className="inline-flex items-center gap-1.5 text-xs font-semibold text-cta-text hover:text-cta-text/80 bg-cta/10 hover:bg-cta/20 px-3 py-1.5 rounded-lg transition-all"
                         >
                           <BrainCircuit className="h-3.5 w-3.5" /> Review Flashcards
                         </Link>
@@ -467,7 +467,7 @@ Limit the response to match the number of days (${daysDiff} days), max 14 entrie
                 planMode === "smart" ? "bg-primary/5 border-primary ring-1 ring-primary/30" : "bg-card border-border hover:border-primary/40"
               }`}
             >
-              <Sparkles className={`h-6 w-6 mb-2 ${planMode === "smart" ? "text-primary" : "text-muted-foreground"}`} />
+              <Sparkles className={`h-6 w-6 mb-2 ${planMode === "smart" ? "text-primary-text" : "text-muted-foreground"}`} />
               <div className="text-sm font-bold text-foreground">Smart Plan</div>
               <div className="text-xs text-muted-foreground mt-0.5">AI generates a plan from your profile & subjects</div>
             </button>
@@ -476,7 +476,7 @@ Limit the response to match the number of days (${daysDiff} days), max 14 entrie
                 planMode === "material" ? "bg-primary/5 border-primary ring-1 ring-primary/30" : "bg-card border-border hover:border-primary/40"
               }`}
             >
-              <FileText className={`h-6 w-6 mb-2 ${planMode === "material" ? "text-primary" : "text-muted-foreground"}`} />
+              <FileText className={`h-6 w-6 mb-2 ${planMode === "material" ? "text-primary-text" : "text-muted-foreground"}`} />
               <div className="text-sm font-bold text-foreground">Material-Based</div>
               <div className="text-xs text-muted-foreground mt-0.5">Build a plan around uploaded study materials</div>
             </button>
@@ -486,7 +486,7 @@ Limit the response to match the number of days (${daysDiff} days), max 14 entrie
           {preferences && planMode === "smart" && (
             <div className="bg-card border border-border rounded-xl p-5 space-y-3">
               <div className="flex items-center gap-2 text-sm font-semibold text-foreground">
-                <Target className="h-4 w-4 text-primary" /> Your Learning Profile
+                <Target className="h-4 w-4 text-primary-text" /> Your Learning Profile
               </div>
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
                 {preferences.learner_type && (
@@ -527,7 +527,7 @@ Limit the response to match the number of days (${daysDiff} days), max 14 entrie
                 )}
               </div>
               <p className="text-[10px] text-muted-foreground">
-                Your plan is personalized using your onboarding data. <Link to="/onboarding" className="text-primary hover:underline">Update preferences →</Link>
+                Your plan is personalized using your onboarding data. <Link to="/onboarding" className="text-primary-text hover:underline">Update preferences →</Link>
               </p>
             </div>
           )}
@@ -544,7 +544,7 @@ Limit the response to match the number of days (${daysDiff} days), max 14 entrie
                         selectedMaterial?.id === m.id ? "bg-primary/5 border-primary" : "bg-card border-border hover:border-primary/40"
                       }`}
                     >
-                      <FileText className="h-4 w-4 text-primary mb-1" />
+                      <FileText className="h-4 w-4 text-primary-text mb-1" />
                       <div className="text-sm font-medium text-foreground truncate">{m.file_name}</div>
                     </button>
                   ))}

@@ -155,7 +155,7 @@ const FreeTest = () => {
     return (
       <Shell>
         <div className="flex flex-col items-center justify-center gap-3 py-24">
-          <Loader2 className="h-6 w-6 animate-spin text-primary" />
+          <Loader2 className="h-6 w-6 animate-spin text-primary-text" />
           <p className="text-sm text-muted-foreground">
             {phase === "scoring" ? "Scoring your answers…" : "Building your test…"}
           </p>
@@ -221,7 +221,7 @@ const FreeTest = () => {
           {phase === "partial" && hidden > 0 && (
             <div className="rounded-2xl border border-primary/30 bg-primary/5 p-5 space-y-4">
               <div className="flex items-center gap-2">
-                <Lock className="h-4 w-4 text-primary flex-shrink-0" />
+                <Lock className="h-4 w-4 text-primary-text flex-shrink-0" />
                 <h2 className="text-sm font-bold text-foreground">
                   {hidden} more topic{hidden === 1 ? "" : "s"} in your full report
                 </h2>
@@ -260,7 +260,7 @@ const FreeTest = () => {
 
           {phase === "full" && (
             <div className="rounded-2xl border border-border bg-card p-5 text-center space-y-3">
-              <Target className="h-6 w-6 text-primary mx-auto" />
+              <Target className="h-6 w-6 text-primary-text mx-auto" />
               <h2 className="text-sm font-bold text-foreground">Turn this into a study plan</h2>
               <p className="text-xs text-muted-foreground">
                 Create a free account and we&rsquo;ll carry these results across — no need

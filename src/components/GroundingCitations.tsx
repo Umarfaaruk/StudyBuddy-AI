@@ -19,7 +19,7 @@ const GroundingCitations = ({ labels }: { labels: string[] }) => {
   return (
     <div className="mt-4 rounded-xl border border-border bg-muted/40 px-4 py-3">
       <div className="flex items-center gap-2 mb-1.5">
-        <BookMarked className="h-3.5 w-3.5 text-primary flex-shrink-0" />
+        <BookMarked className="h-3.5 w-3.5 text-primary-text flex-shrink-0" />
         <span className="text-xs font-semibold text-foreground">
           Grounded in your syllabus
         </span>

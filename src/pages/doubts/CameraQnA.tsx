@@ -89,7 +89,7 @@ const CameraQnA = () => {
     <div className="container max-w-2xl py-8 px-4 md:py-12 animate-in fade-in slide-in-from-bottom-4 duration-500">
       <div className="mb-8 space-y-2">
         <h1 className="text-3xl font-bold tracking-tight flex items-center gap-2">
-          <Camera className="h-8 w-8 text-primary" />
+          <Camera className="h-8 w-8 text-primary-text" />
           Ask Doubt — Image Q&A
         </h1>
         <p className="text-muted-foreground">
@@ -110,7 +110,7 @@ const CameraQnA = () => {
           {!imagePreview ? (
             <div className="border-2 border-dashed border-border rounded-xl p-8 flex flex-col items-center justify-center bg-muted/30 text-center gap-4 transition-colors hover:bg-muted/50 cursor-pointer"
                  onClick={() => fileInputRef.current?.click()}>
-              <div className="h-16 w-16 bg-primary/10 rounded-full flex items-center justify-center text-primary">
+              <div className="h-16 w-16 bg-primary/10 rounded-full flex items-center justify-center text-primary-text">
                 <Camera className="h-8 w-8" />
               </div>
               <div>
@@ -171,7 +171,7 @@ const CameraQnA = () => {
           {/* Answer Area */}
           {answer && (
             <div className="mt-6 p-4 rounded-xl bg-primary/5 border border-primary/20">
-              <h3 className="font-semibold text-primary mb-2 flex items-center gap-2">
+              <h3 className="font-semibold text-primary-text mb-2 flex items-center gap-2">
                 <Send className="h-4 w-4" />
                 AI Answer
               </h3>

@@ -587,7 +587,7 @@ const AdminPanel = () => {
     <div className="p-4 md:p-8 max-w-7xl mx-auto space-y-6">
       {/* Header */}
       <div className="flex items-center gap-3">
-        <div className="h-11 w-11 rounded-xl bg-gradient-to-br from-[#29ABE2] to-[#29ABE2] flex items-center justify-center shadow-lg shadow-[#29ABE2]/20">
+        <div className="h-11 w-11 rounded-xl bg-gradient-to-br from-primary to-primary flex items-center justify-center shadow-lg shadow-primary/20">
           <ShieldCheck className="h-5 w-5 text-white" />
         </div>
         <div>
@@ -619,7 +619,7 @@ const AdminPanel = () => {
       {isLoading ? (
         <div className="grid grid-cols-3 gap-3">
           {Array.from({ length: 3 }).map((_, i) => (
-            <div key={i} className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100">
+            <div key={i} className="bg-card rounded-2xl p-4 shadow-sm border border-gray-100">
               <Skeleton className="h-9 w-9 rounded-lg mb-3" />
               <Skeleton className="h-7 w-16 mb-1.5" />
               <Skeleton className="h-3 w-20" />
@@ -629,11 +629,11 @@ const AdminPanel = () => {
       ) : (
         <div className="grid grid-cols-3 gap-3">
           {[
-            { label: "Total XP",   value: (platformStats?.totalXp || 0).toLocaleString(), icon: Trophy, color: "text-[#29ABE2]",  bgColor: "bg-[#29ABE2]/10" },
+            { label: "Total XP",   value: (platformStats?.totalXp || 0).toLocaleString(), icon: Trophy, color: "text-primary-text",  bgColor: "bg-primary/10" },
             { label: "Avg Streak", value: `${platformStats?.avgStreak || 0}d`,            icon: Flame,  color: "text-red-500",    bgColor: "bg-red-500/10" },
             { label: "Avg Rating", value: `${avgRating}★`,                                icon: Star,   color: "text-yellow-500", bgColor: "bg-yellow-500/10" },
           ].map((stat) => (
-            <div key={stat.label} className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100 hover:border-[#29ABE2]/30 hover:shadow-md transition-all duration-200">
+            <div key={stat.label} className="bg-card rounded-2xl p-4 shadow-sm border border-gray-100 hover:border-primary/30 hover:shadow-md transition-all duration-200">
               <div className={`h-9 w-9 rounded-lg ${stat.bgColor} flex items-center justify-center mb-3`}>
                 <stat.icon className={`h-[18px] w-[18px] ${stat.color}`} />
               </div>
@@ -704,14 +704,14 @@ const AdminPanel = () => {
 
       {/* Cohort analytics (Phase 3.3 / 3.4) */}
       {activeTab === "cohorts" && (
-        <div className="bg-white rounded-2xl border border-gray-100 p-6">
+        <div className="bg-card rounded-2xl border border-gray-100 p-6">
           <CohortAnalytics />
         </div>
       )}
 
       {/* Question bank ingestion (Phase 1) */}
       {activeTab === "question-bank" && (
-        <div className="bg-white rounded-2xl border border-gray-100 p-6">
+        <div className="bg-card rounded-2xl border border-gray-100 p-6">
           <QuestionBankImport />
         </div>
       )}
@@ -734,14 +734,14 @@ const AdminPanel = () => {
             }
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full h-11 pl-10 pr-4 text-sm bg-white border border-gray-200 rounded-xl outline-none focus:border-[#29ABE2]/40 focus:ring-2 focus:ring-[#29ABE2]/10 text-gray-900 transition-all shadow-sm placeholder:text-gray-300"
+            className="w-full h-11 pl-10 pr-4 text-sm bg-card border border-gray-200 rounded-xl outline-none focus:border-primary/40 focus:ring-2 focus:ring-primary/10 text-gray-900 transition-all shadow-sm placeholder:text-gray-300"
           />
         </div>
       )}
 
       {/* ── USERS TAB ─────────────────────────────────────── */}
       {activeTab === "users" && (
-        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+        <div className="bg-card rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
           {/* Desktop Table Header */}
           <div className="hidden md:grid grid-cols-[2fr_1fr_1fr_1fr_1fr_1fr_1fr_1fr_1fr] gap-4 px-6 py-3.5 bg-gray-50/80 border-b border-gray-100">
             {["User", "XP", "Streak", "Study Hours", "Avg Score", "Quizzes", "Doubts", "Materials", "Last Active"].map((h) => (
@@ -751,7 +751,7 @@ const AdminPanel = () => {
 
           {isLoading ? (
             <div className="p-8 flex items-center justify-center gap-3">
-              <Loader2 className="h-5 w-5 animate-spin text-[#29ABE2]" />
+              <Loader2 className="h-5 w-5 animate-spin text-primary-text" />
               <span className="text-sm text-gray-400">Loading user data...</span>
             </div>
           ) : filteredUsers.length === 0 ? (
@@ -776,8 +776,8 @@ const AdminPanel = () => {
                     {u.avatar_url ? (
                       <img src={u.avatar_url} alt={u.name} className="h-9 w-9 rounded-full object-cover ring-2 ring-gray-100" />
                     ) : (
-                      <div className="h-9 w-9 rounded-full bg-gradient-to-br from-[#29ABE2]/20 to-[#29ABE2]/10 flex items-center justify-center ring-2 ring-[#29ABE2]/10">
-                        <span className="text-sm font-bold text-[#29ABE2]">{u.name.charAt(0).toUpperCase()}</span>
+                      <div className="h-9 w-9 rounded-full bg-gradient-to-br from-primary/20 to-primary/10 flex items-center justify-center ring-2 ring-primary/10">
+                        <span className="text-sm font-bold text-primary-text">{u.name.charAt(0).toUpperCase()}</span>
                       </div>
                     )}
                     <div className="min-w-0 flex-1">
@@ -797,7 +797,7 @@ const AdminPanel = () => {
                     <span className="flex items-center gap-1"><Flame className="h-3 w-3 text-red-400" />{u.streak}d</span>
                     <span className="flex items-center gap-1"><Clock className="h-3 w-3 text-green-500" />{u.studyHours}h</span>
                     <span className="flex items-center gap-1"><Target className="h-3 w-3 text-emerald-500" />{u.avgQuizScore > 0 ? `${u.avgQuizScore}%` : "—"}</span>
-                    <span className="flex items-center gap-1"><Trophy className="h-3 w-3 text-[#29ABE2]" />{u.quizCount}</span>
+                    <span className="flex items-center gap-1"><Trophy className="h-3 w-3 text-primary-text" />{u.quizCount}</span>
                     <span className="flex items-center gap-1"><MessageCircleQuestion className="h-3 w-3 text-violet-500" />{u.doubtCount}</span>
                   </div>
 
@@ -806,7 +806,7 @@ const AdminPanel = () => {
                   <div className="hidden md:flex items-center gap-1"><Flame className="h-3.5 w-3.5 text-red-400" /><span className="text-sm font-semibold text-gray-900">{u.streak}d</span></div>
                   <div className="hidden md:flex items-center gap-1"><Clock className="h-3.5 w-3.5 text-green-500" /><span className="text-sm font-semibold text-gray-900">{u.studyHours}h</span></div>
                   <div className="hidden md:flex items-center gap-1"><Target className="h-3.5 w-3.5 text-emerald-500" /><span className={`text-sm font-semibold ${u.avgQuizScore >= 80 ? "text-emerald-600" : u.avgQuizScore >= 50 ? "text-amber-600" : u.avgQuizScore > 0 ? "text-red-500" : "text-gray-400"}`}>{u.avgQuizScore > 0 ? `${u.avgQuizScore}%` : "—"}</span></div>
-                  <div className="hidden md:flex items-center gap-1"><Trophy className="h-3.5 w-3.5 text-[#29ABE2]" /><span className="text-sm font-semibold text-gray-900">{u.quizCount}</span></div>
+                  <div className="hidden md:flex items-center gap-1"><Trophy className="h-3.5 w-3.5 text-primary-text" /><span className="text-sm font-semibold text-gray-900">{u.quizCount}</span></div>
                   <div className="hidden md:flex items-center gap-1"><MessageCircleQuestion className="h-3.5 w-3.5 text-violet-500" /><span className="text-sm font-semibold text-gray-900">{u.doubtCount}</span></div>
                   <div className="hidden md:flex items-center gap-1"><Upload className="h-3.5 w-3.5 text-purple-500" /><span className="text-sm font-semibold text-gray-900">{u.materialsCount}</span></div>
                   <div className="hidden md:block text-xs text-gray-400">{u.lastActive}</div>
@@ -816,32 +816,32 @@ const AdminPanel = () => {
                 {expandedUserId === u.uid && (
                   <div className="px-4 md:px-6 py-4 bg-gray-50/60 border-b border-gray-100 animate-in fade-in slide-in-from-top-2 duration-200">
                     <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 md:gap-4">
-                      <div className="bg-white rounded-xl p-3.5 md:p-4 border border-gray-100 shadow-sm">
+                      <div className="bg-card rounded-xl p-3.5 md:p-4 border border-gray-100 shadow-sm">
                         <div className="text-[10px] font-bold uppercase tracking-wider text-gray-400 mb-1">Total XP</div>
                         <div className="text-lg md:text-xl font-bold text-gray-900">{u.xp.toLocaleString()}</div>
                         <div className="text-[10px] text-gray-400 mt-0.5">Level {Math.floor(u.xp / 200) + 1}</div>
                       </div>
-                      <div className="bg-white rounded-xl p-3.5 md:p-4 border border-gray-100 shadow-sm">
+                      <div className="bg-card rounded-xl p-3.5 md:p-4 border border-gray-100 shadow-sm">
                         <div className="text-[10px] font-bold uppercase tracking-wider text-gray-400 mb-1">Study Time</div>
                         <div className="text-lg md:text-xl font-bold text-gray-900">{u.studyHours}h</div>
                       </div>
-                      <div className="bg-white rounded-xl p-3.5 md:p-4 border border-gray-100 shadow-sm">
+                      <div className="bg-card rounded-xl p-3.5 md:p-4 border border-gray-100 shadow-sm">
                         <div className="text-[10px] font-bold uppercase tracking-wider text-gray-400 mb-1">Streak</div>
                         <div className="text-lg md:text-xl font-bold text-gray-900">{u.streak}d 🔥</div>
                         <div className="text-[10px] text-gray-400 mt-0.5">Best: {u.longestStreak}d</div>
                       </div>
-                      <div className="bg-white rounded-xl p-3.5 md:p-4 border border-gray-100 shadow-sm">
+                      <div className="bg-card rounded-xl p-3.5 md:p-4 border border-gray-100 shadow-sm">
                         <div className="text-[10px] font-bold uppercase tracking-wider text-gray-400 mb-1">Avg Quiz Score</div>
                         <div className={`text-lg md:text-xl font-bold ${u.avgQuizScore >= 80 ? "text-emerald-600" : u.avgQuizScore >= 50 ? "text-amber-600" : u.avgQuizScore > 0 ? "text-red-500" : "text-gray-400"}`}>
                           {u.avgQuizScore > 0 ? `${u.avgQuizScore}%` : "—"}
                         </div>
                         <div className="text-[10px] text-gray-400 mt-0.5">{u.quizCount} quiz{u.quizCount !== 1 ? "zes" : ""}</div>
                       </div>
-                      <div className="bg-white rounded-xl p-3.5 md:p-4 border border-gray-100 shadow-sm">
+                      <div className="bg-card rounded-xl p-3.5 md:p-4 border border-gray-100 shadow-sm">
                         <div className="text-[10px] font-bold uppercase tracking-wider text-gray-400 mb-1">Doubts Asked</div>
                         <div className="text-lg md:text-xl font-bold text-gray-900">{u.doubtCount}</div>
                       </div>
-                      <div className="bg-white rounded-xl p-3.5 md:p-4 border border-gray-100 shadow-sm">
+                      <div className="bg-card rounded-xl p-3.5 md:p-4 border border-gray-100 shadow-sm">
                         <div className="text-[10px] font-bold uppercase tracking-wider text-gray-400 mb-1">Materials</div>
                         <div className="text-lg md:text-xl font-bold text-gray-900">{u.materialsCount}</div>
                       </div>
@@ -895,7 +895,7 @@ const AdminPanel = () => {
                           <div className="flex items-center gap-2 flex-shrink-0">
                             <button
                               onClick={(e) => { e.stopPropagation(); setConfirmDeleteUserId(null); }}
-                              className="px-3 py-1.5 text-xs font-semibold text-gray-600 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
+                              className="px-3 py-1.5 text-xs font-semibold text-gray-600 bg-card border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
                             >
                               Cancel
                             </button>
@@ -934,22 +934,22 @@ const AdminPanel = () => {
       {activeTab === "feedback" && (
         <div className="space-y-3">
           {feedbackLoading ? (
-            <div className="bg-white rounded-2xl p-8 flex items-center justify-center gap-3 shadow-sm border border-gray-100">
-              <Loader2 className="h-5 w-5 animate-spin text-[#29ABE2]" />
+            <div className="bg-card rounded-2xl p-8 flex items-center justify-center gap-3 shadow-sm border border-gray-100">
+              <Loader2 className="h-5 w-5 animate-spin text-primary-text" />
               <span className="text-sm text-gray-400">Loading feedback...</span>
             </div>
           ) : filteredFeedback.length === 0 ? (
-            <div className="bg-white rounded-2xl p-12 text-center shadow-sm border border-gray-100">
+            <div className="bg-card rounded-2xl p-12 text-center shadow-sm border border-gray-100">
               <MessageSquare className="h-10 w-10 text-gray-200 mx-auto mb-3" />
               <p className="text-sm text-gray-400">{searchQuery ? "No feedback matches your search" : "No feedback submitted yet"}</p>
             </div>
           ) : (
             filteredFeedback.map((f) => (
-              <div key={f.id} className="bg-white rounded-2xl p-4 md:p-5 shadow-sm border border-gray-100 hover:shadow-md transition-all duration-200">
+              <div key={f.id} className="bg-card rounded-2xl p-4 md:p-5 shadow-sm border border-gray-100 hover:shadow-md transition-all duration-200">
                 <div className="flex items-start justify-between gap-3 md:gap-4">
                   <div className="flex items-center gap-3 min-w-0">
-                    <div className="h-9 w-9 rounded-full bg-gradient-to-br from-[#29ABE2]/20 to-[#29ABE2]/10 flex items-center justify-center flex-shrink-0 ring-2 ring-[#29ABE2]/10">
-                      <span className="text-sm font-bold text-[#29ABE2]">{f.userName.charAt(0).toUpperCase()}</span>
+                    <div className="h-9 w-9 rounded-full bg-gradient-to-br from-primary/20 to-primary/10 flex items-center justify-center flex-shrink-0 ring-2 ring-primary/10">
+                      <span className="text-sm font-bold text-primary-text">{f.userName.charAt(0).toUpperCase()}</span>
                     </div>
                     <div className="min-w-0">
                       <div className="text-sm font-semibold text-gray-900 truncate">{f.userName}</div>
@@ -966,9 +966,9 @@ const AdminPanel = () => {
                       f.source === "ai_chat"
                         ? "bg-purple-50 text-purple-600"
                         : f.source === "enforced_modal"
-                        // was bg-[#29ABE2] text-[#29ABE2] — identical colours,
+                        // was bg-primary text-primary-text — identical colours,
                         // so "Weekly" rendered as an empty blue pill.
-                        ? "bg-[#29ABE2]/10 text-[#29ABE2]"
+                        ? "bg-primary/10 text-primary-text"
                         : "bg-gray-50 text-gray-500"
                     }`}>
                       {f.source === "ai_chat" ? "AI Chat" : f.source === "enforced_modal" ? "Weekly" : "Manual"}
@@ -989,13 +989,13 @@ const AdminPanel = () => {
       {activeTab === "complaints" && (
         <div className="space-y-4">
           {/* Filters Bar */}
-          <div className="flex gap-3 flex-wrap items-center bg-white rounded-2xl p-4 shadow-sm border border-gray-100">
+          <div className="flex gap-3 flex-wrap items-center bg-card rounded-2xl p-4 shadow-sm border border-gray-100">
             <div className="flex items-center gap-2">
               <span className="text-xs font-semibold text-gray-500">Filter by Status:</span>
               <select
                 value={statusFilter}
                 onChange={(e) => setStatusFilter(e.target.value)}
-                className="text-xs bg-gray-50 border border-gray-200 rounded-lg p-2 font-medium text-gray-700 outline-none focus:border-[#29ABE2]"
+                className="text-xs bg-gray-50 border border-gray-200 rounded-lg p-2 font-medium text-gray-700 outline-none focus:border-primary"
               >
                 {["Open", "All", "Pending", "Under Review", "In Progress", "Testing", "Resolved", "Rejected"].map((st) => (
                   <option key={st} value={st}>
@@ -1010,7 +1010,7 @@ const AdminPanel = () => {
               <select
                 value={priorityFilter}
                 onChange={(e) => setPriorityFilter(e.target.value)}
-                className="text-xs bg-gray-50 border border-gray-200 rounded-lg p-2 font-medium text-gray-700 outline-none focus:border-[#29ABE2]"
+                className="text-xs bg-gray-50 border border-gray-200 rounded-lg p-2 font-medium text-gray-700 outline-none focus:border-primary"
               >
                 {["All", "Low", "Medium", "High", "Critical"].map((pr) => (
                   <option key={pr} value={pr}>{pr}</option>
@@ -1028,7 +1028,7 @@ const AdminPanel = () => {
             {/* List */}
             <div className={`space-y-3 ${selectedComplaintId ? "lg:col-span-7" : "lg:col-span-12"}`}>
               {filteredComplaints.length === 0 ? (
-                <div className="bg-white rounded-2xl p-12 text-center shadow-sm border border-gray-100">
+                <div className="bg-card rounded-2xl p-12 text-center shadow-sm border border-gray-100">
                   <AlertTriangle className="h-10 w-10 text-gray-200 mx-auto mb-3" />
                   <p className="text-sm text-gray-400">No complaints found matching current filters/search</p>
                 </div>
@@ -1058,8 +1058,8 @@ const AdminPanel = () => {
                         setSelectedComplaintId(c.id);
                         setEditAdminNotes(c.admin_notes || "");
                       }}
-                      className={`bg-white rounded-2xl p-4 md:p-5 shadow-sm border transition-all duration-200 hover:shadow-md cursor-pointer text-left ${
-                        isSelected ? "border-[#29ABE2] ring-2 ring-[#29ABE2]/10 bg-[#29ABE2]/[0.01]" : "border-gray-100"
+                      className={`bg-card rounded-2xl p-4 md:p-5 shadow-sm border transition-all duration-200 hover:shadow-md cursor-pointer text-left ${
+                        isSelected ? "border-primary ring-2 ring-primary/10 bg-primary/[0.01]" : "border-gray-100"
                       }`}
                     >
                       <div className="flex items-start justify-between gap-3 flex-wrap">
@@ -1067,8 +1067,8 @@ const AdminPanel = () => {
                           {c.userAvatar ? (
                             <img src={c.userAvatar} alt={c.userName} className="h-9 w-9 rounded-full object-cover ring-2 ring-gray-100" />
                           ) : (
-                            <div className="h-9 w-9 rounded-full bg-gradient-to-br from-[#29ABE2]/20 to-[#29ABE2]/10 flex items-center justify-center ring-2 ring-[#29ABE2]/10">
-                              <span className="text-sm font-bold text-[#29ABE2]">{c.userName.charAt(0).toUpperCase()}</span>
+                            <div className="h-9 w-9 rounded-full bg-gradient-to-br from-primary/20 to-primary/10 flex items-center justify-center ring-2 ring-primary/10">
+                              <span className="text-sm font-bold text-primary-text">{c.userName.charAt(0).toUpperCase()}</span>
                             </div>
                           )}
                           <div>
@@ -1098,7 +1098,7 @@ const AdminPanel = () => {
                           Category: <span className="font-semibold text-gray-700">{c.category}</span> · Reported: <span className="font-semibold">{new Date(c.created_at).toLocaleString()}</span>
                         </div>
                         {c.screenshot && (
-                          <div className="flex items-center gap-1 text-[10px] font-semibold text-[#29ABE2]">
+                          <div className="flex items-center gap-1 text-[10px] font-semibold text-primary-text">
                             <Image className="h-3 w-3" /> Has Attachment
                           </div>
                         )}
@@ -1115,7 +1115,7 @@ const AdminPanel = () => {
               if (!activeComplaint) return null;
 
               return (
-                <div className="lg:col-span-5 bg-white border border-gray-100 shadow-lg rounded-2xl p-5 md:p-6 space-y-5 sticky top-4 text-left animate-in fade-in slide-in-from-right-4 duration-200">
+                <div className="lg:col-span-5 bg-card border border-gray-100 shadow-lg rounded-2xl p-5 md:p-6 space-y-5 sticky top-4 text-left animate-in fade-in slide-in-from-right-4 duration-200">
                   <div className="flex items-center justify-between border-b border-gray-100 pb-3">
                     <div>
                       <h3 className="font-bold text-gray-900 text-base">Issue Details</h3>
@@ -1135,8 +1135,8 @@ const AdminPanel = () => {
                       {activeComplaint.userAvatar ? (
                         <img src={activeComplaint.userAvatar} alt={activeComplaint.userName} className="h-10 w-10 rounded-full object-cover border border-gray-200" />
                       ) : (
-                        <div className="h-10 w-10 rounded-full bg-gradient-to-br from-[#29ABE2]/20 to-[#29ABE2]/10 flex items-center justify-center border border-[#29ABE2]/10">
-                          <span className="text-base font-bold text-[#29ABE2]">{activeComplaint.userName.charAt(0).toUpperCase()}</span>
+                        <div className="h-10 w-10 rounded-full bg-gradient-to-br from-primary/20 to-primary/10 flex items-center justify-center border border-primary/10">
+                          <span className="text-base font-bold text-primary-text">{activeComplaint.userName.charAt(0).toUpperCase()}</span>
                         </div>
                       )}
                       <div className="min-w-0 flex-1">
@@ -1202,7 +1202,7 @@ const AdminPanel = () => {
                         onChange={(e) => setEditAdminNotes(e.target.value)}
                         placeholder="Add internal notes or responses for the user..."
                         rows={3}
-                        className="w-full p-3 text-xs bg-gray-50 border border-gray-200 rounded-xl outline-none focus:border-[#29ABE2] text-gray-800 transition-all resize-none placeholder:text-gray-300"
+                        className="w-full p-3 text-xs bg-gray-50 border border-gray-200 rounded-xl outline-none focus:border-primary text-gray-800 transition-all resize-none placeholder:text-gray-300"
                       />
                     </div>
 
@@ -1212,12 +1212,12 @@ const AdminPanel = () => {
                         {["Pending", "Under Review", "In Progress", "Testing", "Resolved", "Rejected"].map((statusOption) => {
                           const isActive = activeComplaint.status === statusOption;
                           const colorClasses: Record<string, string> = {
-                            "Pending": isActive ? "bg-yellow-500 text-white" : "hover:bg-yellow-50 text-yellow-600 border-yellow-100 bg-white border",
-                            "Under Review": isActive ? "bg-blue-500 text-white" : "hover:bg-blue-50 text-blue-600 border-blue-100 bg-white border",
-                            "In Progress": isActive ? "bg-indigo-500 text-white" : "hover:bg-indigo-50 text-indigo-600 border-indigo-100 bg-white border",
-                            "Testing": isActive ? "bg-purple-500 text-white" : "hover:bg-purple-50 text-purple-600 border-purple-100 bg-white border",
-                            "Resolved": isActive ? "bg-emerald-500 text-white" : "hover:bg-emerald-50 text-emerald-600 border-emerald-100 bg-white border",
-                            "Rejected": isActive ? "bg-rose-500 text-white" : "hover:bg-rose-50 text-rose-600 border-rose-100 bg-white border",
+                            "Pending": isActive ? "bg-yellow-500 text-white" : "hover:bg-yellow-50 text-yellow-600 border-yellow-100 bg-card border",
+                            "Under Review": isActive ? "bg-blue-500 text-white" : "hover:bg-blue-50 text-blue-600 border-blue-100 bg-card border",
+                            "In Progress": isActive ? "bg-indigo-500 text-white" : "hover:bg-indigo-50 text-indigo-600 border-indigo-100 bg-card border",
+                            "Testing": isActive ? "bg-purple-500 text-white" : "hover:bg-purple-50 text-purple-600 border-purple-100 bg-card border",
+                            "Resolved": isActive ? "bg-emerald-500 text-white" : "hover:bg-emerald-50 text-emerald-600 border-emerald-100 bg-card border",
+                            "Rejected": isActive ? "bg-rose-500 text-white" : "hover:bg-rose-50 text-rose-600 border-rose-100 bg-card border",
                           };
 
                           return (
@@ -1265,7 +1265,7 @@ const AdminPanel = () => {
                               <button
                                 onClick={() => setConfirmDeleteComplaintId(null)}
                                 disabled={deletingComplaintId === activeComplaint.id}
-                                className="flex-1 py-2 rounded-lg border border-gray-200 bg-white hover:bg-gray-50 text-[11px] font-semibold text-gray-600 transition-all"
+                                className="flex-1 py-2 rounded-lg border border-gray-200 bg-card hover:bg-gray-50 text-[11px] font-semibold text-gray-600 transition-all"
                               >
                                 Keep it
                               </button>
@@ -1274,7 +1274,7 @@ const AdminPanel = () => {
                         ) : (
                           <button
                             onClick={() => setConfirmDeleteComplaintId(activeComplaint.id)}
-                            className="w-full py-2 rounded-lg border border-red-200 bg-white hover:bg-red-50 text-[11px] font-bold text-red-600 transition-all inline-flex items-center justify-center gap-1.5"
+                            className="w-full py-2 rounded-lg border border-red-200 bg-card hover:bg-red-50 text-[11px] font-bold text-red-600 transition-all inline-flex items-center justify-center gap-1.5"
                           >
                             <Trash2 className="h-3 w-3" /> Delete this complaint
                           </button>
@@ -1293,7 +1293,7 @@ const AdminPanel = () => {
       {showResolutionModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setShowResolutionModal(false)} />
-          <div className="relative w-full max-w-md bg-white border border-gray-100 rounded-2xl shadow-2xl p-6 text-left animate-in fade-in zoom-in-95 duration-200">
+          <div className="relative w-full max-w-md bg-card border border-gray-100 rounded-2xl shadow-2xl p-6 text-left animate-in fade-in zoom-in-95 duration-200">
             <h3 className="text-lg font-bold text-gray-900 mb-2">Resolve Complaint</h3>
             <p className="text-xs text-gray-400 mb-4">Please provide the resolution details for the reporting user.</p>
 
@@ -1305,7 +1305,7 @@ const AdminPanel = () => {
                   placeholder="e.g. Fixed dashboard cache latency issue"
                   value={fixSummary}
                   onChange={(e) => setFixSummary(e.target.value)}
-                  className="w-full h-10 px-3 text-xs bg-gray-50 border border-gray-200 rounded-xl outline-none focus:border-[#29ABE2] text-gray-800 transition-all shadow-sm placeholder:text-gray-300"
+                  className="w-full h-10 px-3 text-xs bg-gray-50 border border-gray-200 rounded-xl outline-none focus:border-primary text-gray-800 transition-all shadow-sm placeholder:text-gray-300"
                 />
               </div>
 
@@ -1316,7 +1316,7 @@ const AdminPanel = () => {
                   value={resolutionNotes}
                   onChange={(e) => setResolutionNotes(e.target.value)}
                   rows={4}
-                  className="w-full p-3 text-xs bg-gray-50 border border-gray-200 rounded-xl outline-none focus:border-[#29ABE2] text-gray-800 transition-all resize-none placeholder:text-gray-300"
+                  className="w-full p-3 text-xs bg-gray-50 border border-gray-200 rounded-xl outline-none focus:border-primary text-gray-800 transition-all resize-none placeholder:text-gray-300"
                 />
               </div>
 

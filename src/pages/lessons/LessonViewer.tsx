@@ -105,7 +105,7 @@ const MiniNotes = ({
           placeholder="Jot a note…"
           value={draft}
           onChange={(e) => setDraft(e.target.value)}
-          className="min-h-[70px] resize-none text-sm bg-gray-50 border-gray-200 rounded-xl focus-visible:ring-[#29ABE2]"
+          className="min-h-[70px] resize-none text-sm bg-gray-50 border-gray-200 rounded-xl focus-visible:ring-primary"
           onKeyDown={(e) => {
             if (e.key === "Enter" && e.ctrlKey) {
               e.preventDefault();
@@ -115,19 +115,19 @@ const MiniNotes = ({
         />
       </div>
       <Button onClick={add} size="sm" disabled={!draft.trim() || loading} className="gap-2 w-full bg-[#0F172A] text-white hover:bg-[#0F172A]/90 font-semibold shadow-sm rounded-xl">
-        <Plus className="h-3.5 w-3.5 text-[#29ABE2]" /> Save Note
+        <Plus className="h-3.5 w-3.5 text-primary-text" /> Save Note
       </Button>
 
       {loading ? (
         <div className="flex justify-center py-4">
-          <Loader2 className="h-4 w-4 animate-spin text-[#29ABE2]" />
+          <Loader2 className="h-4 w-4 animate-spin text-primary-text" />
         </div>
       ) : notes.length === 0 ? (
         <p className="text-xs text-gray-500 text-center py-4">No notes saved for this lesson yet.</p>
       ) : (
         <div className="space-y-2 max-h-[350px] overflow-y-auto scrollbar-thin pr-1">
           {notes.map((n) => (
-            <div key={n.id} className="bg-gray-50 border border-gray-100 rounded-xl p-3 flex items-start gap-2 group relative hover:border-[#29ABE2]/30 transition-all">
+            <div key={n.id} className="bg-gray-50 border border-gray-100 rounded-xl p-3 flex items-start gap-2 group relative hover:border-primary/30 transition-all">
               <p className="text-xs text-gray-700 flex-1 whitespace-pre-wrap pr-6 leading-relaxed">{n.text}</p>
               <button
                 onClick={() => remove(n.id)}
@@ -282,7 +282,7 @@ const LessonViewer = () => {
 
   if (!currentLesson) {
     return (
-      <div className="p-12 text-center space-y-4 bg-white rounded-2xl border border-gray-100 shadow-sm max-w-2xl mx-auto mt-8">
+      <div className="p-12 text-center space-y-4 bg-card rounded-2xl border border-gray-100 shadow-sm max-w-2xl mx-auto mt-8">
         <h2 className="text-xl font-bold text-gray-900">No lessons found</h2>
         <p className="text-gray-500 text-sm">We couldn't load lessons for this topic.</p>
         <Link to="/lessons">
@@ -299,10 +299,10 @@ const LessonViewer = () => {
       if (part.startsWith("**") && part.endsWith("**"))
         return <strong key={idx} className="text-gray-900 font-bold">{part.slice(2, -2)}</strong>;
       if (part.startsWith("`") && part.endsWith("`"))
-        return <code key={idx} className="text-[#29ABE2] bg-[#DBEAFE] px-1.5 py-0.5 rounded-md text-xs font-mono border border-[#29ABE2]/10">{part.slice(1, -1)}</code>;
+        return <code key={idx} className="text-primary-text bg-primary-light px-1.5 py-0.5 rounded-md text-xs font-mono border border-primary/10">{part.slice(1, -1)}</code>;
       const linkMatch = part.match(/^\[([^\]]+)\]\(([^)]+)\)$/);
       if (linkMatch)
-        return <a key={idx} href={linkMatch[2]} target="_blank" rel="noopener noreferrer" className="text-[#29ABE2] hover:text-[#29ABE2] font-medium underline underline-offset-2">{linkMatch[1]}</a>;
+        return <a key={idx} href={linkMatch[2]} target="_blank" rel="noopener noreferrer" className="text-primary-text hover:text-primary-text font-medium underline underline-offset-2">{linkMatch[1]}</a>;
       return part;
     });
   };
@@ -316,13 +316,13 @@ const LessonViewer = () => {
       if (line.startsWith("# "))
         return <h1 key={i} className="text-2xl font-bold mt-10 mb-5 text-gray-900 tracking-tight">{renderInline(line.slice(2))}</h1>;
       if (line.startsWith("- "))
-        return <li key={i} className="text-gray-600 ml-5 mb-2 leading-relaxed flex items-start"><span className="mr-2 mt-2 h-1.5 w-1.5 rounded-full bg-[#29ABE2] flex-shrink-0"></span><span>{renderInline(line.slice(2))}</span></li>;
+        return <li key={i} className="text-gray-600 ml-5 mb-2 leading-relaxed flex items-start"><span className="mr-2 mt-2 h-1.5 w-1.5 rounded-full bg-primary flex-shrink-0"></span><span>{renderInline(line.slice(2))}</span></li>;
       if (/^\d+\.\s/.test(line))
         return <li key={i} className="text-gray-600 ml-5 mb-2 list-decimal leading-relaxed">{renderInline(line.replace(/^\d+\.\s/, ""))}</li>;
       if (line.trim() === "") return <br key={i} />;
       if (line.startsWith("  "))
         return (
-          <div key={i} className="font-mono text-sm text-[#29ABE2] bg-[#DBEAFE] border border-[#29ABE2]/10 px-4 py-2 rounded-xl my-2 overflow-x-auto">
+          <div key={i} className="font-mono text-sm text-primary-text bg-primary-light border border-primary/10 px-4 py-2 rounded-xl my-2 overflow-x-auto">
             {line}
           </div>
         );
@@ -352,7 +352,7 @@ const LessonViewer = () => {
             variant="outline"
             size="sm"
             onClick={() => setShowTools(!showTools)}
-            className={`gap-2 text-xs rounded-xl transition-all ${showTools ? "border-[#29ABE2] text-[#29ABE2] bg-[#DBEAFE]" : "text-gray-500 border-gray-200 hover:bg-gray-50"}`}
+            className={`gap-2 text-xs rounded-xl transition-all ${showTools ? "border-primary text-primary-text bg-primary-light" : "text-gray-500 border-gray-200 hover:bg-gray-50"}`}
           >
             <StickyNote className="h-3.5 w-3.5" />
             <span>Notes</span>
@@ -365,7 +365,7 @@ const LessonViewer = () => {
             onClick={toggleDeepFocus}
             className={`gap-2 text-xs rounded-xl transition-all ${
               isDeepFocus
-                ? "border-[#29ABE2] text-[#29ABE2] bg-[#DBEAFE]"
+                ? "border-primary text-primary-text bg-primary-light"
                 : "text-gray-500 border-gray-200 hover:bg-gray-50"
             }`}
           >
@@ -381,7 +381,7 @@ const LessonViewer = () => {
       {/* ── Topic / lesson metadata ───────────────────────── */}
       <div className="space-y-3">
         <div className="flex items-center gap-2 text-xs text-gray-500 flex-wrap">
-          <span className="bg-[#DBEAFE] text-[#29ABE2] px-2.5 py-1 rounded-full font-bold tracking-wide uppercase text-[10px]">
+          <span className="bg-primary-light text-primary-text px-2.5 py-1 rounded-full font-bold tracking-wide uppercase text-[10px]">
             {(topic?.subjects as { name?: string })?.name ?? topic?.subject ?? "Subject"}
           </span>
           <span className="font-medium">Lesson {currentIndex + 1} of {totalLessons}</span>
@@ -410,7 +410,7 @@ const LessonViewer = () => {
         <div className="space-y-4 min-w-0">
           {/* YouTube Video Embed (for YouTube-sourced courses) */}
           {topic?.youtube_video_id && (
-            <div className="bg-white border border-gray-100 rounded-2xl shadow-sm overflow-hidden">
+            <div className="bg-card border border-gray-100 rounded-2xl shadow-sm overflow-hidden">
               <div className="aspect-video bg-black relative">
                 <iframe
                   src={`https://www.youtube.com/embed/${topic.youtube_video_id}`}
@@ -438,13 +438,13 @@ const LessonViewer = () => {
           )}
 
           {/* Lesson Content Card */}
-          <div className="bg-white border border-gray-100 rounded-2xl p-6 md:p-10 shadow-sm">
+          <div className="bg-card border border-gray-100 rounded-2xl p-6 md:p-10 shadow-sm">
             <div className="flex items-center gap-3 pb-5 border-b border-gray-100 mb-6">
-              <div className="h-8 w-8 rounded-lg bg-[#DBEAFE] flex items-center justify-center">
-                <BookOpen className="h-4 w-4 text-[#29ABE2]" />
+              <div className="h-8 w-8 rounded-lg bg-primary-light flex items-center justify-center">
+                <BookOpen className="h-4 w-4 text-primary-text" />
               </div>
               <span className="font-semibold text-gray-900">Lesson Content</span>
-              <span className="ml-auto text-[10px] font-bold tracking-widest uppercase text-[#29ABE2] bg-[#DBEAFE] px-2.5 py-1 rounded-full">
+              <span className="ml-auto text-[10px] font-bold tracking-widest uppercase text-primary-text bg-primary-light px-2.5 py-1 rounded-full">
                 +{LESSON_XP} XP
               </span>
             </div>
@@ -457,9 +457,9 @@ const LessonViewer = () => {
         {/* Right: Notes Sidebar (only when toggled) */}
         {showTools && (
           <div className="animate-in slide-in-from-right-4 duration-200">
-            <div className="bg-white border border-gray-100 rounded-2xl p-5 sticky top-6 shadow-sm">
+            <div className="bg-card border border-gray-100 rounded-2xl p-5 sticky top-6 shadow-sm">
               <div className="flex items-center gap-2 text-sm font-semibold text-gray-900 pb-4 border-b border-gray-100 mb-4">
-                <StickyNote className="h-4 w-4 text-[#29ABE2]" />
+                <StickyNote className="h-4 w-4 text-primary-text" />
                 Lesson Notes
               </div>
               <div className="min-h-[200px]">
@@ -492,7 +492,7 @@ const LessonViewer = () => {
           className={`gap-2 flex-1 min-h-[48px] rounded-xl font-semibold transition-all shadow-sm ${
             isCompleted
               ? "bg-emerald-50 text-emerald-600 border border-emerald-200 hover:bg-emerald-100"
-              : "bg-gradient-to-r from-[#29ABE2] to-[#29ABE2] text-white hover:opacity-90"
+              : "bg-gradient-to-r from-primary to-primary text-white hover:opacity-90"
           }`}
           disabled={isCompleted || markComplete.isPending}
         >
@@ -526,7 +526,7 @@ const LessonViewer = () => {
             </div>
           </div>
           <Link to={`/quiz/${topicId}`} state={{ topicTitle: topic?.title ?? "Topic", subjectName: (topic?.subjects as { name?: string })?.name ?? "" }}>
-            <Button className="bg-white text-emerald-600 hover:bg-gray-50 font-bold rounded-xl h-11 px-6 shadow-sm">
+            <Button className="bg-card text-emerald-600 hover:bg-gray-50 font-bold rounded-xl h-11 px-6 shadow-sm">
               Take Quiz
             </Button>
           </Link>

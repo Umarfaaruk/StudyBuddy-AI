@@ -80,7 +80,7 @@ const Login = () => {
   return (
     <div className="min-h-screen bg-deep flex">
       {/* ── Left branding panel ──────────────────────────────── */}
-      <div className="hidden lg:flex lg:w-1/2 flex-col justify-between p-12 relative overflow-hidden">
+      <div className="on-dark hidden lg:flex lg:w-1/2 flex-col justify-between p-12 relative overflow-hidden">
         <div className="absolute inset-0 bg-gradient-to-br from-[hsl(var(--navy))] via-[hsl(var(--deep))] to-[hsl(var(--navy))]/80" />
 
         <div className="relative z-10">
@@ -187,7 +187,7 @@ const Login = () => {
             <div className="space-y-2">
               <div className="flex items-center justify-between">
                 <label className="text-sm font-medium text-foreground">Password</label>
-                <button type="button" onClick={handleForgotPassword} className="text-xs text-primary hover:underline">
+                <button type="button" onClick={handleForgotPassword} className="text-xs text-primary-text hover:underline">
                   Forgot password?
                 </button>
               </div>
@@ -224,7 +224,7 @@ const Login = () => {
 
           <p className="text-center text-sm text-muted-foreground">
             Don't have an account?{" "}
-            <Link to="/signup" className="text-primary font-medium hover:underline">
+            <Link to="/signup" className="text-primary-text font-medium hover:underline">
               Sign Up Free
             </Link>
           </p>

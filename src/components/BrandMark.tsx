@@ -45,7 +45,7 @@ const BrandMark = ({ size = "md", onDark = false, className }: BrandMarkProps) =
         readers and to copy-paste, which would render this "StudyBuddyAI". */}
     StudyBuddy{" "}
     {/* The accent carries the brand colour and keeps "AI" visually distinct. */}
-    <span className={onDark ? "text-cta" : "text-primary"}>AI</span>
+    <span className={onDark ? "text-cta-text" : "text-primary-text"}>AI</span>
   </span>
 );
 

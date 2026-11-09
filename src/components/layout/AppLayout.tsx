@@ -15,6 +15,7 @@ import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useProfile } from "@/hooks/useProfile";
 import BrandMark from "@/components/BrandMark";
+import ThemeToggle from "@/components/ThemeToggle";
 
 /**
  * Primary navigation.
@@ -77,11 +78,11 @@ function NavLink({
       {active && (
         <motion.div
           layoutId="sidebar-active-pill"
-          className="absolute inset-0 bg-white rounded-xl shadow-lg shadow-black/10"
+          className="absolute inset-0 bg-card rounded-xl shadow-lg shadow-black/10"
           transition={{ type: "spring", stiffness: 400, damping: 32 }}
         />
       )}
-      <Icon className={`h-[18px] w-[18px] flex-shrink-0 relative z-10 ${active ? "text-primary" : ""}`} />
+      <Icon className={`h-[18px] w-[18px] flex-shrink-0 relative z-10 ${active ? "text-primary-text" : ""}`} />
       {!collapsed && <span className={`relative z-10 ${active ? "font-semibold" : ""}`}>{label}</span>}
     </Link>
   );
@@ -160,7 +161,7 @@ const AppLayout = () => {
 
       {/* Desktop Sidebar */}
       {!isDeepFocus && (
-        <aside className={`hidden lg:flex flex-col fixed inset-y-0 left-0 z-30 border-r border-white/[0.06] transition-all duration-300 ${sidebarCollapsed ? "w-[76px]" : "w-[272px]"}`}>
+        <aside className={`on-dark hidden lg:flex flex-col fixed inset-y-0 left-0 z-30 border-r border-white/[0.06] transition-all duration-300 ${sidebarCollapsed ? "w-[76px]" : "w-[272px]"}`}>
           <div className="absolute inset-0 bg-[#0F172A]" />
           <div className="absolute inset-0 bg-gradient-to-b from-primary/[0.08] via-transparent to-transparent pointer-events-none" />
 
@@ -234,6 +235,7 @@ const AppLayout = () => {
             </nav>
 
             <div className={`${sidebarCollapsed ? "px-2" : "px-4"} pb-6 flex-shrink-0`}>
+              <ThemeToggle onDark label={!sidebarCollapsed} className="mb-1" />
               <Link
                 to="/profile"
                 className={`flex items-center ${sidebarCollapsed ? "justify-center" : "gap-3 px-4"} py-3 rounded-xl text-sm text-white/50 hover:text-white hover:bg-white/[0.06] transition-all duration-200`}
@@ -258,7 +260,7 @@ const AppLayout = () => {
             onClick={() => setMobileMenuOpen(false)}
             aria-hidden="true"
           />
-          <aside className="relative w-[min(82vw,300px)] bg-[#0F172A] flex flex-col h-full border-r border-white/10 shadow-2xl shadow-black/50">
+          <aside className="on-dark relative w-[min(82vw,300px)] bg-[#0F172A] flex flex-col h-full border-r border-white/10 shadow-2xl shadow-black/50">
             <div className="px-4 py-4 flex items-center justify-between border-b border-white/10">
               <BrandMark size="sm" onDark />
               <button
@@ -295,9 +297,9 @@ const AppLayout = () => {
 
       {/* Deep Focus bar */}
       {isDeepFocus && (
-        <div className="fixed top-0 left-0 right-0 z-30 h-12 bg-[#0F172A] border-b border-white/10 flex items-center justify-between px-6">
+        <div className="on-dark fixed top-0 left-0 right-0 z-30 h-12 bg-[#0F172A] border-b border-white/10 flex items-center justify-between px-6">
           <div className="flex items-center gap-2 text-sm font-semibold text-white">
-            <Focus className="h-4 w-4 text-primary" />
+            <Focus className="h-4 w-4 text-primary-text" />
             Deep Focus Mode
           </div>
           <button
@@ -313,20 +315,23 @@ const AppLayout = () => {
 
       {/* Mobile header */}
       {!isDeepFocus && (
-        <div className="lg:hidden fixed top-0 left-0 right-0 z-20 bg-[#0F172A]/95 backdrop-blur-md border-b border-white/10 flex items-center justify-between px-4 h-14">
+        <div className="on-dark lg:hidden fixed top-0 left-0 right-0 z-20 bg-[#0F172A]/95 backdrop-blur-md border-b border-white/10 flex items-center justify-between px-4 h-14">
           <button type="button" onClick={() => setMobileMenuOpen(true)} className="p-2 -ml-1 text-white/60 hover:text-white">
             <Menu className="h-5 w-5" />
           </button>
           <BrandMark size="sm" onDark />
-          <Link to="/profile" className="p-2 -mr-1">
-            <User className="h-5 w-5 text-white/60" />
-          </Link>
+          <div className="flex items-center -mr-1">
+            <ThemeToggle onDark className="h-9 w-9" />
+            <Link to="/profile" className="p-2" aria-label="Profile">
+              <User className="h-5 w-5 text-white/60" />
+            </Link>
+          </div>
         </div>
       )}
 
       {/* Mobile bottom nav */}
       {!isDeepFocus && (
-        <nav className="lg:hidden fixed bottom-0 left-0 right-0 z-30 bg-[#0F172A]/95 backdrop-blur-md border-t border-white/10 flex safe-area-pb">
+        <nav className="on-dark lg:hidden fixed bottom-0 left-0 right-0 z-30 bg-[#0F172A]/95 backdrop-blur-md border-t border-white/10 flex safe-area-pb">
           {mobileNavLinks.map((link) => {
             const active = isActive(link.to);
             return (
@@ -334,7 +339,7 @@ const AppLayout = () => {
                 key={link.to}
                 to={link.to}
                 className={`relative flex-1 flex flex-col items-center gap-0.5 py-2 min-h-[56px] justify-center text-[10px] font-medium transition-all duration-200 ${
-                  active ? "text-primary" : "text-white/40"
+                  active ? "text-primary-text" : "text-white/40"
                 }`}
               >
                 <motion.div animate={active ? { scale: 1.1 } : { scale: 1 }} transition={{ duration: 0.2 }}>

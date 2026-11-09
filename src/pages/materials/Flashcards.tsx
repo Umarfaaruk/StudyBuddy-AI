@@ -180,14 +180,14 @@ ${selectedMaterial.extracted_text?.substring(0, 8000) || selectedMaterial.summar
   const currentCard = flashcards?.[currentCardIndex];
 
   if (materialsLoading) {
-    return <div className="p-8 flex justify-center"><Loader2 className="animate-spin h-8 w-8 text-primary" /></div>;
+    return <div className="p-8 flex justify-center"><Loader2 className="animate-spin h-8 w-8 text-primary-text" /></div>;
   }
 
   return (
     <div className="p-6 md:p-8 max-w-4xl mx-auto space-y-6">
       <div className="flex items-center gap-3">
         <div className="h-10 w-10 rounded-lg bg-cta/10 flex items-center justify-center">
-          <BrainCircuit className="h-5 w-5 text-cta" />
+          <BrainCircuit className="h-5 w-5 text-cta-text" />
         </div>
         <div>
           <h1 className="text-2xl font-bold text-foreground">AI Flashcards</h1>
@@ -200,7 +200,7 @@ ${selectedMaterial.extracted_text?.substring(0, 8000) || selectedMaterial.summar
           {materials?.map((m: any) => (
             <div key={m.id} className="bg-card border border-border rounded-xl p-5 hover:border-cta/40 cursor-pointer transition-colors" onClick={() => setSelectedMaterial(m)}>
               <div className="flex items-start gap-3">
-                <FileText className="h-5 w-5 text-cta mt-0.5" />
+                <FileText className="h-5 w-5 text-cta-text mt-0.5" />
                 <div>
                   <h3 className="font-semibold text-foreground truncate">{m.file_name}</h3>
                   <p className="text-xs text-muted-foreground mt-1">Select to study flashcards</p>
@@ -229,7 +229,7 @@ ${selectedMaterial.extracted_text?.substring(0, 8000) || selectedMaterial.summar
 
           {cardsLoading || generating ? (
             <div className="bg-card border border-border rounded-xl p-12 flex flex-col items-center justify-center gap-4 text-center">
-              <RefreshCw className="h-8 w-8 text-primary animate-spin" />
+              <RefreshCw className="h-8 w-8 text-primary-text animate-spin" />
               <p className="text-muted-foreground text-sm">{generating ? "AI is generating your flashcards. This may take a minute..." : "Loading cards..."}</p>
             </div>
           ) : !flashcards || flashcards.length === 0 ? (
@@ -275,7 +275,7 @@ ${selectedMaterial.extracted_text?.substring(0, 8000) || selectedMaterial.summar
                     
                     {!isFlipped ? (
                       <>
-                        <span className="text-[10px] font-bold uppercase tracking-widest text-cta mb-4 bg-cta/10 px-3 py-1 rounded-full">Question</span>
+                        <span className="text-[10px] font-bold uppercase tracking-widest text-cta-text mb-4 bg-cta/10 px-3 py-1 rounded-full">Question</span>
                         <h3 className="text-xl md:text-2xl font-medium text-foreground leading-relaxed max-w-md">
                           {currentCard.question}
                         </h3>
@@ -312,7 +312,7 @@ ${selectedMaterial.extracted_text?.substring(0, 8000) || selectedMaterial.summar
                      <Button variant="outline" className="border-destructive text-destructive hover:bg-destructive/10 flex-1 max-w-[120px]" onClick={(e) => { e.stopPropagation(); handleReview("hard"); }}>
                        Hard
                      </Button>
-                     <Button variant="outline" className="border-primary text-primary hover:bg-primary/10 flex-1 max-w-[120px]" onClick={(e) => { e.stopPropagation(); handleReview("good"); }}>
+                     <Button variant="outline" className="border-primary text-primary-text hover:bg-primary/10 flex-1 max-w-[120px]" onClick={(e) => { e.stopPropagation(); handleReview("good"); }}>
                        Good
                      </Button>
                      <Button variant="outline" className="border-success text-success hover:bg-success/10 flex-1 max-w-[120px]" onClick={(e) => { e.stopPropagation(); handleReview("easy"); }}>

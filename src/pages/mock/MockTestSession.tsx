@@ -260,7 +260,7 @@ const MockTestSession = () => {
   if (phase === "loading" || phase === "resuming" || examLoading) {
     return (
       <div className="min-h-[60vh] flex items-center justify-center">
-        <Loader2 className="h-6 w-6 animate-spin text-primary" />
+        <Loader2 className="h-6 w-6 animate-spin text-primary-text" />
       </div>
     );
   }
@@ -312,7 +312,7 @@ const MockTestSession = () => {
   if (phase === "submitting") {
     return (
       <div className="min-h-[60vh] flex flex-col items-center justify-center gap-3">
-        <Loader2 className="h-6 w-6 animate-spin text-primary" />
+        <Loader2 className="h-6 w-6 animate-spin text-primary-text" />
         <p className="text-sm text-muted-foreground">Scoring your test&hellip;</p>
       </div>
     );
@@ -331,7 +331,7 @@ const MockTestSession = () => {
         {/* Say so plainly rather than quietly serving a shorter test — the score
             is comparable across attempts only if the student knows the length. */}
         {set.short && (
-          <p className="text-xs text-cta">
+          <p className="text-xs text-cta-text">
             Only {set.questions.length} of {set.requested} questions are published
             for this scope, so this attempt is shorter than the full test.
           </p>

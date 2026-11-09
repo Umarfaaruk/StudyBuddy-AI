@@ -52,6 +52,7 @@ also sorts correctly:
 0016_restrict_anon_topic_and_lesson_reads.sql
 0017_enable_realtime_publications.sql
 0018_seed_neet_questions.sql
+0019_seed_telangana_ap_govt_exams.sql                  ← NOT APPLIED (new)
 ```
 
 `ls | sort` gives true chronological order: `_` (0x5F) sorts before any
@@ -71,8 +72,23 @@ current state, but reading one in isolation can mislead:
 
 ## Not yet applied
 
-Only `0015` is still held. `0016` and `0017` were applied on 2026-09-17, and
+`0015` and `0019` are still held. `0016` and `0017` were applied on 2026-09-17, and
 `0018` on 2026-10-27; all three are described below for the record.
+
+### 0019 — Telangana and Andhra Pradesh government exam tracks  ·  NOT APPLIED
+
+Adds four tracks as data only: `tgpsc-group1` (Mains), `tgpsc-group2`,
+`tgpsc-group3` and `appsc-group2`, with 17 subjects and 67 chapters (names
+only, following the published paper structure). No schema change, and no new
+onboarding flow type: the tracks use the existing `GENERAL` flow, so the
+`onboarding_flow_type` CHECK is untouched. They appear in the onboarding picker
+under "Government Exams" as soon as the migration is applied.
+
+Before applying: re-check the paper structure against the current official
+TGPSC and APPSC notifications. The TGPSC Group 1 Prelims paper is not seeded.
+Questions and mock tests for these tracks do not exist yet, so a student who
+picks one gets the syllabus and AI tutor but an empty question bank (the same
+gap NEET had before 0018).
 
 ### 0018 — NEET shipped with zero questions  ·  APPLIED 2026-10-27 (Mumbai)
 

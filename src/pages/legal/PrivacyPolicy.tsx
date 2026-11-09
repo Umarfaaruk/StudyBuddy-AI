@@ -22,7 +22,7 @@ const PrivacyPolicy = () => (
         StudyBuddy AI is an exam-preparation platform for Indian competitive
         examinations. We are the data fiduciary for the personal data described
         below. You can reach us at{" "}
-        <a href={`mailto:${CONTACT_EMAIL}`} className="text-primary hover:underline">
+        <a href={`mailto:${CONTACT_EMAIL}`} className="text-primary-text hover:underline">
           {CONTACT_EMAIL}
         </a>
         .
@@ -240,7 +240,7 @@ const PrivacyPolicy = () => (
       />
       <p>
         Write to{" "}
-        <a href={`mailto:${CONTACT_EMAIL}`} className="text-primary hover:underline">
+        <a href={`mailto:${CONTACT_EMAIL}`} className="text-primary-text hover:underline">
           {CONTACT_EMAIL}
         </a>{" "}
         and we will respond within 30 days. If you are not satisfied with our

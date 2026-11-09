@@ -312,7 +312,7 @@ const OnboardingFlow = () => {
           {/* Stage header */}
           <div className="text-center space-y-2">
             <div className="inline-flex h-12 w-12 rounded-2xl bg-primary/10 items-center justify-center mb-2">
-              <StageIcon className="h-6 w-6 text-primary" />
+              <StageIcon className="h-6 w-6 text-primary-text" />
             </div>
             <h2 className="text-2xl font-bold text-foreground tracking-tight">{info.title}</h2>
             <p className="text-muted-foreground text-sm">{info.subtitle}</p>
@@ -617,7 +617,7 @@ const OnboardingFlow = () => {
               </div>
 
               <div className="bg-primary/5 border border-primary/20 rounded-xl p-4 space-y-2 mt-4">
-                <div className="flex items-center gap-2 text-sm font-semibold text-primary">
+                <div className="flex items-center gap-2 text-sm font-semibold text-primary-text">
                   <Sparkles className="h-4 w-4" />
                   Your personalized plan awaits!
                 </div>

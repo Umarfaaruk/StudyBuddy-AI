@@ -3,6 +3,7 @@ import { Home, Sparkles, Info, ArrowRight } from "lucide-react";
 import { NavBar } from "@/components/ui/tubelight-navbar";
 import BrandMark from "@/components/BrandMark";
 import { Button } from "@/components/ui/button";
+import ThemeToggle from "@/components/ThemeToggle";
 import { useAuth } from "@/contexts/AuthContext";
 
 const navItems = [
@@ -56,7 +57,9 @@ const Navbar = ({ onDark = true }: NavbarProps) => {
             <BrandMark size="lg" onDark={onDark} />
           </Link>
 
-          <div className="mr-4 md:mr-8 lg:mr-12 shrink-0 z-10 pointer-events-auto hidden sm:flex items-center gap-2">
+          <div className="mr-4 md:mr-8 lg:mr-12 shrink-0 z-10 pointer-events-auto flex items-center gap-2">
+            <ThemeToggle onDark={onDark} className={onDark ? "border border-white/15" : ""} />
+            <div className="hidden sm:flex items-center gap-2">
             {signedIn ? (
               <Button className="bg-cta text-white hover:bg-cta/90 font-semibold text-sm h-10 px-5 rounded-xl gap-2 shadow-sm" asChild>
                 <Link to="/dashboard">
@@ -77,6 +80,7 @@ const Navbar = ({ onDark = true }: NavbarProps) => {
                 </Button>
               </>
             )}
+            </div>
           </div>
         </div>
       </nav>

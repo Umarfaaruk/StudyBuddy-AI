@@ -191,7 +191,7 @@ const Profile = () => {
       </div>
 
       {/* Profile header card */}
-      <div className="bg-white border border-gray-100 shadow-sm rounded-2xl p-6 flex flex-col sm:flex-row items-center gap-6">
+      <div className="bg-card border border-gray-100 shadow-sm rounded-2xl p-6 flex flex-col sm:flex-row items-center gap-6">
         {/* Avatar — clickable for upload */}
         {/* A real <button>, not a clickable <div>: the div had tabIndex -1, no
             role and no accessible name, so the only way to change your picture
@@ -199,7 +199,7 @@ const Profile = () => {
             at all. */}
         <button
           type="button"
-          className="relative h-20 w-20 rounded-full flex-shrink-0 cursor-pointer group focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#29ABE2] focus-visible:ring-offset-2 rounded-full"
+          className="relative h-20 w-20 rounded-full flex-shrink-0 cursor-pointer group focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 rounded-full"
           onClick={() => avatarInputRef.current?.click()}
           aria-label="Change profile picture"
           title="Click to change profile picture"
@@ -208,15 +208,15 @@ const Profile = () => {
             <img
               src={profile.avatar_url}
               alt={displayName}
-              className="h-20 w-20 rounded-full object-cover border-2 border-gray-100 group-hover:border-[#29ABE2] transition-colors"
+              className="h-20 w-20 rounded-full object-cover border-2 border-gray-100 group-hover:border-primary transition-colors"
             />
           ) : (
-            <div className="h-20 w-20 rounded-full bg-[#29ABE2] flex items-center justify-center group-hover:bg-[#29ABE2]/80 transition-colors">
+            <div className="h-20 w-20 rounded-full bg-primary flex items-center justify-center group-hover:bg-primary/80 transition-colors">
               <User className="h-10 w-10 text-white" />
             </div>
           )}
-          <div className="absolute bottom-0 right-0 h-7 w-7 rounded-full bg-card border-2 border-gray-100 flex items-center justify-center shadow-sm group-hover:border-[#29ABE2] transition-colors">
-            <Camera className="h-3.5 w-3.5 text-gray-500 group-hover:text-[#29ABE2]" />
+          <div className="absolute bottom-0 right-0 h-7 w-7 rounded-full bg-card border-2 border-gray-100 flex items-center justify-center shadow-sm group-hover:border-primary transition-colors">
+            <Camera className="h-3.5 w-3.5 text-gray-500 group-hover:text-primary-text" />
           </div>
         </button>
         <input
@@ -290,12 +290,12 @@ const Profile = () => {
       {/* Stats grid */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         {[
-          { icon: BookOpen, label: "Lessons Done",  value: stats?.lessonsCompleted ?? 0,          color: "text-[#29ABE2]" },
+          { icon: BookOpen, label: "Lessons Done",  value: stats?.lessonsCompleted ?? 0,          color: "text-primary-text" },
           { icon: Trophy,   label: "Quizzes Taken", value: stats?.quizCount ?? 0,                 color: "text-[#f4a261]" },
           { icon: Clock,    label: "Study Hours",   value: `${stats?.studyHours ?? "0.0"}h`,      color: "text-green-500" },
           { icon: Flame,    label: "Best Streak",   value: `${stats?.streak?.longest_streak ?? 0}d`, color: "text-red-500" },
         ].map((s) => (
-          <div key={s.label} className="bg-white border border-gray-100 shadow-sm rounded-2xl p-4 text-center">
+          <div key={s.label} className="bg-card border border-gray-100 shadow-sm rounded-2xl p-4 text-center">
             {isLoading ? (
               <>
                 <Skeleton className="h-5 w-5 mx-auto mb-2" />
@@ -315,10 +315,10 @@ const Profile = () => {
 
       {/* Recent badges */}
       {(stats?.badges?.length ?? 0) > 0 && (
-        <div className="bg-white border border-gray-100 shadow-sm rounded-2xl p-5 space-y-3">
+        <div className="bg-card border border-gray-100 shadow-sm rounded-2xl p-5 space-y-3">
           <div className="flex items-center justify-between">
             <h3 className="font-semibold text-gray-900 text-sm">Recent Achievements</h3>
-            <Link to="/achievements" className="text-xs text-[#29ABE2] hover:underline flex items-center gap-1">
+            <Link to="/achievements" className="text-xs text-primary-text hover:underline flex items-center gap-1">
               View all <ArrowRight className="h-3.5 w-3.5" />
             </Link>
           </div>
@@ -344,21 +344,21 @@ const Profile = () => {
       <div className="grid grid-cols-2 gap-4">
         <Link
           to="/progress"
-          className="flex items-center gap-3 bg-white border border-gray-100 shadow-sm rounded-2xl p-4 hover:border-[#29ABE2]/40 transition-colors group"
+          className="flex items-center gap-3 bg-card border border-gray-100 shadow-sm rounded-2xl p-4 hover:border-primary/40 transition-colors group"
         >
-          <div className="h-9 w-9 rounded-lg bg-[#29ABE2]/10 flex items-center justify-center">
-            <Trophy className="h-4 w-4 text-[#29ABE2]" />
+          <div className="h-9 w-9 rounded-lg bg-primary/10 flex items-center justify-center">
+            <Trophy className="h-4 w-4 text-primary-text" />
           </div>
           <div>
             <div className="text-sm font-medium text-gray-900">View Progress</div>
             <div className="text-xs text-gray-500">Detailed analytics</div>
           </div>
-          <ArrowRight className="h-4 w-4 text-gray-500 ml-auto group-hover:text-[#29ABE2] transition-colors" />
+          <ArrowRight className="h-4 w-4 text-gray-500 ml-auto group-hover:text-primary-text transition-colors" />
         </Link>
 
         <Link
           to="/achievements"
-          className="flex items-center gap-3 bg-white border border-gray-100 shadow-sm rounded-2xl p-4 hover:border-[#29ABE2]/40 transition-colors group"
+          className="flex items-center gap-3 bg-card border border-gray-100 shadow-sm rounded-2xl p-4 hover:border-primary/40 transition-colors group"
         >
           <div className="h-9 w-9 rounded-lg bg-[#f4a261]/10 flex items-center justify-center">
             <Zap className="h-4 w-4 text-[#f4a261]" />

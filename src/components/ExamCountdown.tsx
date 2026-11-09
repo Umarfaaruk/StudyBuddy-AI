@@ -40,7 +40,7 @@ const ExamCountdown = () => {
   // Track chosen but no date: show the exam, omit any number.
   if (daysRemaining === null) {
     return (
-      <span className="inline-flex items-center gap-2 rounded-lg bg-primary/10 px-3 py-2 text-sm font-medium text-primary">
+      <span className="inline-flex items-center gap-2 rounded-lg bg-primary/10 px-3 py-2 text-sm font-medium text-primary-text">
         <GraduationCap className="h-4 w-4" />
         {track.name}
       </span>
@@ -53,7 +53,7 @@ const ExamCountdown = () => {
   return (
     <span
       className={`inline-flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-semibold ${
-        urgent ? "bg-cta/15 text-cta" : "bg-primary/10 text-primary"
+        urgent ? "bg-cta/15 text-cta-text" : "bg-primary/10 text-primary-text"
       }`}
       // The visual styling carries urgency; give assistive tech the same signal.
       title={`Target exam date: ${data.targetExamDate}`}

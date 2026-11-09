@@ -45,7 +45,7 @@ const MockTestList = () => {
   if (examLoading || isLoading) {
     return (
       <div className="min-h-[50vh] flex items-center justify-center">
-        <Loader2 className="h-6 w-6 animate-spin text-primary" />
+        <Loader2 className="h-6 w-6 animate-spin text-primary-text" />
       </div>
     );
   }
@@ -87,7 +87,7 @@ const MockTestList = () => {
           <div className={`h-11 w-11 rounded-xl flex items-center justify-center flex-shrink-0 ${
             delta >= 0 ? "bg-success/10" : "bg-cta/10"
           }`}>
-            <TrendingUp className={`h-5 w-5 ${delta >= 0 ? "text-success" : "text-cta"}`} />
+            <TrendingUp className={`h-5 w-5 ${delta >= 0 ? "text-success" : "text-cta-text"}`} />
           </div>
           <div className="min-w-0">
             <div className="text-sm font-semibold text-foreground">
@@ -98,7 +98,7 @@ const MockTestList = () => {
               {" "}across {completed.length} attempts
             </div>
           </div>
-          <Link to="/progress" className="ml-auto text-xs font-medium text-primary hover:underline flex-shrink-0">
+          <Link to="/progress" className="ml-auto text-xs font-medium text-primary-text hover:underline flex-shrink-0">
             Full progress
           </Link>
         </div>
@@ -154,7 +154,7 @@ const MockTestList = () => {
             >
               <div className="flex items-center gap-3">
                 <div className="h-10 w-10 rounded-xl bg-primary/10 flex items-center justify-center flex-shrink-0">
-                  <FileText className="h-5 w-5 text-primary" />
+                  <FileText className="h-5 w-5 text-primary-text" />
                 </div>
                 <div className="min-w-0 flex-1">
                   <div className="text-sm font-semibold text-foreground truncate">{t.title}</div>

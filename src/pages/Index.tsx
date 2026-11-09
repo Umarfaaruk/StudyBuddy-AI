@@ -5,7 +5,9 @@ import StudyLoop from "@/components/landing/StudyLoop";
 import AITutorSection from "@/components/landing/AITutorSection";
 import GamificationSection from "@/components/landing/GamificationSection";
 import ProgressSection from "@/components/landing/ProgressSection";
+import AudienceSection from "@/components/landing/AudienceSection";
 import Testimonials from "@/components/landing/Testimonials";
+import FaqSection from "@/components/landing/FaqSection";
 import FinalCTA from "@/components/landing/FinalCTA";
 import Footer from "@/components/landing/Footer";
 
@@ -41,7 +43,9 @@ const Index = () => (
     <AITutorSection />
     <GamificationSection />
     <ProgressSection />
+    <AudienceSection />
     <Testimonials />
+    <FaqSection />
     <FinalCTA />
     <Footer />
   </div>

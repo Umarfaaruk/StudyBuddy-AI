@@ -4,12 +4,14 @@
 @tailwind utilities;
 
 /* ─── StudyBuddy AI Design Token System ─────────────────────────────────
-   Derived from StudyBuddy AI Color & Typography System Guide
-   Primary: Azure #29ABE2  CTA: Amber #F97316  Success: Green #10B981
+   Primary: Indigo #4F46E5  CTA: Deep Cyan #0E7490  Success: Green #10B981
+   Light and dark themes: the .dark class on <html> (managed by next-themes).
    80/10/10 Rule: 80% neutral canvas, 10% primary, 10% CTA
 ──────────────────────────────────────────────────────────────────*/
 @layer base {
-  :root {
+  :root,
+  .on-light {
+    color-scheme: light;
     /* ── System Foundation (Environment) ── */
     --background: 220 14% 96%;       /* #F3F4F6 Mist Gray – main canvas */
     --foreground: 222 47% 11%;       /* #0F172A – highest contrast text */
@@ -21,14 +23,16 @@
     --popover-foreground: 222 47% 11%;
 
     /* ── Brand & Logic Colors ── */
-    --primary: 198 76% 52%;          /* #29ABE2 Azure Focus – nav/links/selected */
+    --primary: 243 75% 59%;          /* #4F46E5 Indigo – nav/links/selected */
     --primary-foreground: 0 0% 100%;
-    --primary-light: 198 90% 92%;   /* #DBEAFE – highlight surfaces */
+    --primary-light: 226 100% 96%;   /* #EEF2FF – highlight surfaces */
+    --primary-text: 243 75% 59%;     /* indigo used AS TEXT (flips lighter on dark surfaces) */
+    --cta-text: 192 80% 32%;         /* deep cyan used AS TEXT */
 
     /* ── CTA (Blue – use ONLY for primary action buttons, max 1-2 per screen) ── */
-    --cta: 221 83% 53%;               /* #1D4ED8 Vibrant Royal/Electric Blue */
+    --cta: 192 80% 32%;               /* #0E7490 Deep Cyan (white text = 5.4:1) */
     --cta-foreground: 0 0% 100%;
-    --cta-light: 221 83% 96%;        /* Light royal blue backdrop */
+    --cta-light: 187 85% 94%;        /* Light cyan backdrop */
 
     /* ── Success & Progress ── */
     --success: 160 84% 39%;          /* #10B981 Focus Green */
@@ -36,11 +40,11 @@
     --success-light: 152 76% 90%;    /* #D1FAE5 */
 
     /* ── Secondary / Neutral ── */
-    --secondary: 198 90% 92%;       /* #DBEAFE – muted highlight */
-    --secondary-foreground: 198 76% 52%;
+    --secondary: 226 100% 96%;       /* #EEF2FF – muted highlight */
+    --secondary-foreground: 243 75% 59%;
 
     --muted: 220 14% 96%;
-    --muted-foreground: 215 20% 47%; /* #94A3B8 meta text */
+    --muted-foreground: 215 20% 42%; /* meta text, 4.5:1+ on the canvas */
 
     --accent: 215 25% 34%;           /* #475569 Slate Deep – body text, icons */
     --accent-foreground: 0 0% 100%;
@@ -51,7 +55,7 @@
     /* ── Structural ── */
     --border: 220 9% 85%;            /* #D1D5DB – input borders, cards */
     --input: 220 9% 85%;
-    --ring: 198 76% 52%;             /* focus ring = primary */
+    --ring: 243 75% 59%;             /* focus ring = primary */
     --radius: 0.75rem;
 
     --divider: 220 13% 91%;          /* #E5E7EB – section separators */
@@ -59,25 +63,141 @@
     /* ── Typography semantic colors ── */
     --text-primary: 222 47% 11%;     /* #0F172A – H1, highest emphasis */
     --text-body: 215 25% 34%;        /* #475569 – body text, icons */
-    --text-meta: 215 20% 47%;        /* #94A3B8 – timestamps, captions */
+    --text-meta: 215 20% 42%;        /* timestamps, captions */
 
     /* ── Legacy color aliases (keep for backward compat) ── */
     --deep: 222 47% 11%;
-    --deep-foreground: 198 90% 92%;
-    --navy: 198 76% 52%;             /* alias → primary */
-    --interface: 198 76% 52%;
+    --deep-foreground: 226 100% 96%;
+    --navy: 243 75% 59%;             /* alias → primary */
+    --interface: 243 75% 59%;
     --soft: 215 20% 60%;
-    --highlight: 198 90% 92%;
+    --highlight: 226 100% 96%;
 
     /* ── Sidebar ── */
     --sidebar-background: 0 0% 100%;
     --sidebar-foreground: 215 25% 34%;
-    --sidebar-primary: 198 76% 52%;
+    --sidebar-primary: 243 75% 59%;
     --sidebar-primary-foreground: 0 0% 100%;
     --sidebar-accent: 220 14% 96%;
     --sidebar-accent-foreground: 222 47% 11%;
     --sidebar-border: 220 13% 91%;
-    --sidebar-ring: 198 76% 52%;
+    --sidebar-ring: 243 75% 59%;
+
+    /* ── Neutral scale (remaps Tailwind gray-* and slate-*; flips in dark) ── */
+    --gray-50: 210 20% 98%;
+    --gray-100: 220 14% 96%;
+    --gray-200: 220 13% 91%;
+    --gray-300: 216 12% 84%;
+    --gray-400: 218 11% 65%;
+    --gray-500: 220 9% 46%;
+    --gray-600: 215 14% 34%;
+    --gray-700: 217 19% 27%;
+    --gray-800: 215 28% 17%;
+    --gray-900: 221 39% 11%;
+
+    /* Colour-family tints (Tailwind defaults) — surfaces 50/100/200, text 600/700/800 */
+    --red-50: 254 242 242;
+    --red-100: 254 226 226;
+    --red-200: 254 202 202;
+    --red-600: 220 38 38;
+    --red-700: 185 28 28;
+    --red-800: 153 27 27;
+    --orange-50: 255 247 237;
+    --orange-100: 255 237 213;
+    --orange-200: 254 215 170;
+    --orange-600: 234 88 12;
+    --orange-700: 194 65 12;
+    --orange-800: 154 52 18;
+    --amber-50: 255 251 235;
+    --amber-100: 254 243 199;
+    --amber-200: 253 230 138;
+    --amber-600: 217 119 6;
+    --amber-700: 180 83 9;
+    --amber-800: 146 64 14;
+    --yellow-50: 254 252 232;
+    --yellow-100: 254 249 195;
+    --yellow-200: 254 240 138;
+    --yellow-600: 202 138 4;
+    --yellow-700: 161 98 7;
+    --yellow-800: 133 77 14;
+    --lime-50: 247 254 231;
+    --lime-100: 236 252 203;
+    --lime-200: 217 249 157;
+    --lime-600: 101 163 13;
+    --lime-700: 77 124 15;
+    --lime-800: 63 98 18;
+    --green-50: 240 253 244;
+    --green-100: 220 252 231;
+    --green-200: 187 247 208;
+    --green-600: 22 163 74;
+    --green-700: 21 128 61;
+    --green-800: 22 101 52;
+    --emerald-50: 236 253 245;
+    --emerald-100: 209 250 229;
+    --emerald-200: 167 243 208;
+    --emerald-600: 5 150 105;
+    --emerald-700: 4 120 87;
+    --emerald-800: 6 95 70;
+    --teal-50: 240 253 250;
+    --teal-100: 204 251 241;
+    --teal-200: 153 246 228;
+    --teal-600: 13 148 136;
+    --teal-700: 15 118 110;
+    --teal-800: 17 94 89;
+    --cyan-50: 236 254 255;
+    --cyan-100: 207 250 254;
+    --cyan-200: 165 243 252;
+    --cyan-600: 8 145 178;
+    --cyan-700: 14 116 144;
+    --cyan-800: 21 94 117;
+    --sky-50: 240 249 255;
+    --sky-100: 224 242 254;
+    --sky-200: 186 230 253;
+    --sky-600: 2 132 199;
+    --sky-700: 3 105 161;
+    --sky-800: 7 89 133;
+    --blue-50: 239 246 255;
+    --blue-100: 219 234 254;
+    --blue-200: 191 219 254;
+    --blue-600: 37 99 235;
+    --blue-700: 29 78 216;
+    --blue-800: 30 64 175;
+    --indigo-50: 238 242 255;
+    --indigo-100: 224 231 255;
+    --indigo-200: 199 210 254;
+    --indigo-600: 79 70 229;
+    --indigo-700: 67 56 202;
+    --indigo-800: 55 48 163;
+    --violet-50: 245 243 255;
+    --violet-100: 237 233 254;
+    --violet-200: 221 214 254;
+    --violet-600: 124 58 237;
+    --violet-700: 109 40 217;
+    --violet-800: 91 33 182;
+    --purple-50: 250 245 255;
+    --purple-100: 243 232 255;
+    --purple-200: 233 213 255;
+    --purple-600: 147 51 234;
+    --purple-700: 126 34 206;
+    --purple-800: 107 33 168;
+    --fuchsia-50: 253 244 255;
+    --fuchsia-100: 250 232 255;
+    --fuchsia-200: 245 208 254;
+    --fuchsia-600: 192 38 211;
+    --fuchsia-700: 162 28 175;
+    --fuchsia-800: 134 25 143;
+    --pink-50: 253 242 248;
+    --pink-100: 252 231 243;
+    --pink-200: 251 207 232;
+    --pink-600: 219 39 119;
+    --pink-700: 190 24 93;
+    --pink-800: 157 23 77;
+    --rose-50: 255 241 242;
+    --rose-100: 255 228 230;
+    --rose-200: 254 205 211;
+    --rose-600: 225 29 72;
+    --rose-700: 190 18 60;
+    --rose-800: 159 18 57;
   }
 
   /* ── Deep Focus Mode (state-based UI switch) ──────────────────
@@ -85,6 +205,19 @@
      Reduces stimulation: dark BG, hidden nav, minimal UI.
   ─────────────────────────────────────────────────────────────── */
   .deep-focus {
+    color-scheme: dark;
+    --primary-text: 234 89% 74%;
+    --cta-text: 187 85% 53%;
+    --gray-50: 231 40% 14%;
+    --gray-100: 231 38% 17%;
+    --gray-200: 231 33% 22%;
+    --gray-300: 231 25% 30%;
+    --gray-400: 220 15% 62%;
+    --gray-500: 220 16% 68%;
+    --gray-600: 220 18% 76%;
+    --gray-700: 220 20% 84%;
+    --gray-800: 220 25% 90%;
+    --gray-900: 220 30% 96%;
     --background: 222 47% 11%;       /* #0F172A */
     --foreground: 220 13% 91%;       /* #E5E7EB */
     --card: 222 47% 14%;             /* #111827 */
@@ -95,7 +228,7 @@
     --input: 222 30% 22%;
     --muted: 222 35% 18%;
     --muted-foreground: 215 20% 60%;
-    --primary: 198 85% 58%;          /* lighter azure for dark bg */
+    --primary: 238 84% 68%;          /* lighter indigo for dark bg */
     --primary-foreground: 0 0% 100%;
     --secondary: 222 35% 20%;
     --secondary-foreground: 220 13% 91%;
@@ -107,23 +240,198 @@
     --text-meta: 215 20% 60%;
   }
 
-  /* ── No .dark theme block ──────────────────────────────────────
-     There used to be a full `.dark` palette here, but nothing ever added that
-     class: there is no theme toggle, next-themes is only pulled in by the
-     toaster, and Tailwind's `darkMode: ["class"]` means the variants stay
-     inert without it. It was 29 lines of dead tokens that read as if the app
-     supported a dark theme.
-
-     Deep Focus Mode covers the case this was reaching for — see .deep-focus
-     above, which applies the same dark values through a state the UI actually
-     switches on.
-
-     If a real theme toggle is added later, the work is not just restoring
-     these tokens: several components are hardcoded light (the weekly-feedback
-     modal and the profile header card both use bg-white with gray-* text), so
-     they need converting to theme tokens first or a dark theme would render
-     white panels on a dark page.
+  /* ── Dark theme ─────────────────────────────────────────────────
+     Applied by next-themes via the .dark class on <html>. Neutral utilities
+     (gray-*, slate-*, bg-card) read the variables below, so components built
+     with them flip automatically. Deep Focus Mode (above) still works on top.
   ─────────────────────────────────────────────────────────────── */
+  .dark {
+    color-scheme: dark;
+    --background: 231 59% 8%;        /* #0B1026 */
+    --foreground: 220 30% 96%;
+    --card: 231 45% 14%;             /* #121A3A */
+    --card-foreground: 220 30% 96%;
+    --popover: 231 45% 14%;
+    --popover-foreground: 220 30% 96%;
+    --primary: 243 75% 59%;          /* same as light: white text on it stays 6.3:1 */
+    --primary-foreground: 0 0% 100%;
+    --primary-light: 243 40% 22%;
+    --primary-text: 234 89% 74%;     /* #818CF8: readable on navy */
+    --cta-text: 187 85% 53%;         /* bright cyan: readable on navy */
+    --cta: 192 80% 32%;
+    --cta-foreground: 0 0% 100%;
+    --cta-light: 192 60% 16%;
+    --success: 160 84% 39%;
+    --success-light: 160 60% 16%;
+    --secondary: 231 38% 20%;
+    --secondary-foreground: 220 30% 96%;
+    --muted: 231 38% 17%;
+    --muted-foreground: 220 15% 68%;
+    --accent: 220 15% 68%;
+    --accent-foreground: 231 59% 8%;
+    --destructive: 0 72% 55%;
+    --border: 231 33% 22%;
+    --input: 231 33% 22%;
+    --ring: 234 89% 74%;
+    --divider: 231 33% 19%;
+    --text-primary: 220 30% 96%;
+    --text-body: 220 18% 76%;
+    --text-meta: 220 15% 62%;
+    --deep: 231 59% 8%;
+    --deep-foreground: 220 30% 96%;
+    --navy: 243 75% 59%;
+    --interface: 243 75% 59%;
+    --soft: 220 15% 62%;
+    --highlight: 226 100% 96%;      /* used as light text on dark panels */
+    --sidebar-background: 231 59% 6%;
+    --sidebar-foreground: 220 15% 68%;
+    --sidebar-primary: 243 75% 59%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 231 38% 17%;
+    --sidebar-accent-foreground: 220 30% 96%;
+    --sidebar-border: 231 33% 16%;
+    --sidebar-ring: 234 89% 74%;
+    --gray-50: 231 40% 14%;
+    --gray-100: 231 38% 17%;
+    --gray-200: 231 33% 22%;
+    --gray-300: 231 25% 30%;
+    --gray-400: 220 15% 62%;
+    --gray-500: 220 16% 68%;
+    --gray-600: 220 18% 76%;
+    --gray-700: 220 20% 84%;
+    --gray-800: 220 25% 90%;
+    --gray-900: 220 30% 96%;
+  }
+
+  /* ── Always-dark panels ──────────────────────────────────────────
+     Hero, footer, sidebar and a few bands stay navy in BOTH themes. Text
+     classes written for a dark panel (text-slate-200, text-slate-300) must
+     keep their light values there, and indigo/cyan text must use the lighter
+     variants. Add `on-dark` to any panel that is hardcoded dark.
+  ─────────────────────────────────────────────────────────────── */
+  .on-dark {
+    color-scheme: dark;
+    --gray-50: 210 20% 98%;
+    --gray-100: 220 14% 96%;
+    --gray-200: 220 13% 91%;
+    --gray-300: 216 12% 84%;
+    --gray-400: 218 11% 65%;
+    --gray-500: 218 11% 65%;
+    --gray-600: 215 14% 34%;
+    --gray-700: 217 19% 27%;
+    --gray-800: 215 28% 17%;
+    --gray-900: 221 39% 11%;
+    --primary-text: 234 89% 74%;
+    --cta-text: 187 85% 53%;
+  }
+
+  /* Tinted surfaces become translucent-looking dark tints; tinted text becomes lighter. */
+  .dark,
+  .on-dark,
+  .deep-focus {
+    --red-50: 45 31 59;
+    --red-100: 58 34 60;
+    --red-200: 80 38 61;
+    --red-600: 252 165 165;
+    --red-700: 252 165 165;
+    --red-800: 254 202 202;
+    --orange-50: 46 37 54;
+    --orange-100: 60 42 52;
+    --orange-200: 83 51 48;
+    --orange-600: 253 186 116;
+    --orange-700: 253 186 116;
+    --orange-800: 254 215 170;
+    --amber-50: 45 42 52;
+    --amber-100: 59 50 50;
+    --amber-200: 82 63 45;
+    --amber-600: 252 211 77;
+    --amber-700: 252 211 77;
+    --amber-800: 253 230 138;
+    --yellow-50: 44 44 52;
+    --yellow-100: 57 54 49;
+    --yellow-200: 78 69 44;
+    --yellow-600: 253 224 71;
+    --yellow-700: 253 224 71;
+    --yellow-800: 254 240 138;
+    --lime-50: 32 47 54;
+    --lime-100: 39 58 52;
+    --lime-200: 50 76 48;
+    --lime-600: 190 242 100;
+    --lime-700: 190 242 100;
+    --lime-800: 217 249 157;
+    --green-50: 20 47 62;
+    --green-100: 21 57 64;
+    --green-200: 22 74 68;
+    --green-600: 134 239 172;
+    --green-700: 134 239 172;
+    --green-800: 187 247 208;
+    --emerald-50: 18 45 67;
+    --emerald-100: 18 55 71;
+    --emerald-200: 17 71 78;
+    --emerald-600: 110 231 183;
+    --emerald-700: 110 231 183;
+    --emerald-800: 167 243 208;
+    --teal-50: 18 45 71;
+    --teal-100: 18 54 77;
+    --teal-200: 19 70 88;
+    --teal-600: 94 234 212;
+    --teal-700: 94 234 212;
+    --teal-800: 153 246 228;
+    --cyan-50: 17 45 76;
+    --cyan-100: 16 54 86;
+    --cyan-200: 15 70 101;
+    --cyan-600: 103 232 249;
+    --cyan-700: 103 232 249;
+    --cyan-800: 165 243 252;
+    --sky-50: 18 43 79;
+    --sky-100: 17 51 90;
+    --sky-200: 17 65 107;
+    --sky-600: 125 211 252;
+    --sky-700: 125 211 252;
+    --sky-800: 186 230 253;
+    --blue-50: 23 38 81;
+    --blue-100: 25 45 92;
+    --blue-200: 29 55 111;
+    --blue-600: 147 197 253;
+    --blue-700: 147 197 253;
+    --blue-800: 191 219 254;
+    --indigo-50: 28 35 80;
+    --indigo-100: 33 40 91;
+    --indigo-200: 41 47 109;
+    --indigo-600: 165 180 252;
+    --indigo-700: 165 180 252;
+    --indigo-800: 199 210 254;
+    --violet-50: 33 34 81;
+    --violet-100: 40 38 92;
+    --violet-200: 52 44 111;
+    --violet-600: 196 181 253;
+    --violet-700: 196 181 253;
+    --violet-800: 221 214 254;
+    --purple-50: 36 33 81;
+    --purple-100: 45 37 92;
+    --purple-200: 60 43 111;
+    --purple-600: 216 180 254;
+    --purple-700: 216 180 254;
+    --purple-800: 233 213 255;
+    --fuchsia-50: 42 31 80;
+    --fuchsia-100: 54 34 91;
+    --fuchsia-200: 74 38 109;
+    --fuchsia-600: 240 171 252;
+    --fuchsia-700: 240 171 252;
+    --fuchsia-800: 245 208 254;
+    --pink-50: 44 32 69;
+    --pink-100: 57 34 75;
+    --pink-200: 79 39 85;
+    --pink-600: 249 168 212;
+    --pink-700: 249 168 212;
+    --pink-800: 251 207 232;
+    --rose-50: 45 30 62;
+    --rose-100: 59 33 64;
+    --rose-200: 81 36 68;
+    --rose-600: 253 164 175;
+    --rose-700: 253 164 175;
+    --rose-800: 254 205 211;
+  }
 }
 
 @layer base {

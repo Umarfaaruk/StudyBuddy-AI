@@ -40,7 +40,7 @@ const NotificationPanel = () => {
       {/* Bell Button */}
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="relative h-10 w-10 rounded-xl bg-white shadow-sm flex items-center justify-center hover:bg-gray-50 transition-colors border border-gray-100"
+        className="relative h-10 w-10 rounded-xl bg-card shadow-sm flex items-center justify-center hover:bg-gray-50 transition-colors border border-gray-100"
       >
         <Bell className="h-5 w-5 text-gray-500" />
         {unreadCount > 0 && (
@@ -53,7 +53,7 @@ const NotificationPanel = () => {
       {/* Dropdown Panel */}
       {isOpen && (
         <div
-          className="absolute right-0 top-12 w-80 md:w-96 bg-white rounded-2xl shadow-xl border border-gray-100 overflow-hidden z-50 animate-in fade-in slide-in-from-top-2 duration-200"
+          className="absolute right-0 top-12 w-80 md:w-96 bg-card rounded-2xl shadow-xl border border-gray-100 overflow-hidden z-50 animate-in fade-in slide-in-from-top-2 duration-200"
         >
           {/* Header */}
           <div className="px-4 py-3 border-b border-gray-100 flex items-center justify-between bg-gray-50/50">
@@ -61,7 +61,7 @@ const NotificationPanel = () => {
             {unreadCount > 0 && (
               <button
                 onClick={() => markAllAsRead()}
-                className="text-xs text-[#29ABE2] hover:underline font-medium flex items-center gap-1"
+                className="text-xs text-primary-text hover:underline font-medium flex items-center gap-1"
               >
                 <Check className="h-3 w-3" />
                 Mark all as read
@@ -85,13 +85,13 @@ const NotificationPanel = () => {
                     if (!notif.read) markAsRead(notif.id);
                   }}
                   className={`w-full px-4 py-3 hover:bg-gray-50 transition-colors cursor-pointer border-b border-gray-50 last:border-0 text-left flex gap-3 ${
-                    !notif.read ? "bg-[#29ABE2]/[0.02]" : ""
+                    !notif.read ? "bg-primary/[0.02]" : ""
                   }`}
                 >
                   {/* Unread indicator */}
                   <div className="flex-shrink-0 pt-0.5">
                     {!notif.read ? (
-                      <div className="h-2 w-2 rounded-full bg-[#29ABE2] mt-1.5" />
+                      <div className="h-2 w-2 rounded-full bg-primary mt-1.5" />
                     ) : (
                       <div className="h-2 w-2 mt-1.5" />
                     )}

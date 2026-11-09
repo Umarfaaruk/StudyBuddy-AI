@@ -246,7 +246,7 @@ const TimerPage = () => {
 
       {/* Quick Stats */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <Card className="bg-gradient-to-br from-[#29ABE2]/10 to-[#29ABE2]/10 border-[#29ABE2]/20">
+        <Card className="bg-gradient-to-br from-primary/10 to-primary/10 border-primary/20">
           <CardHeader className="pb-3">
             <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
               <Clock className="h-4 w-4" />
@@ -261,7 +261,7 @@ const TimerPage = () => {
           </CardContent>
         </Card>
 
-        <Card className="bg-gradient-to-br from-[#29ABE2]/10 to-[#29ABE2]/10 border-[#29ABE2]/20">
+        <Card className="bg-gradient-to-br from-primary/10 to-primary/10 border-primary/20">
           <CardHeader className="pb-3">
             <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
               <Flame className="h-4 w-4" />
@@ -393,7 +393,7 @@ const TimerPage = () => {
                       contentStyle={{ backgroundColor: "hsl(var(--card))", border: "1px solid hsl(var(--border))", borderRadius: "8px" }}
                       formatter={(value: any) => [`${value} min`, "Study Time"]}
                     />
-                    <Bar dataKey="minutes" fill="#29ABE2" radius={[8, 8, 0, 0]} />
+                    <Bar dataKey="minutes" fill="hsl(var(--primary))" radius={[8, 8, 0, 0]} />
                   </BarChart>
                 </ResponsiveContainer>
               ) : (
@@ -412,7 +412,7 @@ const TimerPage = () => {
                         <span className="text-sm font-medium">{day.date}</span>
                         <div className="flex items-center gap-3">
                           <span className="text-xs text-muted-foreground">{day.sessions} session{day.sessions !== 1 ? 's' : ''}</span>
-                          <Badge variant="outline" className="text-primary border-primary/30">
+                          <Badge variant="outline" className="text-primary-text border-primary/30">
                             {formatMinutes(day.minutes)}
                           </Badge>
                         </div>
@@ -448,7 +448,7 @@ const TimerPage = () => {
                       }}
                     />
                     <Legend />
-                    <Bar dataKey="minutes" fill="#29ABE2" radius={[8, 8, 0, 0]} name="Total Minutes" />
+                    <Bar dataKey="minutes" fill="hsl(var(--primary))" radius={[8, 8, 0, 0]} name="Total Minutes" />
                     <Bar dataKey="avgPerDay" fill="#06b6d4" radius={[8, 8, 0, 0]} name="Avg/Day" />
                   </BarChart>
                 </ResponsiveContainer>
@@ -469,7 +469,7 @@ const TimerPage = () => {
                         <div className="flex items-center gap-4">
                           <span className="text-xs text-muted-foreground">{week.sessions} sessions</span>
                           <span className="text-xs text-muted-foreground">~{week.avgPerDay}m/day</span>
-                          <Badge variant="outline" className="text-[#29ABE2] border-[#29ABE2]/30">
+                          <Badge variant="outline" className="text-primary-text border-primary/30">
                             {formatMinutes(week.minutes)}
                           </Badge>
                         </div>
@@ -554,7 +554,7 @@ const TimerPage = () => {
                   {pastSessions.slice(0, 15).map((session) => (
                     <div key={session.id} className="flex items-center justify-between p-3 bg-card/50 border border-border rounded-lg">
                       <div className="flex items-center gap-3">
-                        <Clock className="h-4 w-4 text-primary" />
+                        <Clock className="h-4 w-4 text-primary-text" />
                         <div>
                           <p className="font-medium">
                             {new Date(session.started_at).toLocaleDateString()} at{" "}
@@ -568,7 +568,7 @@ const TimerPage = () => {
                           </p>
                         </div>
                       </div>
-                      <Badge variant="outline" className="text-primary border-primary/30">
+                      <Badge variant="outline" className="text-primary-text border-primary/30">
                         {Math.round(session.duration_seconds / 60)}m
                       </Badge>
                     </div>
@@ -586,7 +586,7 @@ const TimerPage = () => {
       <Card className="bg-card border-border">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            <Target className="h-5 w-5 text-cta" />
+            <Target className="h-5 w-5 text-cta-text" />
             Study Tips
           </CardTitle>
         </CardHeader>

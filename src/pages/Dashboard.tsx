@@ -224,7 +224,7 @@ const Dashboard = () => {
           {/* Focus Timer card */}
           <Link
             to="/timer"
-            className="block relative overflow-hidden rounded-2xl bg-foreground p-5 text-white group hover-lift min-h-[130px]"
+            className="block relative overflow-hidden rounded-2xl on-dark bg-[#0F172A] p-5 text-white group hover-lift min-h-[130px]"
           >
             <div className="relative z-10">
               <div className="flex items-center justify-between mb-3">
@@ -266,7 +266,7 @@ const Dashboard = () => {
       <div className="glass-card rounded-2xl p-5 hover-glow">
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-3">
-            <Flame className="h-5 w-5 text-cta" />
+            <Flame className="h-5 w-5 text-cta-text" />
             <span className="font-bold text-foreground">{currentStreak}-Day Streak</span>
             <span className="text-xs text-muted-foreground bg-muted px-2.5 py-0.5 rounded-full font-medium">
               {totalXp.toLocaleString()} XP · Next: {nextMilestone.toLocaleString()} XP
@@ -317,10 +317,10 @@ const Dashboard = () => {
       <div className="glass-card rounded-2xl p-6 hover-glow">
         <div className="flex items-center justify-between mb-5">
           <h3 className="text-base font-bold text-foreground flex items-center gap-2">
-            <BookOpen className="h-5 w-5 text-primary" />
+            <BookOpen className="h-5 w-5 text-primary-text" />
             Continue Learning
           </h3>
-          <Link to="/lessons" className="text-xs font-semibold text-primary hover:underline flex items-center gap-1">
+          <Link to="/lessons" className="text-xs font-semibold text-primary-text hover:underline flex items-center gap-1">
             View all <ArrowRight className="h-3 w-3" />
           </Link>
         </div>
@@ -349,7 +349,7 @@ const Dashboard = () => {
                   {String(idx + 1).padStart(2, "0")}
                 </div>
                 <div className="flex-1 min-w-0">
-                  <div className="text-sm font-semibold text-foreground truncate group-hover:text-primary transition-colors">{t.title}</div>
+                  <div className="text-sm font-semibold text-foreground truncate group-hover:text-primary-text transition-colors">{t.title}</div>
                   <div className="text-xs text-muted-foreground mt-0.5">
                     {t.subject} · {t.pct}% complete
                   </div>
@@ -358,7 +358,7 @@ const Dashboard = () => {
                   </div>
                 </div>
                 <div className="h-9 w-9 rounded-full bg-primary/10 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0">
-                  <svg className="h-4 w-4 text-primary ml-0.5" fill="currentColor" viewBox="0 0 24 24">
+                  <svg className="h-4 w-4 text-primary-text ml-0.5" fill="currentColor" viewBox="0 0 24 24">
                     <path d="M8 5v14l11-7z" />
                   </svg>
                 </div>
@@ -369,7 +369,7 @@ const Dashboard = () => {
           <div className="text-center py-8">
             <div className="text-4xl mb-3">📖</div>
             <div className="text-sm text-muted-foreground">Start a lesson to track your progress</div>
-            <Link to="/materials" className="inline-block mt-3 text-sm font-semibold text-primary hover:underline">
+            <Link to="/materials" className="inline-block mt-3 text-sm font-semibold text-primary-text hover:underline">
               Browse materials →
             </Link>
           </div>
@@ -381,7 +381,7 @@ const Dashboard = () => {
       {weakTopics.length > 0 ? (
         <div className="bg-gradient-to-r from-cta-light to-cta-light/50 border border-cta/20 rounded-2xl p-6 space-y-4 hover-glow">
           <div className="flex items-center gap-2">
-            <Lightbulb className="h-5 w-5 text-cta" />
+            <Lightbulb className="h-5 w-5 text-cta-text" />
             <span className="font-bold text-sm text-foreground">Recommended Focus Areas</span>
           </div>
           <p className="text-xs text-muted-foreground">
@@ -405,7 +405,7 @@ const Dashboard = () => {
         </div>
       ) : (
         <div className="flex items-center gap-4 bg-primary/5 border border-primary/10 rounded-2xl px-6 py-5 hover-glow">
-          <AlertTriangle className="h-5 w-5 text-primary flex-shrink-0" />
+          <AlertTriangle className="h-5 w-5 text-primary-text flex-shrink-0" />
           <div className="flex-1">
             <div className="text-sm font-bold text-foreground">
               Complete quizzes to identify weak topics
@@ -414,7 +414,7 @@ const Dashboard = () => {
               Take a quiz to get personalized recommendations on where to focus.
             </div>
           </div>
-          <Link to="/quiz" className="text-xs font-semibold text-primary hover:underline whitespace-nowrap">
+          <Link to="/quiz" className="text-xs font-semibold text-primary-text hover:underline whitespace-nowrap">
             Take quiz →
           </Link>
         </div>
@@ -472,7 +472,7 @@ const Dashboard = () => {
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 flex-wrap">
-                      <span className="text-sm font-semibold text-foreground truncate group-hover:text-primary transition-colors">{c.title}</span>
+                      <span className="text-sm font-semibold text-foreground truncate group-hover:text-primary-text transition-colors">{c.title}</span>
                       <span className="text-[10px] px-2 py-0.5 rounded-full border border-white/10 bg-white/5 text-muted-foreground">{c.category}</span>
                     </div>
                     <div className="text-xs text-muted-foreground mt-1 line-clamp-1">
@@ -509,7 +509,7 @@ const Dashboard = () => {
        {isDetailModalOpen && activeDetailComplaint && (
          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
            <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setIsDetailModalOpen(false)} />
-           <div className="relative w-full max-w-2xl bg-[#0F172A] border border-white/10 rounded-2xl shadow-2xl p-6 max-h-[90vh] overflow-y-auto scrollbar-thin animate-in fade-in zoom-in-95 duration-200 text-left">
+           <div className="on-dark relative w-full max-w-2xl bg-[#0F172A] border border-white/10 rounded-2xl shadow-2xl p-6 max-h-[90vh] overflow-y-auto scrollbar-thin animate-in fade-in zoom-in-95 duration-200 text-left">
              <button
                onClick={() => setIsDetailModalOpen(false)}
                className="absolute top-4 right-4 text-white/40 hover:text-white p-1 rounded-lg hover:bg-white/5 transition-all"

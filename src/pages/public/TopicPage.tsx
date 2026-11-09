@@ -124,7 +124,7 @@ const TopicPage = () => {
       <main className="max-w-3xl mx-auto px-6 py-10 space-y-8">
         {isLoading ? (
           <div className="flex justify-center py-16">
-            <Loader2 className="h-6 w-6 animate-spin text-primary" />
+            <Loader2 className="h-6 w-6 animate-spin text-primary-text" />
           </div>
         ) : !data ? (
           <div className="text-center space-y-4 py-12">
@@ -157,7 +157,7 @@ const TopicPage = () => {
             </div>
 
             <div className="rounded-2xl border border-primary/30 bg-primary/5 p-6 text-center space-y-3">
-              <BookOpen className="h-6 w-6 text-primary mx-auto" />
+              <BookOpen className="h-6 w-6 text-primary-text mx-auto" />
               <h2 className="text-sm font-bold text-foreground">
                 Find your weak chapters in 8 questions
               </h2>

@@ -118,7 +118,7 @@ const SnapEnhance = () => {
       }}
     >
       {/* Toolbar */}
-      <div className="bg-[#0F172A] rounded-xl shadow-2xl shadow-black/30 border border-white/10 p-1.5 flex items-center gap-1">
+      <div className="on-dark bg-[#0F172A] rounded-xl shadow-2xl shadow-black/30 border border-white/10 p-1.5 flex items-center gap-1">
         {ACTIONS.map((action) => (
           <button
             key={action.key}
@@ -141,7 +141,7 @@ const SnapEnhance = () => {
 
       {/* Result panel */}
       {(loading || result) && (
-        <div className="mt-2 bg-white rounded-xl shadow-2xl border border-gray-200 p-4 max-w-[320px] animate-in fade-in slide-in-from-top-1 duration-200">
+        <div className="mt-2 bg-card rounded-xl shadow-2xl border border-gray-200 p-4 max-w-[320px] animate-in fade-in slide-in-from-top-1 duration-200">
           {loading ? (
             <div className="flex items-center gap-2 text-sm text-gray-500">
               <Loader2 className="h-4 w-4 animate-spin" />
@@ -155,7 +155,7 @@ const SnapEnhance = () => {
               <div className="flex items-center gap-2 mt-3 pt-3 border-t border-gray-100">
                 <button
                   onClick={handleCopy}
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#29ABE2] text-white text-xs font-semibold hover:bg-[#29ABE2] transition-colors"
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-primary text-white text-xs font-semibold hover:bg-primary transition-colors"
                 >
                   {copied ? <Check className="h-3 w-3" /> : <Copy className="h-3 w-3" />}
                   {copied ? "Copied!" : "Copy"}

@@ -115,7 +115,7 @@ const TestimonialPrompt = ({ latestScore }: { latestScore?: number }) => {
       </button>
 
       <div className="flex items-center gap-2">
-        <Quote className="h-4 w-4 text-primary flex-shrink-0" />
+        <Quote className="h-4 w-4 text-primary-text flex-shrink-0" />
         <h2 className="text-sm font-bold text-foreground">
           {eligibility.milestone === "score_jump"
             ? `Your score is up ${Math.round(eligibility.jump)} points`

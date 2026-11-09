@@ -36,7 +36,7 @@ const ErrorPatternInsight = () => {
   return (
     <div className="rounded-2xl border border-primary/25 bg-primary/5 p-5 space-y-3">
       <div className="flex items-center gap-2">
-        <Lightbulb className="h-4 w-4 text-primary flex-shrink-0" />
+        <Lightbulb className="h-4 w-4 text-primary-text flex-shrink-0" />
         <h2 className="text-sm font-bold text-foreground">Patterns in your mistakes</h2>
       </div>
 

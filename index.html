@@ -3,6 +3,22 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <script>
+      // Apply the saved (or system) theme before first paint so there is no flash.
+      (function () {
+        try {
+          var t = localStorage.getItem("theme");
+          if (t !== "light" && t !== "dark") {
+            t = window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+          }
+          document.documentElement.classList.toggle("dark", t === "dark");
+          document.documentElement.style.colorScheme = t;
+        } catch (e) {}
+      })();
+    </script>
+    <meta name="color-scheme" content="light dark" />
+    <meta name="theme-color" content="#F3F4F6" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#0B1026" media="(prefers-color-scheme: dark)" />
     <title>StudyBuddy AI - AI-Powered Learning Platform</title>
     <meta name="description" content="StudyBuddy AI - An intelligent learning platform with AI tutoring, study tracking, and personalized learning paths." />
     <meta name="author" content="StudyBuddy AI" />

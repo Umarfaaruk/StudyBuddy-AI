@@ -239,7 +239,7 @@ ${baseInstructions}`;
   if (loading) {
     return (
       <div className="p-6 md:p-8 max-w-2xl mx-auto flex flex-col items-center justify-center gap-4 py-20">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        <Loader2 className="h-8 w-8 animate-spin text-primary-text" />
         <p className="text-sm text-muted-foreground">Generating quiz questions with AI…</p>
       </div>
     );
@@ -282,7 +282,7 @@ ${baseInstructions}`;
 
       {/* Question header */}
       <div>
-        <div className="text-xs font-bold text-primary uppercase tracking-wider mb-1">Smart Quiz</div>
+        <div className="text-xs font-bold text-primary-text uppercase tracking-wider mb-1">Smart Quiz</div>
         <div className="flex items-center justify-between">
           <h1 className="text-xl font-bold text-foreground">
             Question {current + 1}{" "}
@@ -290,7 +290,7 @@ ${baseInstructions}`;
           </h1>
           <div className="flex items-center gap-1.5">
             <span className="text-xs text-muted-foreground">Score:</span>
-            <span className="text-sm font-bold text-cta">{currentXP} XP</span>
+            <span className="text-sm font-bold text-cta-text">{currentXP} XP</span>
           </div>
         </div>
       </div>
@@ -334,7 +334,7 @@ ${baseInstructions}`;
       {showHint && (
         <div className="bg-cta-light border border-cta/20 rounded-xl p-4 space-y-2 animate-fade-in">
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2 text-xs font-semibold text-cta uppercase tracking-wider">
+            <div className="flex items-center gap-2 text-xs font-semibold text-cta-text uppercase tracking-wider">
               <Lightbulb className="h-3.5 w-3.5" /> AI Hint
             </div>
             <button onClick={() => setShowHint(false)} className="text-muted-foreground hover:text-foreground">

@@ -71,21 +71,21 @@ const NotFound = () => {
             <div className="flex flex-wrap gap-x-6 gap-y-2 justify-center text-sm">
               <Link
                 to="/free-test"
-                className="inline-flex items-center gap-1.5 text-primary hover:underline"
+                className="inline-flex items-center gap-1.5 text-primary-text hover:underline"
               >
                 <ClipboardCheck className="h-3.5 w-3.5" />
                 Free diagnostic test
               </Link>
               <Link
                 to="/about"
-                className="inline-flex items-center gap-1.5 text-primary hover:underline"
+                className="inline-flex items-center gap-1.5 text-primary-text hover:underline"
               >
                 <Info className="h-3.5 w-3.5" />
                 About StudyBuddy AI
               </Link>
               <Link
                 to="/feedback"
-                className="inline-flex items-center gap-1.5 text-primary hover:underline"
+                className="inline-flex items-center gap-1.5 text-primary-text hover:underline"
               >
                 <LifeBuoy className="h-3.5 w-3.5" />
                 Report a problem

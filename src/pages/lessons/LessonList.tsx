@@ -16,10 +16,10 @@ import { getAuthHeaders } from "@/lib/authHeaders";
 const StudyPlanner = lazy(() => import("@/pages/materials/StudyPlanner"));
 
 const iconMap: Record<string, React.ReactNode> = {
-  calculator:     <Calculator    className="h-5 w-5 text-primary" />,
-  atom:           <Atom          className="h-5 w-5 text-primary" />,
-  "flask-conical":<FlaskConical  className="h-5 w-5 text-primary" />,
-  leaf:           <Leaf          className="h-5 w-5 text-primary" />,
+  calculator:     <Calculator    className="h-5 w-5 text-primary-text" />,
+  atom:           <Atom          className="h-5 w-5 text-primary-text" />,
+  "flask-conical":<FlaskConical  className="h-5 w-5 text-primary-text" />,
+  leaf:           <Leaf          className="h-5 w-5 text-primary-text" />,
 };
 
 const LessonList = () => {
@@ -435,7 +435,7 @@ ${condensedContent.substring(0, 15000)}`;
   return (
     <div className="p-6 md:p-8 max-w-4xl mx-auto space-y-8">
       {/* Banner */}
-      <div className="relative overflow-hidden bg-gradient-to-br from-[#29ABE2] to-[#29ABE2] rounded-3xl p-8 md:p-10 shadow-lg text-white">
+      <div className="relative overflow-hidden bg-gradient-to-br from-primary to-primary rounded-3xl p-8 md:p-10 shadow-lg text-white">
         <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
           <div>
             <div className="inline-block px-3 py-1 bg-white/20 rounded-full text-[10px] font-bold tracking-widest uppercase mb-4 backdrop-blur-sm">
@@ -453,14 +453,14 @@ ${condensedContent.substring(0, 15000)}`;
           </button>
         </div>
         {/* Decorative elements */}
-        <div className="absolute top-0 right-0 -mr-20 -mt-20 w-64 h-64 bg-white opacity-10 rounded-full blur-3xl pointer-events-none"></div>
-        <div className="absolute bottom-0 right-20 -mb-20 w-40 h-40 bg-white opacity-10 rounded-full blur-2xl pointer-events-none"></div>
+        <div className="absolute top-0 right-0 -mr-20 -mt-20 w-64 h-64 bg-card opacity-10 rounded-full blur-3xl pointer-events-none"></div>
+        <div className="absolute bottom-0 right-20 -mb-20 w-40 h-40 bg-card opacity-10 rounded-full blur-2xl pointer-events-none"></div>
       </div>
 
       {/* Inline Study Planner Panel */}
       {showPlanner && (
-        <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 overflow-hidden animate-in slide-in-from-top-2 duration-300">
-          <Suspense fallback={<div className="p-8 flex justify-center"><Loader2 className="animate-spin h-6 w-6 text-[#29ABE2]" /></div>}>
+        <div className="bg-card rounded-2xl p-6 shadow-sm border border-gray-100 overflow-hidden animate-in slide-in-from-top-2 duration-300">
+          <Suspense fallback={<div className="p-8 flex justify-center"><Loader2 className="animate-spin h-6 w-6 text-primary-text" /></div>}>
             <StudyPlanner />
           </Suspense>
         </div>
@@ -530,7 +530,7 @@ ${condensedContent.substring(0, 15000)}`;
                       </Link>
                       <Link
                         to={`/quiz`}
-                        className="inline-flex items-center gap-1 text-xs font-semibold text-[#29ABE2] hover:text-white hover:bg-[#29ABE2] bg-[#DBEAFE] px-3 py-1.5 rounded-xl transition-all"
+                        className="inline-flex items-center gap-1 text-xs font-semibold text-primary-text hover:text-white hover:bg-primary bg-primary-light px-3 py-1.5 rounded-xl transition-all"
                       >
                         <RotateCcw className="h-3 w-3" /> Retake Quiz
                       </Link>
@@ -551,7 +551,7 @@ ${condensedContent.substring(0, 15000)}`;
             placeholder="Search topics…"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="pl-12 h-12 bg-white rounded-xl border-gray-200 focus-visible:ring-[#29ABE2] shadow-sm text-sm"
+            className="pl-12 h-12 bg-card rounded-xl border-gray-200 focus-visible:ring-primary shadow-sm text-sm"
           />
         </div>
         <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-hide items-center">
@@ -562,7 +562,7 @@ ${condensedContent.substring(0, 15000)}`;
               className={`px-4 py-2.5 rounded-xl text-sm font-medium border whitespace-nowrap transition-all shadow-sm ${
                 filter === s
                   ? "bg-[#0F172A] text-white border-[#0F172A]"
-                  : "bg-white border-gray-100 text-gray-500 hover:border-gray-300 hover:text-gray-900"
+                  : "bg-card border-gray-100 text-gray-500 hover:border-gray-300 hover:text-gray-900"
               }`}
             >
               {s}
@@ -575,7 +575,7 @@ ${condensedContent.substring(0, 15000)}`;
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {isLoading
           ? Array.from({ length: 4 }).map((_, i) => (
-              <div key={i} className="flex flex-col gap-4 bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
+              <div key={i} className="flex flex-col gap-4 bg-card rounded-2xl p-6 shadow-sm border border-gray-100">
                 <div className="flex items-center gap-4">
                   <Skeleton className="h-12 w-12 rounded-xl" />
                   <div className="flex-1 space-y-2">
@@ -590,7 +590,7 @@ ${condensedContent.substring(0, 15000)}`;
               <div key={t.id} className="relative group flex">
                 {/* ── Delete Confirmation Overlay ── */}
                 {confirmDeleteId === t.id && (
-                  <div className="absolute inset-0 z-20 bg-white/95 backdrop-blur-md border border-red-100 rounded-2xl flex flex-col justify-center gap-3 p-6 animate-in fade-in-0 zoom-in-95 duration-200 shadow-lg">
+                  <div className="absolute inset-0 z-20 bg-card/95 backdrop-blur-md border border-red-100 rounded-2xl flex flex-col justify-center gap-3 p-6 animate-in fade-in-0 zoom-in-95 duration-200 shadow-lg">
                     <div className="flex items-center gap-2 text-red-600 font-medium">
                       <AlertTriangle className="h-5 w-5" />
                       <p>Delete "{t.title}"?</p>
@@ -622,7 +622,7 @@ ${condensedContent.substring(0, 15000)}`;
                 )}
 
                 <div
-                  className="flex flex-col w-full bg-white border border-gray-100 rounded-2xl p-6 shadow-sm hover:border-[#29ABE2]/30 hover:shadow-md transition-all relative overflow-hidden"
+                  className="flex flex-col w-full bg-card border border-gray-100 rounded-2xl p-6 shadow-sm hover:border-primary/30 hover:shadow-md transition-all relative overflow-hidden"
                 >
                   {/* Delete button (visible on hover) */}
                   <button
@@ -644,13 +644,13 @@ ${condensedContent.substring(0, 15000)}`;
                   >
                     <div className="flex items-start gap-4 mb-4">
                       {/* Icon */}
-                      <div className="h-12 w-12 rounded-xl bg-[#DBEAFE] flex items-center justify-center flex-shrink-0 text-[#29ABE2]">
+                      <div className="h-12 w-12 rounded-xl bg-primary-light flex items-center justify-center flex-shrink-0 text-primary-text">
                         {iconMap[t.subjectIcon] ?? <BookOpen className="h-6 w-6" />}
                       </div>
 
                       {/* Info */}
                       <div className="flex-1 min-w-0 pr-8">
-                        <div className="text-[10px] font-bold tracking-widest uppercase text-[#29ABE2] mb-1">
+                        <div className="text-[10px] font-bold tracking-widest uppercase text-primary-text mb-1">
                           {t.subjectName}
                         </div>
                         <h3 className="text-base font-semibold text-gray-900 leading-tight mb-1 line-clamp-2">{t.title}</h3>
@@ -664,13 +664,13 @@ ${condensedContent.substring(0, 15000)}`;
                     <div className="mt-auto pt-2">
                       <div className="flex items-center justify-between mb-2">
                         <span className="text-xs font-medium text-gray-500">Progress</span>
-                        <span className={`text-xs font-bold ${t.pct === 100 ? "text-emerald-500" : "text-[#29ABE2]"}`}>
+                        <span className={`text-xs font-bold ${t.pct === 100 ? "text-emerald-500" : "text-primary-text"}`}>
                           {t.pct}%
                         </span>
                       </div>
                       <div className="h-2 bg-gray-100 rounded-full overflow-hidden w-full">
                         <div
-                          className={`h-full rounded-full transition-all duration-500 ${t.pct === 100 ? "bg-emerald-500" : "bg-gradient-to-r from-[#29ABE2] to-[#29ABE2]"}`}
+                          className={`h-full rounded-full transition-all duration-500 ${t.pct === 100 ? "bg-emerald-500" : "bg-gradient-to-r from-primary to-primary"}`}
                           style={{ width: `${t.pct}%` }}
                         />
                       </div>
@@ -682,9 +682,9 @@ ${condensedContent.substring(0, 15000)}`;
       </div>
 
       {!isLoading && filtered.length === 0 && filter !== "Your Courses" && (
-        <div className="bg-white rounded-2xl p-12 border border-gray-100 text-center shadow-sm">
-          <div className="h-16 w-16 bg-[#DBEAFE] rounded-full flex items-center justify-center mx-auto mb-4">
-            <BookOpen className="h-8 w-8 text-[#29ABE2] opacity-50" />
+        <div className="bg-card rounded-2xl p-12 border border-gray-100 text-center shadow-sm">
+          <div className="h-16 w-16 bg-primary-light rounded-full flex items-center justify-center mx-auto mb-4">
+            <BookOpen className="h-8 w-8 text-primary-text opacity-50" />
           </div>
           <h3 className="text-lg font-semibold text-gray-900 mb-1">No topics found</h3>
           <p className="text-sm text-gray-500">Try adjusting your search or filter criteria.</p>
@@ -703,7 +703,7 @@ ${condensedContent.substring(0, 15000)}`;
           </p>
         </div>
 
-        <div className="bg-white rounded-2xl p-5 md:p-6 shadow-sm border border-gray-100 hover:shadow-md transition-shadow">
+        <div className="bg-card rounded-2xl p-5 md:p-6 shadow-sm border border-gray-100 hover:shadow-md transition-shadow">
           <div className="flex flex-col sm:flex-row gap-3">
             <div className="relative flex-1">
               <Youtube className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-red-500" />
@@ -713,7 +713,7 @@ ${condensedContent.substring(0, 15000)}`;
                 value={youtubeUrl}
                 onChange={(e) => setYoutubeUrl(e.target.value)}
                 disabled={youtubeGenerating}
-                className="w-full h-12 pl-10 pr-4 text-sm bg-gray-50 border border-gray-200 rounded-xl outline-none focus:border-[#29ABE2]/40 focus:ring-2 focus:ring-[#29ABE2]/10 text-gray-900 transition-all disabled:opacity-50"
+                className="w-full h-12 pl-10 pr-4 text-sm bg-gray-50 border border-gray-200 rounded-xl outline-none focus:border-primary/40 focus:ring-2 focus:ring-primary/10 text-gray-900 transition-all disabled:opacity-50"
                 onKeyDown={(e) => e.key === "Enter" && !youtubeGenerating && handleGenerateYouTubeCourse()}
               />
             </div>
@@ -730,13 +730,13 @@ ${condensedContent.substring(0, 15000)}`;
             </Button>
           </div>
           {youtubeGenerating && (
-            <div className="mt-4 flex items-center gap-3 p-3 bg-[#29ABE2] border border-[#29ABE2] rounded-xl animate-in fade-in duration-300">
-              <div className="h-8 w-8 rounded-lg bg-[#29ABE2] flex items-center justify-center flex-shrink-0">
-                <Loader2 className="h-4 w-4 animate-spin text-[#29ABE2]" />
+            <div className="mt-4 flex items-center gap-3 p-3 bg-primary border border-primary rounded-xl animate-in fade-in duration-300">
+              <div className="h-8 w-8 rounded-lg bg-primary flex items-center justify-center flex-shrink-0">
+                <Loader2 className="h-4 w-4 animate-spin text-primary-text" />
               </div>
               <div>
-                <p className="text-xs font-semibold text-[#29ABE2]">AI is analyzing the video...</p>
-                <p className="text-[10px] text-[#29ABE2] mt-0.5">Fetching transcript → Summarizing content → Generating lessons</p>
+                <p className="text-xs font-semibold text-primary-text">AI is analyzing the video...</p>
+                <p className="text-[10px] text-primary-text mt-0.5">Fetching transcript → Summarizing content → Generating lessons</p>
               </div>
             </div>
           )}
@@ -755,7 +755,7 @@ ${condensedContent.substring(0, 15000)}`;
                 Turn your uploaded PDFs and text into structured, step-by-step lessons.
               </p>
             </div>
-            <Link to="/materials" className="hidden sm:flex items-center gap-2 text-sm font-medium text-[#29ABE2] hover:text-[#29ABE2] bg-[#DBEAFE] px-4 py-2 rounded-xl transition-colors">
+            <Link to="/materials" className="hidden sm:flex items-center gap-2 text-sm font-medium text-primary-text hover:text-primary-text bg-primary-light px-4 py-2 rounded-xl transition-colors">
               <Plus className="h-4 w-4" />
               New Material
             </Link>
@@ -766,10 +766,10 @@ ${condensedContent.substring(0, 15000)}`;
               const alreadyGenerated = topics.some((t: any) => t.material_id === m.id);
               if (alreadyGenerated) return null;
               return (
-                <div key={m.id} className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100 flex flex-col justify-between gap-5 hover:shadow-md transition-shadow">
+                <div key={m.id} className="bg-card rounded-2xl p-5 shadow-sm border border-gray-100 flex flex-col justify-between gap-5 hover:shadow-md transition-shadow">
                   <div className="flex items-start gap-3">
-                    <div className="h-10 w-10 rounded-xl bg-[#29ABE2] flex items-center justify-center flex-shrink-0">
-                      <FileText className="h-5 w-5 text-[#29ABE2]" />
+                    <div className="h-10 w-10 rounded-xl bg-primary flex items-center justify-center flex-shrink-0">
+                      <FileText className="h-5 w-5 text-primary-text" />
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="text-sm font-semibold text-gray-900 line-clamp-2 leading-tight" title={m.file_name}>{m.file_name}</div>
@@ -784,13 +784,13 @@ ${condensedContent.substring(0, 15000)}`;
                     {generatingFor === m.id ? (
                       <><Loader2 className="h-4 w-4 animate-spin" /> Generating...</>
                     ) : (
-                      <><Sparkles className="h-4 w-4 text-[#29ABE2]" /> Generate Course</>
+                      <><Sparkles className="h-4 w-4 text-primary-text" /> Generate Course</>
                     )}
                   </Button>
                 </div>
               );
             })}
-            <Link to="/materials" className="sm:hidden bg-white border-2 border-dashed border-gray-200 rounded-2xl p-5 flex flex-col items-center justify-center text-gray-400 hover:text-[#29ABE2] hover:border-[#29ABE2]/50 hover:bg-[#DBEAFE] transition-all gap-2 min-h-[160px]">
+            <Link to="/materials" className="sm:hidden bg-card border-2 border-dashed border-gray-200 rounded-2xl p-5 flex flex-col items-center justify-center text-gray-400 hover:text-primary-text hover:border-primary/50 hover:bg-primary-light transition-all gap-2 min-h-[160px]">
               <Plus className="h-8 w-8" />
               <span className="text-sm font-semibold">Upload Material</span>
             </Link>
@@ -800,7 +800,7 @@ ${condensedContent.substring(0, 15000)}`;
       {/* ── Certificate Modal ── */}
       {selectedCert && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in duration-200">
-          <div className="bg-white rounded-3xl p-6 md:p-8 max-w-2xl w-full shadow-2xl relative border-8 border-amber-100 overflow-hidden">
+          <div className="bg-card rounded-3xl p-6 md:p-8 max-w-2xl w-full shadow-2xl relative border-8 border-amber-100 overflow-hidden">
             {/* Close Button */}
             <button
               onClick={() => setSelectedCert(null)}

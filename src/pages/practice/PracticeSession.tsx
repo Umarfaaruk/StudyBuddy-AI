@@ -84,7 +84,7 @@ const PracticeSession = () => {
   if (phase === "loading" || examLoading) {
     return (
       <div className="min-h-[60vh] flex items-center justify-center">
-        <Loader2 className="h-6 w-6 animate-spin text-primary" />
+        <Loader2 className="h-6 w-6 animate-spin text-primary-text" />
       </div>
     );
   }
@@ -127,7 +127,7 @@ const PracticeSession = () => {
   if (phase === "submitting") {
     return (
       <div className="min-h-[60vh] flex flex-col items-center justify-center gap-3">
-        <Loader2 className="h-6 w-6 animate-spin text-primary" />
+        <Loader2 className="h-6 w-6 animate-spin text-primary-text" />
         <p className="text-sm text-muted-foreground">Scoring your answers…</p>
       </div>
     );

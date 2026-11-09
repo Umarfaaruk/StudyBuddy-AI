@@ -54,7 +54,7 @@ const AdminInsights = () => {
   if (loading) {
     return (
       <div className="min-h-[300px] flex items-center justify-center">
-        <Loader2 className="h-6 w-6 animate-spin text-[#29ABE2]" />
+        <Loader2 className="h-6 w-6 animate-spin text-primary-text" />
       </div>
     );
   }
@@ -78,7 +78,7 @@ const AdminInsights = () => {
               key={s.id}
               onClick={() => setSection(s.id)}
               className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold transition-all ${
-                on ? "bg-[#29ABE2] text-white shadow-sm" : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                on ? "bg-primary text-white shadow-sm" : "bg-gray-100 text-gray-600 hover:bg-gray-200"
               }`}
             >
               <Icon className="h-4 w-4" /> {s.label}
@@ -261,12 +261,12 @@ type M = ReturnType<typeof computeMetrics>;
 
 const Stat = ({ label, value, icon: Icon, sub, tone = "blue" }: { label: string; value: string | number; icon: any; sub?: string; tone?: string }) => {
   const tones: Record<string, string> = {
-    blue: "text-[#29ABE2] bg-[#29ABE2]/10", green: "text-emerald-500 bg-emerald-500/10",
+    blue: "text-primary-text bg-primary/10", green: "text-emerald-500 bg-emerald-500/10",
     amber: "text-amber-500 bg-amber-500/10", red: "text-red-500 bg-red-500/10",
     violet: "text-violet-500 bg-violet-500/10",
   };
   return (
-    <div className="bg-white rounded-2xl border border-gray-100 p-4 shadow-sm">
+    <div className="bg-card rounded-2xl border border-gray-100 p-4 shadow-sm">
       <div className="flex items-center justify-between">
         <span className="text-xs font-medium text-gray-500">{label}</span>
         <div className={`h-8 w-8 rounded-lg flex items-center justify-center ${tones[tone]}`}><Icon className="h-4 w-4" /></div>
@@ -278,15 +278,15 @@ const Stat = ({ label, value, icon: Icon, sub, tone = "blue" }: { label: string;
 };
 
 const Panel = ({ title, children, icon: Icon }: { title: string; children: any; icon?: any }) => (
-  <div className="bg-white rounded-2xl border border-gray-100 p-5 shadow-sm">
+  <div className="bg-card rounded-2xl border border-gray-100 p-5 shadow-sm">
     <h3 className="text-sm font-bold text-gray-900 mb-4 flex items-center gap-2">
-      {Icon && <Icon className="h-4 w-4 text-[#29ABE2]" />} {title}
+      {Icon && <Icon className="h-4 w-4 text-primary-text" />} {title}
     </h3>
     {children}
   </div>
 );
 
-const BarRow = ({ label, value, max, suffix = "%", tone = "#29ABE2" }: { label: string; value: number; max: number; suffix?: string; tone?: string }) => (
+const BarRow = ({ label, value, max, suffix = "%", tone = "hsl(var(--primary))" }: { label: string; value: number; max: number; suffix?: string; tone?: string }) => (
   <div className="flex items-center gap-3">
     <span className="text-xs text-gray-600 w-36 truncate">{label}</span>
     <div className="flex-1 h-2.5 bg-gray-100 rounded-full overflow-hidden">
@@ -318,7 +318,7 @@ const Overview = ({ m }: { m: M }) => (
         <div className="grid grid-cols-3 gap-3 text-center">
           {[["Daily", m.dau], ["Weekly", m.wau], ["Monthly", m.mau]].map(([l, v]) => (
             <div key={l as string} className="bg-gray-50 rounded-xl py-4">
-              <div className="text-2xl font-extrabold text-[#29ABE2]">{v as number}</div>
+              <div className="text-2xl font-extrabold text-primary-text">{v as number}</div>
               <div className="text-[11px] text-gray-500 mt-1">{l as string}</div>
             </div>
           ))}
@@ -326,7 +326,7 @@ const Overview = ({ m }: { m: M }) => (
       </Panel>
       <Panel title="Materials by Type" icon={BookOpen}>
         <div className="space-y-2">
-          <BarRow label="PDFs" value={m.matByType.pdf} max={m.totalMaterials} suffix="" tone="#29ABE2" />
+          <BarRow label="PDFs" value={m.matByType.pdf} max={m.totalMaterials} suffix="" tone="hsl(var(--primary))" />
           <BarRow label="Videos" value={m.matByType.video} max={m.totalMaterials} suffix="" tone="#8b5cf6" />
           <BarRow label="Notes / Text" value={m.matByType.note} max={m.totalMaterials} suffix="" tone="#f59e0b" />
           <BarRow label="Other" value={m.matByType.other} max={m.totalMaterials} suffix="" tone="#94a3b8" />
@@ -379,7 +379,7 @@ const Engagement = ({ m }: { m: M }) => (
           <div className="relative h-24 w-24 shrink-0">
             <svg viewBox="0 0 36 36" className="h-24 w-24 -rotate-90">
               <circle cx="18" cy="18" r="15.9" fill="none" stroke="#e5e7eb" strokeWidth="3" />
-              <circle cx="18" cy="18" r="15.9" fill="none" stroke="#29ABE2" strokeWidth="3"
+              <circle cx="18" cy="18" r="15.9" fill="none" stroke="hsl(var(--primary))" strokeWidth="3"
                 strokeDasharray={`${m.notifOpenRate} 100`} strokeLinecap="round" />
             </svg>
             <div className="absolute inset-0 flex items-center justify-center text-lg font-extrabold text-gray-900">{m.notifOpenRate}%</div>
@@ -389,7 +389,7 @@ const Engagement = ({ m }: { m: M }) => (
       </Panel>
       <Panel title="Leaderboard Participation" icon={Trophy}>
         <div className="flex items-center gap-4">
-          <div className="text-4xl font-extrabold text-[#29ABE2]">{m.leaderboardParticipation}%</div>
+          <div className="text-4xl font-extrabold text-primary-text">{m.leaderboardParticipation}%</div>
           <p className="text-xs text-gray-500">Of all users who have earned XP and appear on the leaderboard.</p>
         </div>
       </Panel>
@@ -448,7 +448,7 @@ const Intelligence = ({ m }: { m: M }) => {
   };
   return (
     <div className="space-y-5">
-      <div className="bg-gradient-to-r from-[#29ABE2] to-[#1E96CC] rounded-2xl p-5 text-white">
+      <div className="bg-gradient-to-r from-primary to-[#1E96CC] rounded-2xl p-5 text-white">
         <div className="flex items-center gap-2 text-sm font-bold"><Brain className="h-5 w-5" /> Learning Intelligence Center</div>
         <p className="text-xs text-white/80 mt-1">AI-derived patterns across all learners — your control room.</p>
       </div>

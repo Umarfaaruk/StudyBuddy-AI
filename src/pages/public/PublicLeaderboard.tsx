@@ -50,7 +50,7 @@ const PublicLeaderboard = () => {
       <main className="max-w-2xl mx-auto px-6 py-10 space-y-8">
         <div className="text-center space-y-2">
           <div className="h-14 w-14 rounded-2xl bg-primary/10 flex items-center justify-center mx-auto">
-            <Trophy className="h-7 w-7 text-primary" />
+            <Trophy className="h-7 w-7 text-primary-text" />
           </div>
           <h1 className="font-display text-2xl md:text-3xl font-bold text-foreground tracking-tight">
             Most improved
@@ -63,7 +63,7 @@ const PublicLeaderboard = () => {
 
         {isLoading ? (
           <div className="flex justify-center py-12">
-            <Loader2 className="h-6 w-6 animate-spin text-primary" />
+            <Loader2 className="h-6 w-6 animate-spin text-primary-text" />
           </div>
         ) : !data?.length ? (
           // Say why it is empty. A blank board reads as broken, and inventing

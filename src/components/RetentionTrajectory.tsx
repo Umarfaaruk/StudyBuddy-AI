@@ -22,7 +22,7 @@ const RetentionTrajectory = ({ data }: { data: RetentionPoint[] }) => {
     <div className="glass-card rounded-2xl p-6 hover-glow">
       <div className="flex items-center justify-between mb-5 flex-wrap gap-2">
         <div className="flex items-center gap-2">
-          <Activity className="h-5 w-5 text-primary" />
+          <Activity className="h-5 w-5 text-primary-text" />
           <h3 className="text-base font-bold text-foreground">Retention Trajectory</h3>
         </div>
         <div className="flex items-center gap-4">
@@ -114,7 +114,7 @@ const RetentionTrajectory = ({ data }: { data: RetentionPoint[] }) => {
               yAxisId="minutes"
               dataKey="minutes"
               name="Study"
-              fill="#29ABE2"
+              fill="hsl(var(--primary))"
               fillOpacity={0.25}
               radius={[6, 6, 0, 0]}
               maxBarSize={22}
@@ -124,11 +124,11 @@ const RetentionTrajectory = ({ data }: { data: RetentionPoint[] }) => {
               type="monotone"
               dataKey="accuracy"
               name="Accuracy"
-              stroke="#29ABE2"
+              stroke="hsl(var(--primary))"
               strokeWidth={2.5}
               connectNulls
-              dot={{ r: 3, fill: "#29ABE2", strokeWidth: 0 }}
-              activeDot={{ r: 5, fill: "#29ABE2", stroke: "hsl(var(--card))", strokeWidth: 2 }}
+              dot={{ r: 3, fill: "hsl(var(--primary))", strokeWidth: 0 }}
+              activeDot={{ r: 5, fill: "hsl(var(--primary))", stroke: "hsl(var(--card))", strokeWidth: 2 }}
             />
           </ComposedChart>
         </ResponsiveContainer>

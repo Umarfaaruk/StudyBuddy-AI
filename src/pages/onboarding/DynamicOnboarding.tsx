@@ -214,7 +214,7 @@ const DynamicOnboarding = () => {
           <div className="space-y-6">
             <div className="text-center space-y-2">
               <div className="inline-flex h-12 w-12 rounded-2xl bg-primary/10 items-center justify-center">
-                <GraduationCap className="h-6 w-6 text-primary" />
+                <GraduationCap className="h-6 w-6 text-primary-text" />
               </div>
               <h1 className="font-display text-2xl font-bold text-foreground tracking-tight">
                 {onboardingCopy.examPickerLabel}
@@ -462,11 +462,11 @@ const DynamicOnboarding = () => {
                   />
                   <span>
                     My parent or guardian has read the{" "}
-                    <a href="/privacy" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">
+                    <a href="/privacy" target="_blank" rel="noopener noreferrer" className="text-primary-text hover:underline">
                       Privacy Policy
                     </a>{" "}
                     and{" "}
-                    <a href="/terms" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">
+                    <a href="/terms" target="_blank" rel="noopener noreferrer" className="text-primary-text hover:underline">
                       Terms of Service
                     </a>
                     , and agrees to me using StudyBuddy AI.

@@ -61,7 +61,7 @@ const DiagnosticPrompt = () => {
         </div>
         <Link
           to="/diagnostic"
-          className="text-xs font-medium text-primary hover:underline flex-shrink-0"
+          className="text-xs font-medium text-primary-text hover:underline flex-shrink-0"
         >
           Retake
         </Link>
@@ -87,7 +87,7 @@ const DiagnosticPrompt = () => {
             chapters costing you the most marks, then builds your study plan around them.
           </p>
         </div>
-        <ArrowRight className="h-4 w-4 text-primary flex-shrink-0 mt-1" />
+        <ArrowRight className="h-4 w-4 text-primary-text flex-shrink-0 mt-1" />
       </div>
     </Link>
   );

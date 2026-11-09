@@ -107,7 +107,7 @@ const TermsOfService = () => (
       />
       <p>
         If you find a security flaw, please report it to{" "}
-        <a href={`mailto:${CONTACT_EMAIL}`} className="text-primary hover:underline">
+        <a href={`mailto:${CONTACT_EMAIL}`} className="text-primary-text hover:underline">
           {CONTACT_EMAIL}
         </a>{" "}
         rather than exploiting it. We will not pursue action against anyone who
